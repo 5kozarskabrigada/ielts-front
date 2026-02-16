@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
 import { apiListUsers, apiCreateUser, apiUpdateUser, apiDeleteUser } from "../../api";
-import { Trash2, Edit2, Plus, Search, Copy, Check } from "lucide-react";
+import { Trash2, Edit2, Plus, Search, Copy, Check, AlertTriangle } from "lucide-react";
+import Modal from "../../components/Modal/Modal";
 
 export default function UsersPage() {
   const { token } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Modals state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  
   const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", role: "student", password: "" });
   const [editingId, setEditingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [createdUser, setCreatedUser] = useState(null);
 
@@ -40,28 +47,37 @@ export default function UsersPage() {
     try {
       if (editingId) {
         await apiUpdateUser(token, editingId, formData);
-        setIsModalOpen(false);
+        setIsFormModalOpen(false);
+        fetchUsers(searchQuery);
+        setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
+        setEditingId(null);
       } else {
         const newUser = await apiCreateUser(token, formData);
         setCreatedUser(newUser);
-        setIsModalOpen(false);
+        setIsFormModalOpen(false);
+        setIsSuccessModalOpen(true); // Show success modal
+        fetchUsers(searchQuery);
+        setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
       }
-      fetchUsers(searchQuery);
-      setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
-      setEditingId(null);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        await apiDeleteUser(token, id);
-        fetchUsers(searchQuery);
-      } catch (err) {
-        setError(err.message);
-      }
+  const confirmDelete = (id) => {
+    setDeletingId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await apiDeleteUser(token, deletingId);
+      fetchUsers(searchQuery);
+      setIsDeleteModalOpen(false);
+      setDeletingId(null);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -74,7 +90,7 @@ export default function UsersPage() {
       role: user.role,
       password: "", // Leave empty to keep existing
     });
-    setIsModalOpen(true);
+    setIsFormModalOpen(true);
     setCreatedUser(null);
   };
 
@@ -82,22 +98,20 @@ export default function UsersPage() {
     const text = `Name: ${user.first_name} ${user.last_name}\nUsername: ${user.username}\nPassword: ${user.temp_password}`;
     try {
       await navigator.clipboard.writeText(text);
-      alert("Copied credentials to clipboard!");
+      // alert("Copied credentials to clipboard!"); // Replaced with inline feedback if needed, or just silent
     } catch (err) {
       console.error("Clipboard failed", err);
       // Fallback
       const textArea = document.createElement("textarea");
       textArea.value = text;
-      textArea.style.position = "fixed"; // Avoid scrolling to bottom
+      textArea.style.position = "fixed";
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
       try {
         document.execCommand('copy');
-        alert("Copied credentials to clipboard!");
       } catch (err) {
         console.error('Fallback copy failed', err);
-        alert("Failed to copy. Please copy manually.");
       }
       document.body.removeChild(textArea);
     }
@@ -108,54 +122,13 @@ export default function UsersPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
         <button
-          onClick={() => { setIsModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" }); setCreatedUser(null); }}
+          onClick={() => { setIsFormModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" }); setCreatedUser(null); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition"
         >
           <Plus size={20} />
           <span>Add User</span>
         </button>
       </div>
-
-      {/* Created User Success Message */}
-      {createdUser && (
-        <div className="bg-green-50 border border-green-200 p-6 rounded-lg mb-6 shadow-sm">
-          <div className="flex justify-between items-start">
-            <h3 className="text-lg font-bold text-green-800 mb-2 flex items-center">
-              <Check size={20} className="mr-2" /> User Created Successfully!
-            </h3>
-            <button onClick={() => setCreatedUser(null)} className="text-gray-500 hover:text-gray-700">Dismiss</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600 block">Full Name:</span>
-              <span className="font-medium">{createdUser.first_name} {createdUser.last_name}</span>
-            </div>
-            <div>
-              <span className="text-gray-600 block">Username:</span>
-              <span className="font-mono bg-white px-2 py-1 rounded border">{createdUser.username}</span>
-            </div>
-            {createdUser.temp_password && (
-              <div className="col-span-2 mt-2">
-                <span className="text-gray-600 block mb-1">Temporary Password:</span>
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono text-lg font-bold bg-white px-3 py-2 rounded border border-green-300 text-green-700">
-                    {createdUser.temp_password}
-                  </span>
-                  <button
-                    onClick={() => copyToClipboard(createdUser)}
-                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-medium px-3 py-2 rounded hover:bg-blue-50"
-                  >
-                    <Copy size={16} /> <span>Copy Credentials</span>
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Share these credentials with the student. They can use their username <b>{createdUser.username}</b> to login.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {error && <div className="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>}
 
@@ -220,7 +193,7 @@ export default function UsersPage() {
                     <button onClick={() => handleEdit(user)} className="text-blue-600 hover:bg-blue-50 p-2 rounded">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:bg-red-50 p-2 rounded">
+                    <button onClick={() => confirmDelete(user.id)} className="text-red-600 hover:bg-red-50 p-2 rounded">
                       <Trash2 size={18} />
                     </button>
                   </td>
@@ -231,83 +204,146 @@ export default function UsersPage() {
         </table>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingId ? "Edit User" : "Create User"}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                  <input
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                  <input
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email {formData.role === 'student' ? '(Optional)' : '(Required for Admin)'}</label>
-                <input
-                  type="email"
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required={formData.role === 'admin'}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                >
-                  <option value="student">Student</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {editingId ? "New Password (Optional)" : "Password (Optional)"}
-                </label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                  placeholder={editingId ? "Leave blank to keep existing" : "Leave blank to auto-generate"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  {editingId ? "Save Changes" : "Create User"}
-                </button>
-              </div>
-            </form>
+      {/* User Form Modal */}
+      <Modal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        title={editingId ? "Edit User" : "Create User"}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+              <input
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+              <input
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+              />
+            </div>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email {formData.role === 'student' ? '(Optional)' : '(Required for Admin)'}</label>
+            <input
+              type="email"
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required={formData.role === 'admin'}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            >
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {editingId ? "New Password (Optional)" : "Password (Optional)"}
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+              placeholder={editingId ? "Leave blank to keep existing" : "Leave blank to auto-generate"}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setIsFormModalOpen(false)}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              {editingId ? "Save Changes" : "Create User"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Success Modal (Compact) */}
+      <Modal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        title="User Created"
+        type="success"
+        actions={
+          <button onClick={() => setIsSuccessModalOpen(false)} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Done
+          </button>
+        }
+      >
+        {createdUser && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center border-b pb-2">
+              <span className="text-gray-500">Name:</span>
+              <span className="font-medium">{createdUser.first_name} {createdUser.last_name}</span>
+            </div>
+            <div className="flex justify-between items-center border-b pb-2">
+              <span className="text-gray-500">Username:</span>
+              <span className="font-mono bg-gray-50 px-2 rounded">{createdUser.username}</span>
+            </div>
+            {createdUser.temp_password && (
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-gray-500">Password:</span>
+                <div className="flex items-center space-x-2">
+                  <span className="font-mono font-bold text-green-700">{createdUser.temp_password}</span>
+                  <button onClick={() => copyToClipboard(createdUser)} className="text-blue-600 hover:text-blue-800" title="Copy">
+                    <Copy size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+            {createdUser.email && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Email:</span>
+                <span>{createdUser.email}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete User"
+        type="danger"
+        actions={
+          <>
+            <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">
+              Cancel
+            </button>
+            <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p>Are you sure you want to delete this user? This action moves the user to the Recycle Bin.</p>
+      </Modal>
     </div>
   );
 }

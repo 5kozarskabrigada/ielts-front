@@ -100,6 +100,29 @@ export async function apiDeleteUser(token, userId) {
   return res.json();
 }
 
+export async function apiRestoreUser(token, userId) {
+  const res = await fetch(`${API_URL}/users/${userId}/restore`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to restore user");
+  }
+  return res.json();
+}
+
+export async function apiListDeletedUsers(token) {
+  const res = await fetch(`${API_URL}/users/deleted`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to list deleted users");
+  }
+  return res.json();
+}
+
 // ---------- Classrooms ----------
 
 export async function apiListClassrooms(token) {
@@ -184,6 +207,29 @@ export async function apiDeleteExam(token, examId) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Failed to delete exam");
+  }
+  return res.json();
+}
+
+export async function apiRestoreExam(token, examId) {
+  const res = await fetch(`${API_URL}/exams/${examId}/restore`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to restore exam");
+  }
+  return res.json();
+}
+
+export async function apiListDeletedExams(token) {
+  const res = await fetch(`${API_URL}/exams/deleted/all`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to list deleted exams");
   }
   return res.json();
 }
