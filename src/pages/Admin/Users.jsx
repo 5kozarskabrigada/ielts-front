@@ -9,7 +9,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", role: "student" });
+  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", role: "student", password: "" });
   const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [createdUser, setCreatedUser] = useState(null);
@@ -47,7 +47,7 @@ export default function UsersPage() {
         setIsModalOpen(false);
       }
       fetchUsers(searchQuery);
-      setFormData({ firstName: "", lastName: "", email: "", role: "student" });
+      setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
       setEditingId(null);
     } catch (err) {
       setError(err.message);
@@ -72,6 +72,7 @@ export default function UsersPage() {
       lastName: user.last_name,
       email: user.email || "",
       role: user.role,
+      password: "", // Leave empty to keep existing
     });
     setIsModalOpen(true);
     setCreatedUser(null);
@@ -107,7 +108,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
         <button
-          onClick={() => { setIsModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student" }); setCreatedUser(null); }}
+          onClick={() => { setIsModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" }); setCreatedUser(null); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition"
         >
           <Plus size={20} />
@@ -275,6 +276,18 @@ export default function UsersPage() {
                   <option value="student">Student</option>
                   <option value="admin">Admin</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editingId ? "New Password (Optional)" : "Password (Optional)"}
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                  placeholder={editingId ? "Leave blank to keep existing" : "Leave blank to auto-generate"}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
