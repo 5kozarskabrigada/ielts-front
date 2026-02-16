@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../authContext";
-import { Trash2, Edit2, Plus, Search, Users, GraduationCap } from "lucide-react";
+import { Trash2, Edit2, Plus, Search, Users, GraduationCap, AlertCircle, CheckCircle } from "lucide-react";
 import Modal from "../../../components/Modal/Modal";
 import { apiListClassrooms, apiCreateClassroom } from "../../../api";
 
@@ -9,6 +9,13 @@ export default function ClassroomsPage() {
   const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
   const [formData, setFormData] = useState({ name: "", description: "" });
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -35,8 +42,12 @@ export default function ClassroomsPage() {
       setIsModalOpen(false);
       setFormData({ name: "", description: "" });
       fetchClassrooms();
+      
+      setSuccessMessage("Classroom created successfully!");
+      setShowSuccessModal(true);
     } catch (err) {
-      alert("Failed to create classroom");
+      setErrorMessage(err.message || "Failed to create classroom");
+      setShowErrorModal(true);
     }
   };
 
@@ -126,6 +137,52 @@ export default function ClassroomsPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Success"
+      >
+        <div className="text-center py-4">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900">Operation Successful</h3>
+          <p className="mt-2 text-sm text-gray-500">{successMessage}</p>
+          <div className="mt-6">
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Error"
+      >
+        <div className="text-center py-4">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <AlertCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900">Operation Failed</h3>
+          <p className="mt-2 text-sm text-gray-500">{errorMessage}</p>
+          <div className="mt-6">
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

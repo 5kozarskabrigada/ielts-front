@@ -11,6 +11,7 @@ import ExamDetail from "./pages/Admin/ExamDetail";
 import ExamEditor from "./pages/Admin/ExamEditor"; // New Editor
 import SettingsPage from "./pages/Admin/Settings";
 import ResultsPage from "./pages/Admin/Results";
+import RecycleBin from "./pages/Admin/RecycleBin";
 import StudentDashboard from "./pages/Student/Dashboard";
 import ExamPlayer from "./pages/Student/ExamPlayer";
 
@@ -55,6 +56,7 @@ function App() {
             <Route path="exams/:id" element={<ExamDetail />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="results" element={<ResultsPage />} />
+            <Route path="recycle-bin" element={<RecycleBin />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
 
