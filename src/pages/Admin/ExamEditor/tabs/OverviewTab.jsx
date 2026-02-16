@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
-import { useAuth } from "../../../authContext";
-import { supabase } from "../../../supabaseClient"; // Need supabase for fetching classrooms directly or use api
-import { apiListClassrooms } from "../../../api"; // We'll add this to api.js
+import { useAuth } from "../../../../authContext";
+// import { supabase } from "../../../../supabaseClient"; 
+import { apiListClassrooms } from "../../../../api"; // We'll add this to api.js
 
 export default function OverviewTab() {
   const { exam, updateExam } = useExamEditor();
