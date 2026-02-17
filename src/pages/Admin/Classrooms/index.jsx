@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../authContext";
-import { Trash2, Edit2, Plus, Search, Users, GraduationCap, AlertCircle, CheckCircle } from "lucide-react";
+import { Trash2, Edit2, Plus, Search, Users, GraduationCap, AlertCircle, CheckCircle, X } from "lucide-react";
 import Modal from "../../../components/Modal/Modal";
-import { apiListClassrooms, apiCreateClassroom } from "../../../api";
+import { 
+  apiListClassrooms, 
+  apiCreateClassroom, 
+  apiGetClassroom, 
+  apiListUsers, 
+  apiAddStudentToClassroom, 
+  apiRemoveStudentFromClassroom 
+} from "../../../api";
 
 export default function ClassroomsPage() {
   const { token } = useAuth();
@@ -10,6 +17,14 @@ export default function ClassroomsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Manage Students Modal
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [selectedClassroom, setSelectedClassroom] = useState(null);
+  const [classroomStudents, setClassroomStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [selectedStudentToAdd, setSelectedStudentToAdd] = useState("");
+
   // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -31,9 +46,60 @@ export default function ClassroomsPage() {
     }
   };
 
+  const fetchClassroomDetails = async (id) => {
+    try {
+      const data = await apiGetClassroom(token, id);
+      setSelectedClassroom(data);
+      setClassroomStudents(data.students || []);
+    } catch (err) {
+      console.error("Failed to fetch classroom details", err);
+    }
+  };
+
+  const fetchAllStudents = async () => {
+    try {
+      const data = await apiListUsers(token); // Should filter by role='student' if API supports or client side
+      setAllStudents(data.filter(u => u.role === 'student'));
+    } catch (err) {
+      console.error("Failed to fetch students", err);
+    }
+  };
+
   useEffect(() => {
     fetchClassrooms();
+    fetchAllStudents();
   }, [token]);
+
+  const handleManageStudents = (cls) => {
+    setSelectedClassroom(cls);
+    setClassroomStudents(cls.students || []); // Optimistic or partial
+    fetchClassroomDetails(cls.id); // Fetch full details
+    setIsManageModalOpen(true);
+    setSelectedStudentToAdd("");
+  };
+
+  const handleAddStudent = async () => {
+    if (!selectedStudentToAdd || !selectedClassroom) return;
+    try {
+      await apiAddStudentToClassroom(token, selectedClassroom.id, selectedStudentToAdd);
+      fetchClassroomDetails(selectedClassroom.id);
+      fetchClassrooms(); // Update list count
+      setSelectedStudentToAdd("");
+    } catch (err) {
+      alert("Failed to add student: " + err.message);
+    }
+  };
+
+  const handleRemoveStudent = async (studentId) => {
+    if (!window.confirm("Remove student from class?")) return;
+    try {
+      await apiRemoveStudentFromClassroom(token, selectedClassroom.id, studentId);
+      fetchClassroomDetails(selectedClassroom.id);
+      fetchClassrooms(); // Update list count
+    } catch (err) {
+      alert("Failed to remove student");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,7 +158,10 @@ export default function ClassroomsPage() {
                 <span>{cls.students?.[0]?.count || 0} Students Enrolled</span>
               </div>
               <div className="mt-4 flex space-x-2">
-                <button className="flex-1 bg-gray-50 text-gray-700 py-2 rounded text-sm font-medium hover:bg-gray-100">
+                <button 
+                  onClick={() => handleManageStudents(cls)}
+                  className="flex-1 bg-gray-50 text-gray-700 py-2 rounded text-sm font-medium hover:bg-gray-100 transition"
+                >
                   Manage Students
                 </button>
               </div>
@@ -100,6 +169,96 @@ export default function ClassroomsPage() {
           ))
         )}
       </div>
+
+      {/* Manage Students Modal */}
+      <Modal
+        isOpen={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
+        title={selectedClassroom ? `Manage: ${selectedClassroom.name}` : "Manage Students"}
+      >
+        <div className="space-y-6">
+          {/* Add Student Section */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Add Student to Class</label>
+            <div className="flex space-x-2">
+              <select
+                className="flex-1 p-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={selectedStudentToAdd}
+                onChange={(e) => setSelectedStudentToAdd(e.target.value)}
+              >
+                <option value="">Select a student...</option>
+                {allStudents
+                  .filter(s => !classroomStudents.some(cs => cs.id === s.id))
+                  .map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.first_name} {s.last_name} ({s.username})
+                    </option>
+                  ))
+                }
+              </select>
+              <button
+                onClick={handleAddStudent}
+                disabled={!selectedStudentToAdd}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+              >
+                <Plus size={16} />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Student List */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center justify-between">
+              <span>Enrolled Students</span>
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">{classroomStudents.length}</span>
+            </h3>
+            <div className="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+              {classroomStudents.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">
+                  No students enrolled in this class.
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="p-3 font-medium text-gray-600">Name</th>
+                      <th className="p-3 font-medium text-gray-600">Username</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {classroomStudents.map((student) => (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="p-3 font-medium text-gray-900">{student.first_name} {student.last_name}</td>
+                        <td className="p-3 text-gray-500">{student.username}</td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleRemoveStudent(student.id)}
+                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition"
+                            title="Remove from class"
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => setIsManageModalOpen(false)}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create Modal */}
       <Modal

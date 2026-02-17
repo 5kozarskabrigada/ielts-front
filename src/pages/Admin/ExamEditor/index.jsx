@@ -10,7 +10,7 @@ import { Layout, Headphones, BookOpen, PenTool, Save, Upload, AlertTriangle, Che
 import Modal from "../../../components/Modal/Modal";
 
 function ExamEditorContent() {
-  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam } = useExamEditor();
+  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const { token } = useAuth();
   const { id } = useParams();
@@ -51,7 +51,12 @@ function ExamEditorContent() {
     }
 
     try {
-      await apiSaveExamStructure(token, examId, { exam, sections, questions });
+      const response = await apiSaveExamStructure(token, examId, { exam, sections, questions });
+      
+      if (response.idMapping) {
+        updateIds(response.idMapping);
+      }
+
       showModal("Success", "Exam saved successfully!", "success");
       if (isNew) {
         navigate(`/admin/exams/editor/${examId}`);

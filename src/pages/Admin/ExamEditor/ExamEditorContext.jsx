@@ -76,6 +76,50 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
     setQuestions(prev => prev.filter(q => q.id !== id));
   };
 
+  const updateIds = (mapping) => {
+    if (!mapping) return;
+    
+    // Update sections
+    if (mapping.sections) {
+      setSections(prev => prev.map(s => {
+        const newId = mapping.sections[s.id];
+        return newId ? { ...s, id: newId } : s;
+      }));
+      
+      // Also update section_id in questions if the section ID changed
+      // But wait, if we update section ID, we must update question's section_id too
+      // The questions state relies on section_id to filter.
+      
+      // Actually, let's do questions first or handle it carefully.
+      // If we update section ID 'l1' -> 'uuid-1', all questions with section_id 'l1' must now have 'uuid-1'.
+    }
+
+    // We need to do this carefully.
+    setSections(prevSections => {
+      const newSections = prevSections.map(s => {
+        const newId = mapping.sections && mapping.sections[s.id];
+        return newId ? { ...s, id: newId } : s;
+      });
+      return newSections;
+    });
+
+    setQuestions(prevQuestions => {
+      // First update section_ids based on section mapping
+      let newQuestions = prevQuestions.map(q => {
+        const newSectionId = mapping.sections && mapping.sections[q.section_id];
+        return newSectionId ? { ...q, section_id: newSectionId } : q;
+      });
+
+      // Then update question IDs based on question mapping
+      newQuestions = newQuestions.map(q => {
+        const newId = mapping.questions && mapping.questions[q.id];
+        return newId ? { ...q, id: newId } : q;
+      });
+      
+      return newQuestions;
+    });
+  };
+
   // mode: 'strict' (for publishing) or 'draft' (for saving work in progress)
   const validate = (mode = 'draft') => {
     const errors = [];
@@ -114,7 +158,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       exam, updateExam,
       sections, updateSection,
       questions, addQuestion, updateQuestion, deleteQuestion,
-      validationErrors, validate, isSaving
+      validationErrors, validate, isSaving, updateIds
     }}>
       {children}
     </ExamEditorContext.Provider>

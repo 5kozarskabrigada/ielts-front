@@ -149,6 +149,42 @@ export async function apiCreateClassroom(token, classroomData) {
   return res.json();
 }
 
+export async function apiGetClassroom(token, id) {
+  const res = await fetch(`${API_URL}/classrooms/${id}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get classroom");
+  }
+  return res.json();
+}
+
+export async function apiAddStudentToClassroom(token, classroomId, studentId) {
+  const res = await fetch(`${API_URL}/classrooms/${classroomId}/students`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ studentId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to add student to classroom");
+  }
+  return res.json();
+}
+
+export async function apiRemoveStudentFromClassroom(token, classroomId, studentId) {
+  const res = await fetch(`${API_URL}/classrooms/${classroomId}/students/${studentId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to remove student from classroom");
+  }
+  return res.json();
+}
+
 // ---------- Exams ----------
 
 export async function apiListExams(token) {
@@ -317,7 +353,6 @@ export async function apiLogViolation(token, examId, type, metadata) {
 export async function apiGetDashboardStats(token) {
   const res = await fetch(`${API_URL}/admin/stats`, {
     headers: authHeaders(token),
-    body: JSON.stringify({}), // Should be GET? Ah, original code had fetch with headers, but GET usually doesn't have body unless specified. Wait, previous code didn't have body.
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
