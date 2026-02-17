@@ -278,7 +278,7 @@ export default function ClassroomsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
             <textarea
               className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.description}

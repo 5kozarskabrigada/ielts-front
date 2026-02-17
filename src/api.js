@@ -112,6 +112,30 @@ export async function apiRestoreUser(token, userId) {
   return res.json();
 }
 
+export async function apiPermanentlyDeleteUser(token, id) {
+  const res = await fetch(`${API_URL}/users/${id}/permanent`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to permanently delete user");
+  }
+  return res.json();
+}
+
+export async function apiPermanentlyDeleteExam(token, id) {
+  const res = await fetch(`${API_URL}/exams/${id}/permanent`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to permanently delete exam");
+  }
+  return res.json();
+}
+
 export async function apiListDeletedUsers(token) {
   const res = await fetch(`${API_URL}/users/deleted`, {
     headers: authHeaders(token),

@@ -18,7 +18,9 @@ export default function RecycleBin() {
 
   // Modal states
   const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [itemToRestore, setItemToRestore] = useState(null); // { type: 'user' | 'exam', data: ... }
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToProcess, setItemToProcess] = useState(null); // { type: 'user' | 'exam', action: 'restore' | 'delete', data: ... }
+  
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -46,30 +48,48 @@ export default function RecycleBin() {
     fetchData();
   }, [token]);
 
-  const handleRestoreClick = (type, item) => {
-    setItemToRestore({ type, data: item });
-    setShowRestoreModal(true);
+  const handleActionClick = (action, type, item) => {
+    setItemToProcess({ type, action, data: item });
+    if (action === "restore") {
+      setShowRestoreModal(true);
+    } else {
+      setShowDeleteModal(true);
+    }
   };
 
-  const confirmRestore = async () => {
-    if (!itemToRestore) return;
+  const confirmAction = async () => {
+    if (!itemToProcess) return;
+    const { action, type, data } = itemToProcess;
 
     try {
-      if (itemToRestore.type === "user") {
-        await apiRestoreUser(token, itemToRestore.data.id);
-        setSuccessMessage(`User ${itemToRestore.data.username} restored successfully`);
+      if (action === "restore") {
+        if (type === "user") {
+          await apiRestoreUser(token, data.id);
+          setSuccessMessage(`User ${data.username} restored successfully`);
+        } else {
+          await apiRestoreExam(token, data.id);
+          setSuccessMessage(`Exam "${data.title}" restored successfully`);
+        }
+        setShowRestoreModal(false);
       } else {
-        await apiRestoreExam(token, itemToRestore.data.id);
-        setSuccessMessage(`Exam "${itemToRestore.data.title}" restored successfully`);
+        // Permanent Delete
+        if (type === "user") {
+          await apiPermanentlyDeleteUser(token, data.id);
+          setSuccessMessage(`User ${data.username} permanently deleted`);
+        } else {
+          await apiPermanentlyDeleteExam(token, data.id);
+          setSuccessMessage(`Exam "${data.title}" permanently deleted`);
+        }
+        setShowDeleteModal(false);
       }
       
-      setShowRestoreModal(false);
-      setItemToRestore(null);
+      setItemToProcess(null);
       fetchData();
       setShowSuccessModal(true);
     } catch (err) {
       setShowRestoreModal(false);
-      setErrorMessage(err.message || "Failed to restore item");
+      setShowDeleteModal(false);
+      setErrorMessage(err.message || `Failed to ${action} item`);
       setShowErrorModal(true);
     }
   };
@@ -222,9 +242,9 @@ export default function RecycleBin() {
           <p className="text-gray-600">
             Are you sure you want to restore{" "}
             <strong>
-              {itemToRestore?.type === "user"
-                ? itemToRestore?.data?.username
-                : itemToRestore?.data?.title}
+              {itemToProcess?.type === "user"
+                ? itemToProcess?.data?.username
+                : itemToProcess?.data?.title}
             </strong>
             ?
           </p>
@@ -236,10 +256,47 @@ export default function RecycleBin() {
               Cancel
             </button>
             <button
-              onClick={confirmRestore}
+              onClick={confirmAction}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm"
             >
               Restore Item
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Forever Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Permanently"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3 text-red-600 bg-red-50 p-3 rounded-lg">
+            <AlertCircle size={24} />
+            <p className="font-medium">Warning: This action cannot be undone.</p>
+          </div>
+          <p className="text-gray-600">
+            Are you sure you want to <strong>permanently delete</strong>{" "}
+            <strong>
+              {itemToProcess?.type === "user"
+                ? itemToProcess?.data?.username
+                : itemToProcess?.data?.title}
+            </strong>
+            ? This will remove all associated data forever.
+          </p>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmAction}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm"
+            >
+              Delete Forever
             </button>
           </div>
         </div>
