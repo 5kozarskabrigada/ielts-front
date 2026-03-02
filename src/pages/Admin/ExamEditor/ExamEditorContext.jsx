@@ -4,12 +4,14 @@ const ExamEditorContext = createContext();
 
 export const useExamEditor = () => useContext(ExamEditorContext);
 
-// Generate internal code: EXAM-YYYYMMDD-XXXXX
+// Generate internal code: 6 character alphanumeric (letters + numbers)
 const generateInternalCode = () => {
-  const date = new Date();
-  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `EXAM-${dateStr}-${random}`;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 };
 
 export const ExamEditorProvider = ({ children, initialData = null }) => {
