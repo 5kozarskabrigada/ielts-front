@@ -104,7 +104,11 @@ function ExamEditorContent() {
       <div className="w-64 bg-white border-r flex flex-col">
         <div className="p-6 border-b">
           <h2 className="font-bold text-gray-900">Exam Editor</h2>
-          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full uppercase font-bold">
+          <span className={`text-xs px-2 py-0.5 rounded-full uppercase font-bold ${
+            exam.status === 'active' 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
             {exam.status}
           </span>
         </div>

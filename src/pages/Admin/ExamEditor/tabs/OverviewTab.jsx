@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { useAuth } from "../../../../authContext";
-// import { supabase } from "../../../../supabaseClient"; 
-import { apiListClassrooms } from "../../../../api"; // We'll add this to api.js
+import { useParams } from "react-router-dom";
+import { apiListClassrooms, apiUpdateExamStatus, apiRegenerateExamCode } from "../../../../api";
+import { Play, Pause, Copy, RefreshCw, CheckCircle, Key, AlertCircle } from "lucide-react";
 
 export default function OverviewTab() {
   const { exam, updateExam } = useExamEditor();
   const { token } = useAuth();
+  const { id: examId } = useParams();
   const [classrooms, setClassrooms] = useState([]);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
     const fetchClassrooms = async () => {
-      // Temporary direct fetch or mock if apiListClassrooms isn't ready
-      // Assuming apiListClassrooms exists or we implement it
       try {
         const res = await fetch("http://localhost:4000/api/classrooms", {
            headers: { Authorization: `Bearer ${token}` }
@@ -49,8 +51,149 @@ export default function OverviewTab() {
     updateSecurity({ assigned_classrooms: updated });
   };
 
+  const handleActivateExam = async () => {
+    if (!examId) {
+      alert("Please save the exam first before activating");
+      return;
+    }
+    setIsActivating(true);
+    try {
+      const newStatus = exam.status === 'active' ? 'draft' : 'active';
+      const updated = await apiUpdateExamStatus(token, examId, { status: newStatus });
+      updateExam({ status: updated.status, access_code: updated.access_code });
+    } catch (err) {
+      alert("Failed to update status: " + err.message);
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!examId) return;
+    try {
+      const updated = await apiRegenerateExamCode(token, examId);
+      updateExam({ access_code: updated.exam.access_code });
+    } catch (err) {
+      alert("Failed to regenerate code: " + err.message);
+    }
+  };
+
+  const copyAccessCode = async () => {
+    const code = exam.access_code;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch (err) {
+      const textArea = document.createElement("textarea");
+      textArea.value = code;
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="space-y-8">
+      {/* Activation Panel */}
+      <div className={`p-6 rounded-xl border-2 ${
+        exam.status === 'active' 
+          ? 'bg-green-50 border-green-200' 
+          : 'bg-gray-50 border-gray-200'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className={`p-3 rounded-full ${
+              exam.status === 'active' ? 'bg-green-100' : 'bg-gray-200'
+            }`}>
+              {exam.status === 'active' ? (
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-gray-500" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                {exam.status === 'active' ? 'Exam is Active' : 'Exam is Not Active'}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {exam.status === 'active' 
+                  ? 'Students can now access this exam with the code below' 
+                  : 'Activate this exam to allow students to take it'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleActivateExam}
+            disabled={isActivating || !examId}
+            className={`px-6 py-3 rounded-lg font-medium flex items-center space-x-2 transition ${
+              exam.status === 'active'
+                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {exam.status === 'active' ? (
+              <>
+                <Pause size={18} />
+                <span>{isActivating ? 'Deactivating...' : 'Deactivate'}</span>
+              </>
+            ) : (
+              <>
+                <Play size={18} />
+                <span>{isActivating ? 'Activating...' : 'Activate Exam'}</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Access Code Display */}
+        {exam.status === 'active' && exam.access_code && (
+          <div className="mt-6 pt-6 border-t border-green-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Key className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-700">Student Access Code</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <span className="font-mono text-3xl font-bold text-green-800 tracking-[0.2em] select-all">
+                  {exam.access_code}
+                </span>
+                <button
+                  onClick={copyAccessCode}
+                  className={`p-2 rounded-lg transition ${
+                    codeCopied 
+                      ? 'bg-green-200 text-green-700' 
+                      : 'bg-green-100 text-green-600 hover:bg-green-200'
+                  }`}
+                  title="Copy code"
+                >
+                  {codeCopied ? <CheckCircle size={18} /> : <Copy size={18} />}
+                </button>
+                <button
+                  onClick={handleRegenerateCode}
+                  className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition"
+                  title="Regenerate code"
+                >
+                  <RefreshCw size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!examId && (
+          <p className="mt-4 text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg">
+            Save the exam first to enable activation
+          </p>
+        )}
+      </div>
+
       <div className="bg-white p-6 rounded-lg shadow-sm border">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Exam Configuration</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -86,17 +229,14 @@ export default function OverviewTab() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500"
-              value={exam.status}
-              onChange={(e) => updateExam({ status: e.target.value })}
-            >
-              <option value="draft">Draft</option>
-              <option value="review">Ready for Review</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={2}
+              value={exam.description || ""}
+              onChange={(e) => updateExam({ description: e.target.value })}
+              placeholder="Brief description of the exam..."
+            />
           </div>
         </div>
       </div>

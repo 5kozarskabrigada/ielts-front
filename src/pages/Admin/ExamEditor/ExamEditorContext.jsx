@@ -7,8 +7,10 @@ export const useExamEditor = () => useContext(ExamEditorContext);
 export const ExamEditorProvider = ({ children, initialData = null }) => {
   const [exam, setExam] = useState(initialData || {
     title: "",
+    description: "",
     type: "academic", // 'academic' | 'general'
     code: "",
+    access_code: "",
     status: "draft",
     modules_config: {
       listening: { enabled: true, duration: 30 },
