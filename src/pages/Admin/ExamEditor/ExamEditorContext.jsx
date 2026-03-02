@@ -31,6 +31,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   // Writing: Fixed 2 tasks
   const [sections, setSections] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [deletedQuestionIds, setDeletedQuestionIds] = useState([]); // Track deleted question IDs for soft delete
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -73,7 +74,17 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   };
 
   const deleteQuestion = (id) => {
+    // If it's a persisted question (UUID format), track it for soft delete
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isUUID) {
+      setDeletedQuestionIds(prev => [...prev, id]);
+    }
+    // Remove from local state either way
     setQuestions(prev => prev.filter(q => q.id !== id));
+  };
+
+  const clearDeletedQuestionIds = () => {
+    setDeletedQuestionIds([]);
   };
 
   const updateIds = (mapping) => {
@@ -158,6 +169,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       exam, updateExam,
       sections, updateSection,
       questions, addQuestion, updateQuestion, deleteQuestion,
+      deletedQuestionIds, clearDeletedQuestionIds,
       validationErrors, validate, isSaving, updateIds
     }}>
       {children}

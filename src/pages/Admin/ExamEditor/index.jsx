@@ -10,7 +10,7 @@ import { Layout, Headphones, BookOpen, PenTool, Save, Upload, AlertTriangle, Che
 import Modal from "../../../components/Modal/Modal";
 
 function ExamEditorContent() {
-  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds } = useExamEditor();
+  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const { token } = useAuth();
   const { id } = useParams();
@@ -51,11 +51,19 @@ function ExamEditorContent() {
     }
 
     try {
-      const response = await apiSaveExamStructure(token, examId, { exam, sections, questions });
+      const response = await apiSaveExamStructure(token, examId, { 
+        exam, 
+        sections, 
+        questions,
+        deletedQuestionIds // Include deleted question IDs for soft delete
+      });
       
       if (response.idMapping) {
         updateIds(response.idMapping);
       }
+      
+      // Clear the deleted question IDs after successful save
+      clearDeletedQuestionIds();
 
       showModal("Success", "Exam saved successfully!", "success");
       if (isNew) {

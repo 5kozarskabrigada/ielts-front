@@ -419,3 +419,64 @@ export async function apiUpdateScoringConfig(token, key, value) {
   }
   return res.json();
 }
+
+// ---------- Question Recycle Bin ----------
+
+export async function apiDeleteQuestion(token, questionId) {
+  const res = await fetch(`${API_URL}/exams/questions/${questionId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete question");
+  }
+  return res.json();
+}
+
+export async function apiRestoreQuestion(token, questionId) {
+  const res = await fetch(`${API_URL}/exams/questions/${questionId}/restore`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to restore question");
+  }
+  return res.json();
+}
+
+export async function apiListDeletedQuestions(token) {
+  const res = await fetch(`${API_URL}/exams/questions/deleted`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to list deleted questions");
+  }
+  return res.json();
+}
+
+export async function apiPermanentlyDeleteQuestion(token, questionId) {
+  const res = await fetch(`${API_URL}/exams/questions/${questionId}/permanent`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to permanently delete question");
+  }
+  return res.json();
+}
+
+export async function apiRegenerateExamCode(token, examId) {
+  const res = await fetch(`${API_URL}/exams/${examId}/regenerate-code`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to regenerate exam code");
+  }
+  return res.json();
+}

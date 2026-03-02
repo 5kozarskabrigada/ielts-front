@@ -95,10 +95,9 @@ export default function UsersPage() {
   };
 
   const copyToClipboard = async (user) => {
-    const text = `Name: ${user.first_name} ${user.last_name}\nUsername: ${user.username}\nPassword: ${user.temp_password}`;
+    const text = `${user.first_name} ${user.last_name}\n${user.username}\n${user.temp_password}`;
     try {
       await navigator.clipboard.writeText(text);
-      // alert("Copied credentials to clipboard!"); // Replaced with inline feedback if needed, or just silent
     } catch (err) {
       console.error("Clipboard failed", err);
       // Fallback
@@ -307,20 +306,24 @@ export default function UsersPage() {
             {createdUser.temp_password && (
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-gray-500">Password:</span>
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono font-bold text-green-700">{createdUser.temp_password}</span>
-                  <button onClick={() => copyToClipboard(createdUser)} className="text-blue-600 hover:text-blue-800" title="Copy">
-                    <Copy size={16} />
-                  </button>
-                </div>
+                <span className="font-mono font-bold text-green-700">{createdUser.temp_password}</span>
               </div>
             )}
             {createdUser.email && (
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-gray-500">Email:</span>
                 <span>{createdUser.email}</span>
               </div>
             )}
+            <div className="pt-2">
+              <button 
+                onClick={() => copyToClipboard(createdUser)} 
+                className="w-full py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition font-medium flex items-center justify-center space-x-2"
+              >
+                <Copy size={16} />
+                <span>Copy All Credentials</span>
+              </button>
+            </div>
           </div>
         )}
       </Modal>
