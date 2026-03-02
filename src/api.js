@@ -480,3 +480,27 @@ export async function apiRegenerateExamCode(token, examId) {
   }
   return res.json();
 }
+
+export async function apiUpdateAccessCode(token, examId, accessCode) {
+  const res = await fetch(`${API_URL}/exams/${examId}/access-code`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ access_code: accessCode }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update access code");
+  }
+  return res.json();
+}
+
+export async function apiGetExamStats(token, examId) {
+  const res = await fetch(`${API_URL}/exams/${examId}/stats`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get exam stats");
+  }
+  return res.json();
+}

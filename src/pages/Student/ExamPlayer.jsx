@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { apiGetExam, apiLogViolation, apiSubmitExam } from "../../api";
-import { AlertTriangle, Clock, Save, ShieldAlert, Headphones, BookOpen, PenTool, SkipForward, CheckSquare, FileText } from "lucide-react";
+import { AlertTriangle, Clock, Save, ShieldAlert, Headphones, BookOpen, PenTool, SkipForward, CheckSquare, FileText, Eye, X } from "lucide-react";
 
 export default function ExamPlayer() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const isAdminPreview = searchParams.get('preview') === 'admin';
   const { token, user } = useAuth();
   const navigate = useNavigate();
   const [exam, setExam] = useState(null);
@@ -67,8 +69,10 @@ export default function ExamPlayer() {
     return () => clearInterval(timer);
   }, [exam, timeLeft]);
 
-  // Security Monitoring
+  // Security Monitoring - Skip in admin preview mode
   useEffect(() => {
+    if (isAdminPreview) return; // Skip security checks in preview mode
+    
     const handleVisibilityChange = () => { if (document.hidden) logViolation("tab_switch"); };
     const handleBlur = () => logViolation("window_blur");
     const handleFullScreenChange = () => {
@@ -89,7 +93,7 @@ export default function ExamPlayer() {
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
     };
-  }, [logViolation]);
+  }, [logViolation, isAdminPreview]);
 
   const requestFullScreen = () => {
     if (containerRef.current) {
@@ -124,6 +128,146 @@ export default function ExamPlayer() {
   };
 
   if (loading) return <div className="p-8 text-center">Loading exam...</div>;
+
+  // Admin Preview Mode - Skip fullscreen requirement
+  if (isAdminPreview) {
+    const currentSections = exam?.sections?.filter(s => s.module_type === currentModule) || [];
+    const currentQuestions = exam?.questions?.filter(q => q.module_type === currentModule) || [];
+    
+    return (
+      <div ref={containerRef} className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+        {/* Admin Preview Banner */}
+        <div className="bg-purple-600 text-white px-4 py-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-3">
+            <Eye size={20} />
+            <span className="font-medium">Admin Preview Mode</span>
+            <span className="text-purple-200 text-sm">You are viewing this exam as a student would see it</span>
+          </div>
+          <button 
+            onClick={() => window.close()}
+            className="flex items-center space-x-1 bg-purple-500 hover:bg-purple-400 px-3 py-1 rounded text-sm"
+          >
+            <X size={16} />
+            <span>Close Preview</span>
+          </button>
+        </div>
+        
+        {/* Top Bar */}
+        <div className="bg-gray-900 text-white p-3 flex justify-between items-center shadow-md z-10 shrink-0">
+          <div className="flex items-center space-x-4">
+            <div className="text-xl font-bold uppercase tracking-wider text-blue-400">{currentModule} Module</div>
+            <span className="text-gray-400 text-sm">Preview Mode</span>
+          </div>
+          
+          <div className="flex items-center space-x-6">
+            <div className="text-2xl font-mono font-bold bg-gray-800 px-4 py-1 rounded text-white flex items-center space-x-2 border border-gray-700">
+              <Clock size={20} className="text-yellow-500" />
+              <span>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}</span>
+            </div>
+            
+            {/* Module Navigation for Preview */}
+            <div className="flex items-center space-x-2">
+              {MODULE_ORDER.map(mod => (
+                <button
+                  key={mod}
+                  onClick={() => {
+                    setCurrentModule(mod);
+                    setTimeLeft(MODULE_DURATIONS[mod] * 60);
+                  }}
+                  className={`px-3 py-1 rounded text-sm font-medium transition ${
+                    currentModule === mod
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {mod}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* LISTENING LAYOUT */}
+          {currentModule === 'listening' && (
+            <div className="flex flex-col w-full h-full">
+              <div className="bg-gray-800 p-4 border-b border-gray-700 flex justify-center shrink-0">
+                {currentSections.length > 0 && currentSections[0].audio_url ? (
+                  <audio controls controlsList="nodownload" ref={audioRef} className="w-full max-w-2xl">
+                    <source src={currentSections[0].audio_url} type="audio/mpeg" />
+                  </audio>
+                ) : (
+                  <div className="text-gray-400 flex items-center space-x-2">
+                    <Headphones size={20} /> <span>Audio will play for each section.</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 overflow-auto p-8 bg-white">
+                {currentQuestions.length > 0 ? (
+                  currentQuestions.map((q, idx) => (
+                    <div key={q.id} className="mb-6 p-4 border rounded-lg bg-gray-50">
+                      <div className="font-medium mb-2">Q{idx + 1}. {q.question_text}</div>
+                      <div className="text-sm text-gray-500">(Preview - answers not recorded)</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 py-8">No questions in this module</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* READING LAYOUT */}
+          {currentModule === 'reading' && (
+            <div className="flex w-full h-full">
+              <div className="w-1/2 border-r overflow-auto p-8 bg-white">
+                {currentSections.map(section => (
+                  <div key={section.id} className="mb-8">
+                    <h3 className="text-lg font-bold mb-4">{section.title}</h3>
+                    <div className="prose max-w-none text-gray-700 leading-relaxed">
+                      {section.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="w-1/2 overflow-auto p-8 bg-gray-50">
+                {currentQuestions.map((q, idx) => (
+                  <div key={q.id} className="mb-6 p-4 border rounded-lg bg-white">
+                    <div className="font-medium mb-2">Q{idx + 1}. {q.question_text}</div>
+                    <div className="text-sm text-gray-500">(Preview - answers not recorded)</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* WRITING LAYOUT */}
+          {currentModule === 'writing' && (
+            <div className="flex w-full h-full">
+              <div className="w-1/2 border-r overflow-auto p-8 bg-white">
+                {currentSections.map(section => (
+                  <div key={section.id} className="mb-8">
+                    <h3 className="text-lg font-bold mb-4">{section.title || "Writing Task"}</h3>
+                    <div className="prose max-w-none text-gray-700">{section.content}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="w-1/2 p-8 bg-gray-50">
+                <div className="bg-white border rounded-lg p-4 h-full">
+                  <textarea
+                    className="w-full h-full resize-none outline-none"
+                    placeholder="(Preview mode - writing disabled)"
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!isFullScreen) {
     return (
