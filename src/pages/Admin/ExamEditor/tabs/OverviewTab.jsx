@@ -67,13 +67,9 @@ export default function OverviewTab() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Internal Code</label>
-            <input
-              type="text"
-              className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500"
-              value={exam.code}
-              onChange={(e) => updateExam({ code: e.target.value })}
-              placeholder="e.g. IELTS-AC-001"
-            />
+            <div className="w-full p-2 border rounded bg-gray-50 text-gray-600 font-mono text-sm">
+              {exam.code || 'Auto-generated on save'}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Exam Type</label>

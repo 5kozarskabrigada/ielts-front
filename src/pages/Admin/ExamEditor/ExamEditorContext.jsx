@@ -4,12 +4,20 @@ const ExamEditorContext = createContext();
 
 export const useExamEditor = () => useContext(ExamEditorContext);
 
+// Generate internal code: EXAM-YYYYMMDD-XXXXX
+const generateInternalCode = () => {
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+  return `EXAM-${dateStr}-${random}`;
+};
+
 export const ExamEditorProvider = ({ children, initialData = null }) => {
   const [exam, setExam] = useState(initialData || {
     title: "",
     description: "",
     type: "academic", // 'academic' | 'general'
-    code: "",
+    code: generateInternalCode(), // Auto-generate on creation
     access_code: "",
     status: "draft",
     modules_config: {
