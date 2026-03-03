@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
 const ExamEditorContext = createContext();
 
@@ -14,13 +14,27 @@ const generateInternalCode = () => {
   return code;
 };
 
+// Get or create a stable code for new exams (survives re-renders but not page refresh)
+const getStableCode = () => {
+  // Check sessionStorage for a temp code for unsaved exams
+  const storedCode = sessionStorage.getItem('newExamCode');
+  if (storedCode) return storedCode;
+  
+  const newCode = generateInternalCode();
+  sessionStorage.setItem('newExamCode', newCode);
+  return newCode;
+};
+
 export const ExamEditorProvider = ({ children, initialData = null }) => {
+  // Use stable code for new exams, or use initialData's code for existing exams
+  const initialCode = initialData?.code || initialData?.access_code || getStableCode();
+  
   const [exam, setExam] = useState(initialData || {
     title: "",
     description: "",
     type: "academic", // 'academic' | 'general'
-    code: generateInternalCode(), // Auto-generate on creation
-    access_code: "",
+    code: initialCode,
+    access_code: initialCode,
     status: "draft",
     modules_config: {
       listening: { enabled: true, duration: 30 },
@@ -37,6 +51,11 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       max_violations: 3
     }
   });
+  
+  // Clear the temp code from sessionStorage when exam is successfully saved (has an ID)
+  const clearTempCode = () => {
+    sessionStorage.removeItem('newExamCode');
+  };
 
   // Listening: Fixed 4 sections
   // Reading: Fixed 3 passages
@@ -216,7 +235,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       sections, updateSection,
       questions, addQuestion, updateQuestion, deleteQuestion,
       deletedQuestionIds, clearDeletedQuestionIds,
-      validationErrors, validate, isSaving, updateIds
+      validationErrors, validate, isSaving, updateIds, clearTempCode
     }}>
       {children}
     </ExamEditorContext.Provider>

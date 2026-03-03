@@ -21,7 +21,7 @@ const generateCode = () => {
 };
 
 function ExamEditorContent() {
-  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds } = useExamEditor();
+  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, clearTempCode } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const [fullScreenModule, setFullScreenModule] = useState(null);
   const { token } = useAuth();
@@ -98,6 +98,7 @@ function ExamEditorContent() {
       }
       
       clearDeletedQuestionIds();
+      clearTempCode(); // Clear temporary code from sessionStorage after successful save
       showModal("Success", "Exam saved successfully!", "success");
       if (isNew) {
         navigate(`/admin/exams/editor/${examId}`);
@@ -544,6 +545,15 @@ function ExamEditorContent() {
 }
 
 export default function ExamEditor() {
+  const { id } = useParams();
+  
+  // Clear temp code when editing existing exam (not creating new)
+  useEffect(() => {
+    if (id) {
+      sessionStorage.removeItem('newExamCode');
+    }
+  }, [id]);
+  
   return (
     <ExamEditorProvider>
       <ExamEditorContent />
