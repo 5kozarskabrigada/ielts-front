@@ -26,10 +26,24 @@ const getStableCode = () => {
 };
 
 export const ExamEditorProvider = ({ children, initialData = null }) => {
-  // Use stable code for new exams, or use initialData's code for existing exams
-  const initialCode = initialData?.code || initialData?.access_code || getStableCode();
+  // For existing exams (has id), use the code from the database
+  // For new exams, use a stable code from sessionStorage
+  const getInitialCode = () => {
+    // If we have initialData with an id, this is an existing exam - use its code
+    if (initialData?.id) {
+      return initialData.code || initialData.access_code || '';
+    }
+    // New exam - use stable code from sessionStorage
+    return getStableCode();
+  };
   
-  const [exam, setExam] = useState(initialData || {
+  const initialCode = getInitialCode();
+  
+  const [exam, setExam] = useState(initialData ? {
+    ...initialData,
+    code: initialCode,
+    access_code: initialCode
+  } : {
     title: "",
     description: "",
     type: "academic", // 'academic' | 'general'
@@ -60,13 +74,13 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   // Listening: Fixed 4 sections
   // Reading: Fixed 3 passages
   // Writing: Fixed 2 tasks
-  const [sections, setSections] = useState([]);
-  const [questions, setQuestions] = useState([]);
+  const [sections, setSections] = useState(initialData?.sections || []);
+  const [questions, setQuestions] = useState(initialData?.questions || []);
   const [deletedQuestionIds, setDeletedQuestionIds] = useState([]); // Track deleted question IDs for soft delete
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize structure if empty
+  // Initialize structure if empty (for new exams only)
   useEffect(() => {
     if (sections.length === 0) {
       const task1Config = JSON.stringify({

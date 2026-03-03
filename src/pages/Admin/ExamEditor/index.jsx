@@ -6,7 +6,7 @@ import ListeningTab from "./tabs/ListeningTab";
 import ReadingTab from "./tabs/ReadingTab";
 import WritingTab from "./tabs/WritingTab";
 import { useAuth } from "../../../authContext";
-import { apiSaveExamStructure, apiCreateExam, apiUpdateExamStatus, apiDeleteExam, apiGetExamStats } from "../../../api";
+import { apiSaveExamStructure, apiCreateExam, apiUpdateExamStatus, apiDeleteExam, apiGetExamStats, apiGetExam } from "../../../api";
 import { Layout, Headphones, BookOpen, PenTool, Save, Trash2, AlertTriangle, CheckCircle, Play, Pause, Eye, Copy, RefreshCw, Edit2, Users, UserCheck, X, Key, Shield, ShieldAlert, ArrowLeft } from "lucide-react";
 import Modal from "../../../components/Modal/Modal";
 
@@ -546,16 +546,63 @@ function ExamEditorContent() {
 
 export default function ExamEditor() {
   const { id } = useParams();
+  const { token } = useAuth();
+  const [initialData, setInitialData] = useState(null);
+  const [loading, setLoading] = useState(!!id); // Only show loading if we have an ID to fetch
+  const [loadError, setLoadError] = useState(null);
   
-  // Clear temp code when editing existing exam (not creating new)
+  // Load exam data when editing existing exam
   useEffect(() => {
-    if (id) {
-      sessionStorage.removeItem('newExamCode');
+    if (id && token) {
+      setLoading(true);
+      apiGetExam(token, id)
+        .then(data => {
+          setInitialData(data);
+          // Clear the temp code since we're loading an existing exam
+          sessionStorage.removeItem('newExamCode');
+        })
+        .catch(err => {
+          console.error("Failed to load exam:", err);
+          setLoadError(err.message);
+        })
+        .finally(() => setLoading(false));
+    } else if (id && !token) {
+      // Wait for auth - token might not be ready yet
+      // Don't set loading to false, keep waiting
+    } else if (!id) {
+      // New exam - no need to load
+      setLoading(false);
     }
-  }, [id]);
+  }, [id, token]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading exam...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center bg-white p-8 rounded-lg shadow-md">
+          <div className="text-red-500 mb-4">
+            <AlertTriangle size={48} className="mx-auto" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Exam</h2>
+          <p className="text-gray-600 mb-4">{loadError}</p>
+          <a href="/admin/exams" className="text-blue-600 hover:underline">Back to Exams</a>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <ExamEditorProvider>
+    <ExamEditorProvider initialData={initialData}>
       <ExamEditorContent />
     </ExamEditorProvider>
   );
