@@ -4,6 +4,7 @@ import { ExamEditorProvider, useExamEditor } from "./ExamEditorContext";
 import OverviewTab from "./tabs/OverviewTab";
 import ListeningTab from "./tabs/ListeningTab";
 import ReadingTab from "./tabs/ReadingTab";
+import WritingTab from "./tabs/WritingTab";
 import { useAuth } from "../../../authContext";
 import { apiSaveExamStructure, apiCreateExam, apiUpdateExamStatus, apiDeleteExam, apiGetExamStats } from "../../../api";
 import { Layout, Headphones, BookOpen, PenTool, Save, Trash2, AlertTriangle, CheckCircle, Play, Pause, Eye, Copy, RefreshCw, Edit2, Users, UserCheck, X, Key, Shield, ShieldAlert, ArrowLeft } from "lucide-react";
@@ -202,7 +203,7 @@ function ExamEditorContent() {
     const moduleConfig = {
       listening: { title: "Listening Module", icon: Headphones, component: <ListeningTab /> },
       reading: { title: "Reading Module", icon: BookOpen, component: <ReadingTab /> },
-      writing: { title: "Writing Module", icon: PenTool, component: <div className="p-8 text-center text-gray-500">Writing Editor (Coming Soon)</div> }
+      writing: { title: "Writing Module", icon: PenTool, component: <WritingTab /> }
     };
     
     const config = moduleConfig[fullScreenModule];

@@ -50,6 +50,40 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   // Initialize structure if empty
   useEffect(() => {
     if (sections.length === 0) {
+      const task1Config = JSON.stringify({
+        type: "graph",
+        prompt: "",
+        instructions: "",
+        imageUrl: "",
+        wordMinimum: 150,
+        wordMaximum: null,
+        duration: 20,
+        modelAnswer: "",
+        scoringCriteria: {
+          taskResponse: { weight: 25, description: "How well the response addresses all parts of the task" },
+          coherenceCohesion: { weight: 25, description: "Organization, paragraphing, and use of cohesive devices" },
+          lexicalResource: { weight: 25, description: "Range and accuracy of vocabulary" },
+          grammaticalRange: { weight: 25, description: "Range and accuracy of grammar" }
+        }
+      });
+
+      const task2Config = JSON.stringify({
+        type: "opinion",
+        prompt: "",
+        instructions: "",
+        imageUrl: "",
+        wordMinimum: 250,
+        wordMaximum: null,
+        duration: 40,
+        modelAnswer: "",
+        scoringCriteria: {
+          taskResponse: { weight: 25, description: "How well the response addresses all parts of the task" },
+          coherenceCohesion: { weight: 25, description: "Organization, paragraphing, and use of cohesive devices" },
+          lexicalResource: { weight: 25, description: "Range and accuracy of vocabulary" },
+          grammaticalRange: { weight: 25, description: "Range and accuracy of grammar" }
+        }
+      });
+
       const initialSections = [
         // Listening (Fixed 4)
         { id: 'l1', module_type: 'listening', section_order: 1, title: 'Listening Section 1', content: '', audio_url: '' },
@@ -60,9 +94,9 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
         { id: 'r1', module_type: 'reading', section_order: 1, title: 'Reading Passage 1', content: '' },
         { id: 'r2', module_type: 'reading', section_order: 2, title: 'Reading Passage 2', content: '' },
         { id: 'r3', module_type: 'reading', section_order: 3, title: 'Reading Passage 3', content: '' },
-        // Writing (Fixed 2)
-        { id: 'w1', module_type: 'writing', section_order: 1, title: 'Writing Task 1', content: '' },
-        { id: 'w2', module_type: 'writing', section_order: 2, title: 'Writing Task 2', content: '' },
+        // Writing (Fixed 2) - with IELTS-style task configs
+        { id: 'w1', module_type: 'writing', section_order: 1, title: 'Writing Task 1', content: '', task_config: task1Config },
+        { id: 'w2', module_type: 'writing', section_order: 2, title: 'Writing Task 2', content: '', task_config: task2Config },
       ];
       setSections(initialSections);
     }
