@@ -209,6 +209,31 @@ export async function apiRemoveStudentFromClassroom(token, classroomId, studentI
   return res.json();
 }
 
+export async function apiUpdateClassroom(token, classroomId, data) {
+  const res = await fetch(`${API_URL}/classrooms/${classroomId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update classroom");
+  }
+  return res.json();
+}
+
+export async function apiDeleteClassroom(token, classroomId) {
+  const res = await fetch(`${API_URL}/classrooms/${classroomId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete classroom");
+  }
+  return res.json();
+}
+
 // ---------- Exams ----------
 
 export async function apiListExams(token) {

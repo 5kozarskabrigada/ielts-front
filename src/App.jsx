@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import AdminDashboardLayout, { DashboardOverview } from "./pages/Admin/Dashboard";
 import UsersPage from "./pages/Admin/Users";
 import ClassroomsPage from "./pages/Admin/Classrooms";
+import ClassroomDetail from "./pages/Admin/Classrooms/ClassroomDetail";
 import ExamsPage from "./pages/Admin/Exams";
 import ExamDetail from "./pages/Admin/ExamDetail";
 import ExamEditor from "./pages/Admin/ExamEditor"; // New Editor
@@ -50,6 +51,7 @@ function App() {
             <Route path="dashboard" element={<DashboardOverview />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="classrooms" element={<ClassroomsPage />} />
+            <Route path="classrooms/:id" element={<ClassroomDetail />} />
             <Route path="exams" element={<ExamsPage />} />
             <Route path="exams/editor" element={<ExamEditor />} />
             <Route path="exams/editor/:id" element={<ExamEditor />} />
