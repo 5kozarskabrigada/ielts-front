@@ -50,6 +50,10 @@ export default function ClassroomDetail() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Remove student modal
+  const [isRemoveStudentModalOpen, setIsRemoveStudentModalOpen] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState(null);
+
   // Feedback modals
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -163,16 +167,27 @@ export default function ClassroomDetail() {
     }
   };
 
-  const handleRemoveStudent = async (studentId) => {
+  const handleRemoveStudent = async () => {
+    if (!studentToRemove) return;
+    
     try {
-      await apiRemoveStudentFromClassroom(token, id, studentId);
-      setStudents(students.filter(s => s.id !== studentId));
+      await apiRemoveStudentFromClassroom(token, id, studentToRemove.id);
+      setStudents(students.filter(s => s.id !== studentToRemove.id));
+      setIsRemoveStudentModalOpen(false);
+      setStudentToRemove(null);
       setSuccessMessage("Student removed from classroom");
       setShowSuccessModal(true);
     } catch (err) {
+      setIsRemoveStudentModalOpen(false);
+      setStudentToRemove(null);
       setErrorMessage(err.message || "Failed to remove student");
       setShowErrorModal(true);
     }
+  };
+
+  const openRemoveStudentModal = (student) => {
+    setStudentToRemove(student);
+    setIsRemoveStudentModalOpen(true);
   };
 
   if (loading) {
@@ -375,11 +390,7 @@ export default function ClassroomDetail() {
                     <td className="px-6 py-4 text-gray-600">{student.email}</td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Remove ${student.first_name} ${student.last_name} from this class?`)) {
-                            handleRemoveStudent(student.id);
-                          }
-                        }}
+                        onClick={() => openRemoveStudentModal(student)}
                         className="text-red-500 hover:text-red-700 p-2 rounded hover:bg-red-50 transition"
                         title="Remove from class"
                       >
@@ -506,6 +517,48 @@ export default function ClassroomDetail() {
                   <span>Delete Classroom</span>
                 </>
               )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Remove Student Confirmation Modal */}
+      <Modal
+        isOpen={isRemoveStudentModalOpen}
+        onClose={() => {
+          setIsRemoveStudentModalOpen(false);
+          setStudentToRemove(null);
+        }}
+        title="Remove Student"
+      >
+        <div className="py-4">
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-red-100 p-3 rounded-full">
+              <Users size={24} className="text-red-600" />
+            </div>
+          </div>
+          <p className="text-center text-gray-700 mb-2">
+            Remove <strong>{studentToRemove?.first_name} {studentToRemove?.last_name}</strong> from this class?
+          </p>
+          <p className="text-center text-sm text-gray-500 mb-6">
+            The student will no longer have access to this classroom's assignments and materials.
+          </p>
+          <div className="flex justify-center space-x-3">
+            <button
+              onClick={() => {
+                setIsRemoveStudentModalOpen(false);
+                setStudentToRemove(null);
+              }}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRemoveStudent}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center space-x-2"
+            >
+              <X size={16} />
+              <span>Remove Student</span>
             </button>
           </div>
         </div>
