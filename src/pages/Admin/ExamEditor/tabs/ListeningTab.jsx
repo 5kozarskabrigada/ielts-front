@@ -1411,18 +1411,37 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Reusable blank input for student preview - circle + rounded input
     const StudentBlankInput = ({ num }) => (
       <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-        {/* Circle with question number - accent color */}
+        {/* Circle with question number - accent color, Montserrat */}
         <span 
-          className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
-          style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            width: '28px',
+            height: '28px',
+            minWidth: '28px',
+            minHeight: '28px',
+            backgroundColor: accentColor,
+            borderRadius: '50%',
+            color: 'rgb(255, 255, 255)',
+            fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+            fontSize: '14px',
+            fontWeight: 600,
+            padding: '10px',
+            margin: '2px 0'
+          }}
         >
           {num}
         </span>
-        {/* Rounded rectangular input field */}
+        {/* Rounded input field */}
         <input 
           type="text" 
-          className="w-28 px-4 py-1.5 border border-gray-300 rounded text-sm text-center bg-white outline-none"
-          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+          className="w-28 px-4 py-1.5 border border-gray-300 text-sm text-center bg-white outline-none"
+          style={{ 
+            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+            borderRadius: '8px'
+          }}
           placeholder=""
         />
       </span>
@@ -1434,23 +1453,46 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         return (
           <div key={q.id} className="py-4 border-b border-gray-100 last:border-0" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-            <p className="font-medium mb-3 flex items-start gap-2">
-              <span 
-                className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
-                style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
-              >
-                {globalNum}
-              </span>
-              <span><RenderHtml html={q.question_text || ''} /></span>
+            {/* Question number as plain bold text */}
+            <p style={{
+              color: 'rgb(40, 40, 40)',
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              fontSize: '16px',
+              fontWeight: 700,
+              lineHeight: '24px',
+              marginTop: '10px',
+              marginBottom: '10px'
+            }}>
+              {globalNum}. <RenderHtml html={q.question_text || ''} />
             </p>
-            <div className="ml-9 space-y-2">
+            <div className="ml-4 space-y-2">
               {['A', 'B', 'C', 'D'].map(letter => {
                 const text = q[`option_${letter.toLowerCase()}`];
                 if (!text) return null;
                 return (
-                  <label key={letter} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
-                    <input type="radio" name={`q${q.id}`} className="w-4 h-4 mt-0.5" />
-                    <span><strong>{letter}</strong> <RenderHtml html={text} /></span>
+                  <label key={letter} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
+                    {/* Letter circle (gray) first */}
+                    <span style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgb(223, 223, 223)',
+                      color: 'rgb(41, 69, 99)',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      marginRight: '8px'
+                    }}>
+                      {letter}
+                    </span>
+                    {/* Radio button */}
+                    <input type="radio" name={`q${q.id}`} className="w-4 h-4" />
+                    {/* Option text */}
+                    <span style={{ marginLeft: '4px' }}><RenderHtml html={text} /></span>
                   </label>
                 );
               })}
@@ -1481,37 +1523,29 @@ const PreviewMode = ({ isOpen, onClose }) => {
           fontSize: '20px',
           fontWeight: 700,
           lineHeight: '24px',
-          marginTop: '20px',
           marginBottom: '10px',
+          paddingLeft: '8px',
           textAlign: 'left'
         },
         cell: {
-          border: '1px solid rgb(221, 221, 221)',
           padding: '8px',
           verticalAlign: 'top',
           fontSize: '14px',
           lineHeight: '20px'
-        },
-        caption: {
-          padding: '8px 20px',
-          textAlign: 'left',
-          color: 'rgb(51, 51, 51)',
-          fontSize: '14px',
-          lineHeight: '21px'
         }
       };
 
       return (
         <div className="mb-4">
-          {/* Table/Form Title - styled as header */}
-          {group.table_title && (
-            <div 
-              style={tableStyles.header}
-              dangerouslySetInnerHTML={{ __html: group.table_title }}
-            />
-          )}
-          {/* Outer table container with rounded border */}
+          {/* Outer table container with rounded border - title inside */}
           <div style={tableStyles.outer}>
+            {/* Table/Form Title - inside the container */}
+            {group.table_title && (
+              <div 
+                style={tableStyles.header}
+                dangerouslySetInnerHTML={{ __html: group.table_title }}
+              />
+            )}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
                 {groupQuestions.map(q => {
@@ -1524,10 +1558,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     // Info row - no blank, no question number
                     return (
                       <tr key={q.id}>
-                        <td style={{ ...tableStyles.cell, width: '33%' }}>
+                        <td style={{ ...tableStyles.cell, width: '33%', borderBottom: '1px solid rgb(238, 238, 238)' }}>
                           <RenderHtml html={q.label_text || ''} />
                         </td>
-                        <td style={tableStyles.cell}>
+                        <td style={{ ...tableStyles.cell, borderBottom: '1px solid rgb(238, 238, 238)' }}>
                           <RenderHtml html={q.info_text || ''} />
                         </td>
                       </tr>
@@ -1537,10 +1571,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   // Question row - with blank to fill
                   return (
                     <tr key={q.id}>
-                      <td style={{ ...tableStyles.cell, width: '33%' }}>
+                      <td style={{ ...tableStyles.cell, width: '33%', borderBottom: '1px solid rgb(238, 238, 238)' }}>
                         <RenderHtml html={q.label_text || ''} />
                       </td>
-                      <td style={tableStyles.cell}>
+                      <td style={{ ...tableStyles.cell, borderBottom: '1px solid rgb(238, 238, 238)' }}>
                         {hasBlank ? (
                           template.split('[BLANK]').map((part, idx, arr) => (
                             <React.Fragment key={idx}>
@@ -1780,30 +1814,47 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
                       {/* Example section - styled as requested */}
                       {group.has_example && group.example_data && (
-                        <div className="mb-4 text-gray-700">
+                        <div className="mb-6 text-gray-700">
                           {/* Example header - italic, underlined, bold */}
-                          <p className="font-bold italic underline mb-2">Example:</p>
+                          <p className="font-bold italic underline mb-3">Example:</p>
                           
                           {/* Example question text - italic, render HTML */}
                           {(group.example_data.stem || group.example_data.question_text) && (
                             <p 
-                              className="italic mb-2 [&>*]:m-0"
+                              className="italic mb-3 [&>*]:m-0"
                               dangerouslySetInnerHTML={{ __html: group.example_data.stem || group.example_data.question_text }}
                             />
                           )}
                           
-                          {/* Example options - italic, correct one bold (NO "Answer: X") */}
+                          {/* Example options - more spaced out, radio + letter order */}
                           {exampleOptions.length > 0 && (
-                            <div className="space-y-1 ml-4">
+                            <div className="space-y-2 ml-4">
                               {exampleOptions.map((opt, idx) => {
                                 const letter = String.fromCharCode(65 + idx);
                                 const optText = typeof opt === 'object' ? (opt.text || opt.label || '') : opt;
                                 const correctAnswer = group.example_data.answer || group.example_data.correct_answer;
                                 const isCorrect = correctAnswer === letter || correctAnswer === optText || correctAnswer === String(idx);
                                 return (
-                                  <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
-                                    <span className={isCorrect ? 'font-bold' : ''}>{letter}</span> {optText}
-                                  </p>
+                                  <div key={idx} className={`flex items-center gap-2 italic ${isCorrect ? 'font-bold' : ''}`}>
+                                    {/* Letter circle (gray) */}
+                                    <span style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '50%',
+                                      backgroundColor: isCorrect ? 'rgb(50, 180, 200)' : 'rgb(223, 223, 223)',
+                                      color: isCorrect ? 'white' : 'rgb(41, 69, 99)',
+                                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                                      fontSize: '14px',
+                                      fontWeight: 700,
+                                      flexShrink: 0
+                                    }}>
+                                      {letter}
+                                    </span>
+                                    <span>{optText}</span>
+                                  </div>
                                 );
                               })}
                             </div>
