@@ -97,26 +97,36 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
 // ============================================
 // WYSIWYG RICH TEXT EDITOR (No HTML tags visible)
 // ============================================
-const RichTextArea = ({ label, hint, className = "", value = "", onChange, ...props }) => {
+const RichTextArea = ({ label, hint, className = "", value = "", onChange, showBlankButton = true, ...props }) => {
   const editorRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   
-  // Convert HTML to display in the editor
+  // Sync HTML content when value changes externally
   useEffect(() => {
     if (editorRef.current && !isFocused) {
-      editorRef.current.innerHTML = value || '';
+      // Only update if content actually differs to avoid cursor jumping
+      if (editorRef.current.innerHTML !== value) {
+        editorRef.current.innerHTML = value || '';
+      }
     }
   }, [value, isFocused]);
   
   const handleInput = () => {
-    if (editorRef.current) {
+    if (editorRef.current && onChange) {
       onChange({ target: { value: editorRef.current.innerHTML } });
     }
   };
   
-  const execCommand = (command, value = null) => {
-    document.execCommand(command, false, value);
+  const applyFormat = (command, val = null) => {
+    // Ensure we have focus and selection
     editorRef.current?.focus();
+    document.execCommand(command, false, val);
+    handleInput();
+  };
+  
+  const insertBlank = () => {
+    editorRef.current?.focus();
+    document.execCommand('insertText', false, '[BLANK]');
     handleInput();
   };
 
@@ -124,67 +134,62 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, ...pr
     <div className={className}>
       {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</label>}
       
-      {/* Toolbar with visual buttons */}
-      <div className="flex items-center gap-1 mb-1.5 p-1 bg-gray-50 rounded-t-lg border border-b-0 border-gray-200">
+      {/* Toolbar */}
+      <div className="flex items-center gap-0.5 p-1.5 bg-gray-100 rounded-t-lg border border-b-0 border-gray-200">
         <button
           type="button"
-          onClick={() => execCommand('bold')}
-          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition font-bold text-sm"
-          title="Bold"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition font-bold text-sm border border-transparent hover:border-gray-300"
+          title="Bold (Ctrl+B)"
         >
           B
         </button>
         <button
           type="button"
-          onClick={() => execCommand('italic')}
-          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition italic text-sm"
-          title="Italic"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition italic text-sm border border-transparent hover:border-gray-300"
+          title="Italic (Ctrl+I)"
         >
           I
         </button>
         <button
           type="button"
-          onClick={() => execCommand('underline')}
-          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition underline text-sm"
-          title="Underline"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition text-sm border border-transparent hover:border-gray-300"
+          title="Underline (Ctrl+U)"
         >
-          U
+          <span className="underline">U</span>
         </button>
         <button
           type="button"
-          onClick={() => execCommand('foreColor', 'red')}
-          className="p-1.5 rounded hover:bg-gray-200 text-red-500 transition font-bold text-sm"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('foreColor', '#dc2626'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-red-600 transition font-bold text-sm border border-transparent hover:border-gray-300"
           title="Red Text"
         >
           A
         </button>
-        <div className="h-4 w-px bg-gray-300 mx-1" />
-        <button
-          type="button"
-          onClick={() => {
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-              const range = selection.getRangeAt(0);
-              range.insertNode(document.createTextNode('[BLANK]'));
-              handleInput();
-            }
-          }}
-          className="px-2 py-1 rounded hover:bg-amber-100 text-amber-700 transition text-xs font-medium border border-amber-300"
-          title="Insert Blank"
-        >
-          + Blank
-        </button>
-        <span className="text-xs text-gray-400 ml-auto">Select text to format</span>
+        <div className="h-5 w-px bg-gray-300 mx-1" />
+        {showBlankButton && (
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); insertBlank(); }}
+            className="px-2 py-1 rounded hover:bg-amber-100 text-amber-700 transition text-xs font-medium border border-amber-300 bg-amber-50"
+            title="Insert Blank Placeholder"
+          >
+            + Blank
+          </button>
+        )}
+        <span className="text-xs text-gray-400 ml-auto hidden sm:block">Select text, then click format</span>
       </div>
       
-      {/* Editable area */}
+      {/* Editable area - contentEditable renders HTML as formatted text */}
       <div
         ref={editorRef}
         contentEditable
         onInput={handleInput}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition min-h-[60px]"
+        onBlur={() => { setIsFocused(false); handleInput(); }}
+        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition overflow-auto"
         style={{ minHeight: props.rows ? `${props.rows * 24}px` : '60px' }}
         suppressContentEditableWarning
       />
@@ -199,36 +204,34 @@ const RenderHtml = ({ html }) => {
 };
 
 // ============================================
-// BLANK INPUT COMPONENT - Circle number + rounded input
+// BLANK INPUT COMPONENT - Circle number + rounded rectangular input
 // ============================================
-const BlankInput = ({ questionNumber, isPreview = false }) => (
-  <span className="inline-flex items-center gap-1 mx-1">
-    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+const BlankInput = ({ questionNumber }) => (
+  <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+    {/* Circle with question number */}
+    <span 
+      className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0 shadow-sm"
+      style={{ minWidth: '28px', minHeight: '28px' }}
+    >
       {questionNumber}
     </span>
-    {isPreview ? (
-      <input 
-        type="text" 
-        className="w-24 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-white focus:border-amber-400 outline-none"
-        placeholder=""
-        disabled={!isPreview}
-      />
-    ) : (
-      <span className="w-24 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-gray-50 text-gray-400">
-        _______
-      </span>
-    )}
+    {/* Rounded rectangular input field */}
+    <span 
+      className="inline-block px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-gray-50 text-gray-400 text-sm min-w-[100px] text-center"
+    >
+      __________
+    </span>
   </span>
 );
 
 // Render template with proper blank inputs
-const renderTemplateWithBlanks = (template, questionNumber, isPreview = false) => {
+const renderTemplateWithBlanks = (template, questionNumber) => {
   if (!template) return null;
   const parts = template.split('[BLANK]');
   return parts.map((part, idx, arr) => (
     <React.Fragment key={idx}>
       <RenderHtml html={part} />
-      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} isPreview={isPreview} />}
+      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} />}
     </React.Fragment>
   ));
 };
@@ -573,51 +576,116 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
           {/* Form/Table Completion - Two column format: label | text with (number) blank */}
           {groupType === 'form_completion' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Left Column (Label)"
-                  placeholder="e.g., Name, Date, Time, Location"
-                  value={question.label_text || ""}
-                  onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })}
-                />
-                <RichTextArea
-                  label="Right Column (with blank)"
-                  placeholder="e.g., Mr. [BLANK] or [BLANK] September"
-                  hint="Use [BLANK] where the answer goes"
-                  rows={2}
-                  value={question.question_template || ""}
-                  onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
-                />
+              {/* Row Type Toggle */}
+              <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <span className="text-xs font-medium text-gray-500">ROW TYPE:</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`rowType-${question.id}`}
+                    checked={!question.is_info_row}
+                    onChange={() => updateQuestion(question.id, { is_info_row: false })}
+                    className="w-4 h-4 text-amber-500"
+                  />
+                  <span className="text-sm text-gray-700">Question Row (with blank)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`rowType-${question.id}`}
+                    checked={question.is_info_row === true}
+                    onChange={() => updateQuestion(question.id, { is_info_row: true, correct_answer: '', question_template: '' })}
+                    className="w-4 h-4 text-amber-500"
+                  />
+                  <span className="text-sm text-gray-700">Info Row (no blank)</span>
+                </label>
               </div>
-              <div className="bg-gray-100 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-2">Table Preview (Q{questionNumber}):</p>
-                <table className="w-full border-collapse">
-                  <tbody>
-                    <tr className="border border-gray-300">
-                      <td className="border border-gray-300 px-3 py-2 bg-gray-50 font-medium w-1/3">
-                        <RenderHtml html={question.label_text || 'Label'} />
-                      </td>
-                      <td className="border border-gray-300 px-3 py-2">
-                        {renderTemplateWithBlanks(question.question_template || '[BLANK]', questionNumber)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <Input
-                label="Correct Answer"
-                placeholder="e.g., Johnson, 15, September"
-                value={question.correct_answer || ""}
-                onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
-              />
-              <Input
-                label="Alternative Answers (comma-separated)"
-                placeholder="e.g., 15, fifteen, Fifteen"
-                value={(question.answer_alternatives || []).join(', ')}
-                onChange={(e) => updateQuestion(question.id, { 
-                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                })}
-              />
+
+              {question.is_info_row ? (
+                /* Info Row - just two text columns, no blank */
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Left Column"
+                      placeholder="e.g., Location, Event Type"
+                      value={question.label_text || ""}
+                      onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })}
+                    />
+                    <RichTextArea
+                      label="Right Column (Information)"
+                      placeholder="e.g., Main Conference Hall, Annual Meeting"
+                      showBlankButton={false}
+                      rows={2}
+                      value={question.info_text || ""}
+                      onChange={(e) => updateQuestion(question.id, { info_text: e.target.value })}
+                    />
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs text-blue-600 mb-2">Info Row Preview:</p>
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="border border-gray-300">
+                          <td className="border border-gray-300 px-3 py-2 bg-blue-100 font-medium w-1/3">
+                            <RenderHtml html={question.label_text || 'Label'} />
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2 bg-white">
+                            <RenderHtml html={question.info_text || 'Information'} />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                /* Question Row - with blank to fill */
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Left Column (Label)"
+                      placeholder="e.g., Name, Date, Time, Location"
+                      value={question.label_text || ""}
+                      onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })}
+                    />
+                    <RichTextArea
+                      label="Right Column (with blank)"
+                      placeholder="e.g., Mr. [BLANK] or [BLANK] September"
+                      hint="Use [BLANK] where the answer goes"
+                      rows={2}
+                      value={question.question_template || ""}
+                      onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
+                    />
+                  </div>
+                  <div className="bg-gray-100 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-2">Table Preview (Q{questionNumber}):</p>
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="border border-gray-300">
+                          <td className="border border-gray-300 px-3 py-2 bg-gray-50 font-medium w-1/3">
+                            <RenderHtml html={question.label_text || 'Label'} />
+                          </td>
+                          <td className="border border-gray-300 px-3 py-2">
+                            {renderTemplateWithBlanks(question.question_template || '[BLANK]', questionNumber)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <Input
+                    label="Correct Answer"
+                    placeholder="e.g., Johnson, 15, September"
+                    value={question.correct_answer || ""}
+                    onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
+                  />
+                  <Input
+                    label="Alternative Answers (comma-separated)"
+                    placeholder="e.g., 15, fifteen, Fifteen"
+                    value={(question.answer_alternatives || []).join(', ')}
+                    onChange={(e) => updateQuestion(question.id, { 
+                      answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                    })}
+                  />
+                </>
+              )}
             </>
           )}
 
@@ -1286,15 +1354,20 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const type = group.question_type;
 
-    // Reusable blank input for student preview
+    // Reusable blank input for student preview - circle + rounded input
     const StudentBlankInput = ({ num }) => (
-      <span className="inline-flex items-center gap-1 mx-1">
-        <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+      <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+        {/* Circle with question number */}
+        <span 
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0 shadow-sm"
+          style={{ minWidth: '28px', minHeight: '28px' }}
+        >
           {num}
         </span>
+        {/* Rounded rectangular input field */}
         <input 
           type="text" 
-          className="w-28 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-white focus:border-amber-400 outline-none"
+          className="w-28 px-4 py-1.5 border-2 border-gray-300 rounded-2xl text-sm text-center bg-white focus:border-amber-400 outline-none"
           placeholder=""
         />
       </span>
@@ -1306,18 +1379,21 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         return (
           <div key={q.id} className="py-4 border-b border-gray-100 last:border-0">
-            <p className="font-medium mb-3">
-              <span className="w-6 h-6 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold mr-2">
+            <p className="font-medium mb-3 flex items-start gap-2">
+              <span 
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+                style={{ minWidth: '28px', minHeight: '28px' }}
+              >
                 {globalNum}
               </span>
-              <RenderHtml html={q.question_text || ''} />
+              <span><RenderHtml html={q.question_text || ''} /></span>
             </p>
-            <div className="ml-8 space-y-2">
+            <div className="ml-9 space-y-2">
               {['A', 'B', 'C', 'D'].map(letter => {
                 const text = q[`option_${letter.toLowerCase()}`];
                 if (!text) return null;
                 return (
-                  <label key={letter} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
+                  <label key={letter} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
                     <input type="radio" name={`q${q.id}`} className="w-4 h-4 mt-0.5" />
                     <span><strong>{letter}</strong> <RenderHtml html={text} /></span>
                   </label>
@@ -1329,7 +1405,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
       });
     }
 
-    // Form/Table Completion: Two-column table format
+    // Form/Table Completion: Two-column table format (supports info rows)
     if (type === 'form_completion') {
       return (
         <table className="w-full border-collapse mb-4">
@@ -1337,6 +1413,23 @@ const PreviewMode = ({ isOpen, onClose }) => {
             {groupQuestions.map(q => {
               const globalNum = globalOffset + q.question_number;
               const template = q.question_template || '';
+              const isInfoRow = q.is_info_row === true;
+              
+              if (isInfoRow) {
+                // Info row - no blank, just display information
+                return (
+                  <tr key={q.id} className="border border-gray-300">
+                    <td className="border border-gray-300 px-4 py-2 bg-blue-50 font-medium w-1/3">
+                      <RenderHtml html={q.label_text || ''} />
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2 bg-white">
+                      <RenderHtml html={q.info_text || ''} />
+                    </td>
+                  </tr>
+                );
+              }
+              
+              // Question row - with blank to fill
               return (
                 <tr key={q.id} className="border border-gray-300">
                   <td className="border border-gray-300 px-4 py-2 bg-gray-50 font-medium w-1/3">
@@ -1364,7 +1457,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         const template = q.question_template || '';
         return (
-          <div key={q.id} className="py-2 flex items-center flex-wrap">
+          <div key={q.id} className="py-3 flex items-center flex-wrap gap-1">
             {template.split('[BLANK]').map((part, idx, arr) => (
               <React.Fragment key={idx}>
                 <RenderHtml html={part} />
@@ -1379,12 +1472,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Note/Summary Completion
     if (type === 'note_completion') {
       return (
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
           {groupQuestions.map(q => {
             const globalNum = globalOffset + q.question_number;
             const template = q.question_template || '';
             return (
-              <div key={q.id} className="py-1 flex items-center flex-wrap">
+              <div key={q.id} className="py-1 flex items-center flex-wrap gap-1">
                 {template.split('[BLANK]').map((part, idx, arr) => (
                   <React.Fragment key={idx}>
                     <RenderHtml html={part} />
@@ -1403,12 +1496,15 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
-          <div key={q.id} className="py-2 flex items-center gap-3">
-            <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+          <div key={q.id} className="py-3 flex items-center gap-3">
+            <span 
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+              style={{ minWidth: '28px', minHeight: '28px' }}
+            >
               {globalNum}
             </span>
             <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
-            <select className="px-3 py-1.5 border-2 border-gray-300 rounded-xl bg-white focus:border-amber-400 outline-none">
+            <select className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-white focus:border-amber-400 outline-none min-w-[100px]">
               <option value="">Select</option>
               {(group.shared_options || []).map(opt => (
                 <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -1423,14 +1519,17 @@ const PreviewMode = ({ isOpen, onClose }) => {
     return groupQuestions.map(q => {
       const globalNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="py-2 flex items-center gap-3">
-          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+        <div key={q.id} className="py-3 flex items-center gap-3">
+          <span 
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+            style={{ minWidth: '28px', minHeight: '28px' }}
+          >
             {globalNum}
           </span>
           <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
           <input 
             type="text" 
-            className="px-3 py-1.5 border-2 border-gray-300 rounded-xl w-32 focus:border-amber-400 outline-none"
+            className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl w-32 focus:border-amber-400 outline-none"
             placeholder=""
           />
         </div>
