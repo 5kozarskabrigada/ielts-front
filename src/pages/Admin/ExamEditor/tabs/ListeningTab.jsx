@@ -160,6 +160,7 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
         >
           <span className="underline">U</span>
         </button>
+        <div className="h-5 w-px bg-gray-300 mx-0.5" />
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); applyFormat('foreColor', '#dc2626'); }}
@@ -168,7 +169,23 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
         >
           A
         </button>
-        <div className="h-5 w-px bg-gray-300 mx-1" />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('foreColor', '#000000'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-900 transition font-bold text-sm border border-transparent hover:border-gray-300"
+          title="Black Text"
+        >
+          A
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('removeFormat'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-500 transition text-xs border border-transparent hover:border-gray-300"
+          title="Remove Formatting"
+        >
+          ✕
+        </button>
+        <div className="h-5 w-px bg-gray-300 mx-0.5" />
         {showBlankButton && (
           <button
             type="button"
@@ -179,7 +196,7 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
             + Blank
           </button>
         )}
-        <span className="text-xs text-gray-400 ml-auto hidden sm:block">Select text, then click format</span>
+        <span className="text-xs text-gray-400 ml-auto hidden sm:block">Select text, then format</span>
       </div>
       
       {/* Editable area - contentEditable renders HTML as formatted text */}
