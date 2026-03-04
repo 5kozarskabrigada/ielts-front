@@ -87,6 +87,19 @@ function ExamEditorContent() {
     }
 
     try {
+      console.log('[SAVE] Sending payload:', {
+        exam: exam.title,
+        sectionsCount: sections.length,
+        questionsCount: questions.length,
+        questionGroupsCount: questionGroups?.length || 0,
+        questionGroups: questionGroups?.map(g => ({
+          id: g.id,
+          section_id: g.section_id,
+          type: g.question_type,
+          range: `${g.question_range_start}-${g.question_range_end}`
+        }))
+      });
+      
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
@@ -95,6 +108,8 @@ function ExamEditorContent() {
         deletedQuestionIds,
         deletedGroupIds
       });
+      
+      console.log('[SAVE] Response:', response);
       
       if (response.idMapping) {
         updateIds(response.idMapping);
