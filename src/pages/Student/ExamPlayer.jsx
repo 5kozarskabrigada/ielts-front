@@ -4,6 +4,236 @@ import { useAuth } from "../../authContext";
 import { apiGetExam, apiLogViolation, apiSubmitExam } from "../../api";
 import { AlertTriangle, Clock, Save, ShieldAlert, Headphones, BookOpen, PenTool, SkipForward, CheckSquare, FileText, Eye, X } from "lucide-react";
 
+// ============================================
+// LISTENING QUESTION GROUP RENDERER
+// ============================================
+const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setAnswers, isPreview }) => {
+  // Filter questions that belong to this group
+  const groupQuestions = questions.filter(q => {
+    const qNum = q.question_number;
+    return qNum >= group.question_range_start && qNum <= group.question_range_end;
+  }).sort((a, b) => a.question_number - b.question_number);
+
+  // Calculate global question number (for display)
+  const globalStart = (sectionNumber - 1) * 10 + group.question_range_start;
+  const globalEnd = (sectionNumber - 1) * 10 + group.question_range_end;
+
+  // Parse example data
+  const exampleData = group.example_data || {};
+
+  return (
+    <div className="mb-10">
+      {/* Questions range header - accent color, bold */}
+      <h3 className="text-blue-600 font-bold text-lg mb-3">
+        Questions {globalStart}–{globalEnd}
+      </h3>
+
+      {/* Instruction text - rendered as HTML, no container */}
+      {group.instruction_text && (
+        <div 
+          className="text-gray-800 mb-4 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: group.instruction_text }}
+        />
+      )}
+
+      {/* Example section - if has_example */}
+      {group.has_example && exampleData && (
+        <div className="mb-6">
+          {/* Example header - italic, underlined, bold */}
+          <p className="font-bold italic underline mb-2">Example:</p>
+          
+          {/* Example question text - italic */}
+          {exampleData.question_text && (
+            <p className="italic text-gray-700 mb-2" dangerouslySetInnerHTML={{ __html: exampleData.question_text }} />
+          )}
+          
+          {/* Example options with correct answer bold */}
+          {exampleData.options && exampleData.options.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {exampleData.options.map((opt, idx) => {
+                const letter = String.fromCharCode(65 + idx); // A, B, C...
+                const isCorrect = exampleData.correct_answer === letter || exampleData.correct_answer === opt;
+                return (
+                  <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
+                    {letter} {opt}
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Questions */}
+      <div className="space-y-6">
+        {groupQuestions.map((q) => {
+          const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
+          
+          return (
+            <div key={q.id} className="flex items-start gap-3">
+              {/* Question number */}
+              <span className="font-bold text-gray-700 min-w-[24px]">{globalQNum}</span>
+              
+              <div className="flex-1">
+                {/* Question text */}
+                {q.question_text && (
+                  <div 
+                    className="text-gray-800 mb-2"
+                    dangerouslySetInnerHTML={{ __html: q.question_text }}
+                  />
+                )}
+                
+                {/* Render based on question type */}
+                {renderQuestionInput(q, group, answers, setAnswers, isPreview)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Helper function to render the appropriate input based on question type
+const renderQuestionInput = (question, group, answers, setAnswers, isPreview) => {
+  const qType = group.question_type || question.question_type;
+  
+  // Parse options from question
+  let options = [];
+  if (question.options) {
+    options = Array.isArray(question.options) ? question.options : 
+              (typeof question.options === 'string' ? JSON.parse(question.options) : []);
+  }
+
+  switch (qType) {
+    case 'multiple_choice':
+      return (
+        <div className="space-y-2">
+          {options.map((opt, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            const optText = typeof opt === 'object' ? opt.text : opt;
+            return (
+              <label key={idx} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <input
+                  type="radio"
+                  name={`q_${question.id}`}
+                  value={letter}
+                  checked={answers[question.id] === letter}
+                  onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
+                  disabled={isPreview}
+                  className="mt-1"
+                />
+                <span><strong>{letter}</strong> {optText}</span>
+              </label>
+            );
+          })}
+        </div>
+      );
+
+    case 'matching':
+      return (
+        <div className="flex items-center gap-2">
+          <select
+            className="border rounded px-3 py-2 min-w-[80px]"
+            value={answers[question.id] || ''}
+            onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
+            disabled={isPreview}
+          >
+            <option value="">—</option>
+            {(group.shared_options || []).map((opt, idx) => (
+              <option key={idx} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
+      );
+
+    case 'form_completion':
+    case 'note_completion':
+    case 'sentence_completion':
+    case 'summary_completion':
+    case 'short_answer':
+    default:
+      return (
+        <input
+          type="text"
+          className="border-b-2 border-gray-300 focus:border-blue-500 outline-none px-1 py-1 min-w-[150px] max-w-[300px]"
+          placeholder={group.max_words ? `No more than ${group.max_words} words` : ''}
+          value={answers[question.id] || ''}
+          onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
+          disabled={isPreview}
+        />
+      );
+  }
+};
+
+// Component to render listening content for a section
+const ListeningContent = ({ section, sectionNumber, questionGroups, questions, answers, setAnswers, isPreview }) => {
+  // Get groups for this section
+  const sectionGroups = (questionGroups || [])
+    .filter(g => g.section_id === section.id)
+    .sort((a, b) => (a.group_order || 0) - (b.group_order || 0));
+
+  // Get questions for this section
+  const sectionQuestions = (questions || []).filter(q => q.section_id === section.id);
+
+  // If no groups, show questions directly
+  if (sectionGroups.length === 0) {
+    return (
+      <div className="mb-12">
+        <h2 className="text-xl font-bold text-gray-800 mb-6 pb-2 border-b">
+          Listening Section {sectionNumber}
+        </h2>
+        {sectionQuestions.length > 0 ? (
+          sectionQuestions.map((q, idx) => {
+            const globalQNum = (sectionNumber - 1) * 10 + (q.question_number || idx + 1);
+            return (
+              <div key={q.id} className="mb-4 flex items-start gap-3">
+                <span className="font-bold text-gray-700">{globalQNum}</span>
+                <div className="flex-1">
+                  <p className="text-gray-800 mb-2">{q.question_text}</p>
+                  <input
+                    type="text"
+                    className="border-b-2 border-gray-300 focus:border-blue-500 outline-none px-1 py-1 min-w-[150px]"
+                    value={answers[q.id] || ''}
+                    onChange={(e) => !isPreview && setAnswers({ ...answers, [q.id]: e.target.value })}
+                    disabled={isPreview}
+                  />
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-gray-500">No questions in this section.</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-12">
+      <h2 className="text-xl font-bold text-gray-800 mb-6 pb-2 border-b">
+        Listening Section {sectionNumber}
+      </h2>
+      
+      {sectionGroups.map((group) => (
+        <ListeningQuestionGroup
+          key={group.id}
+          group={group}
+          questions={sectionQuestions}
+          sectionNumber={sectionNumber}
+          answers={answers}
+          setAnswers={setAnswers}
+          isPreview={isPreview}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ============================================
+// MAIN EXAM PLAYER COMPONENT
+// ============================================
+
 export default function ExamPlayer() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -204,16 +434,23 @@ export default function ExamPlayer() {
                 )}
               </div>
               <div className="flex-1 overflow-auto p-8 bg-white">
-                {currentQuestions.length > 0 ? (
-                  currentQuestions.map((q, idx) => (
-                    <div key={q.id} className="mb-6 p-4 border rounded-lg bg-gray-50">
-                      <div className="font-medium mb-2">Q{idx + 1}. {q.question_text}</div>
-                      <div className="text-sm text-gray-500">(Preview - answers not recorded)</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 py-8">No questions in this module</div>
-                )}
+                <div className="max-w-4xl mx-auto">
+                  {currentSections.map((section, idx) => (
+                    <ListeningContent
+                      key={section.id}
+                      section={section}
+                      sectionNumber={idx + 1}
+                      questionGroups={exam?.questionGroups || []}
+                      questions={exam?.questions?.filter(q => q.module_type === 'listening') || []}
+                      answers={answers}
+                      setAnswers={setAnswers}
+                      isPreview={true}
+                    />
+                  ))}
+                  {currentSections.length === 0 && (
+                    <div className="text-center text-gray-500 py-8">No listening sections available.</div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -342,26 +579,22 @@ export default function ExamPlayer() {
             
             {/* Questions Area */}
             <div className="flex-1 overflow-auto p-8 bg-white">
-              <div className="max-w-4xl mx-auto space-y-8">
-                {currentQuestions.length > 0 ? currentQuestions.map((q, idx) => (
-                  <div key={q.id} className="bg-gray-50 border rounded-lg p-6">
-                    <div className="flex items-start space-x-4">
-                      <div className="bg-blue-100 text-blue-800 font-bold rounded-full w-8 h-8 flex items-center justify-center shrink-0">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-lg font-medium text-gray-900 mb-4">{q.question_text}</p>
-                        <input
-                          type="text"
-                          className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                          placeholder="Type your answer..."
-                          onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                          value={answers[q.id] || ""}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )) : <div className="text-center text-gray-500 mt-20">No listening questions found.</div>}
+              <div className="max-w-4xl mx-auto">
+                {currentSections.map((section, idx) => (
+                  <ListeningContent
+                    key={section.id}
+                    section={section}
+                    sectionNumber={idx + 1}
+                    questionGroups={exam?.questionGroups || []}
+                    questions={exam?.questions?.filter(q => q.module_type === 'listening') || []}
+                    answers={answers}
+                    setAnswers={setAnswers}
+                    isPreview={false}
+                  />
+                ))}
+                {currentSections.length === 0 && (
+                  <div className="text-center text-gray-500 mt-20">No listening sections available.</div>
+                )}
               </div>
             </div>
           </div>
