@@ -168,10 +168,29 @@ const renderQuestionInput = (question, group, answers, setAnswers, isPreview) =>
 
 // Component to render listening content for a section
 const ListeningContent = ({ section, sectionNumber, questionGroups, questions, answers, setAnswers, isPreview }) => {
-  // Get groups for this section
+  // Debug logging
+  console.log(`[ListeningContent] Section ${sectionNumber}:`, {
+    sectionId: section.id,
+    totalGroups: questionGroups?.length || 0,
+    totalQuestions: questions?.length || 0,
+    groupSectionIds: questionGroups?.map(g => g.section_id)
+  });
+
+  // Get groups for this section - check both section.id and by section order
   const sectionGroups = (questionGroups || [])
-    .filter(g => g.section_id === section.id)
+    .filter(g => {
+      // Match by exact section_id OR by section order (for fallback)
+      const matchById = g.section_id === section.id;
+      // Also check if this group's questions fall in this section's range (1-10 for section 1, etc.)
+      const expectedStart = (sectionNumber - 1) * 10 + 1;
+      const expectedEnd = sectionNumber * 10;
+      const matchByRange = g.question_range_start >= expectedStart && g.question_range_end <= expectedEnd;
+      
+      return matchById || matchByRange;
+    })
     .sort((a, b) => (a.group_order || 0) - (b.group_order || 0));
+
+  console.log(`[ListeningContent] Found ${sectionGroups.length} groups for section ${sectionNumber}`);
 
   // Get questions for this section
   const sectionQuestions = (questions || []).filter(q => q.section_id === section.id);
@@ -271,7 +290,26 @@ export default function ExamPlayer() {
     const fetchExam = async () => {
       try {
         const data = await apiGetExam(token, id);
-        setExam(data);
+        
+        // Fallback: if questionGroups is empty, try modules_config
+        let questionGroups = data.questionGroups || [];
+        if (questionGroups.length === 0 && data.modules_config?.listening_question_groups) {
+          questionGroups = data.modules_config.listening_question_groups;
+          console.log('[ExamPlayer] Using questionGroups from modules_config fallback');
+        }
+        
+        console.log('[ExamPlayer] Loaded exam data:', {
+          id: data.id,
+          title: data.title,
+          sectionsCount: data.sections?.length,
+          questionsCount: data.questions?.length,
+          questionGroupsCount: questionGroups?.length,
+          questionGroups: questionGroups,
+          sections: data.sections?.map(s => ({ id: s.id, title: s.title, module_type: s.module_type }))
+        });
+        
+        // Merge the questionGroups back into data
+        setExam({ ...data, questionGroups });
         // Start with Listening duration
         setTimeLeft(MODULE_DURATIONS.listening * 60);
       } catch (err) {
