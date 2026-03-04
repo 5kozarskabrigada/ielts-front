@@ -116,6 +116,25 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
       <div className="space-y-6 mt-6">
         {groupQuestions.map((q) => {
           const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
+          const isInfoRow = q.is_info_row === true;
+          
+          // Info rows - display as simple info without question number or input
+          if (isInfoRow) {
+            return (
+              <div key={q.id} className="flex items-start gap-3 text-gray-600">
+                <span className="min-w-[24px]">&nbsp;</span>
+                <div className="flex-1">
+                  {q.label_text && (
+                    <span className="font-medium" dangerouslySetInnerHTML={{ __html: cleanHtml(q.label_text) }} />
+                  )}
+                  {q.label_text && q.info_text && ': '}
+                  {q.info_text && (
+                    <span dangerouslySetInnerHTML={{ __html: cleanHtml(q.info_text) }} />
+                  )}
+                </div>
+              </div>
+            );
+          }
           
           return (
             <div key={q.id} className="flex items-start gap-3">

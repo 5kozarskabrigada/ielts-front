@@ -478,28 +478,34 @@ const ImageUploader = ({ group, updateGroup }) => (
 // ============================================
 const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const isInfoRow = question.is_info_row === true;
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className={`border rounded-lg overflow-hidden bg-white ${isInfoRow ? 'border-blue-200' : 'border-gray-200'}`}>
       <div 
-        className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition"
+        className={`px-4 py-3 flex items-center justify-between cursor-pointer transition ${isInfoRow ? 'hover:bg-blue-50' : 'hover:bg-gray-50'}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="w-8 h-8 flex items-center justify-center bg-amber-100 text-amber-700 rounded-lg font-bold text-sm">
-            {questionNumber}
+          <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs ${
+            isInfoRow ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {isInfoRow ? 'Info' : questionNumber}
           </span>
           <div>
             <p className="text-sm font-medium text-gray-700 truncate max-w-xs">
-              {question.question_text || question.question_template || 'Question ' + questionNumber}
+              {isInfoRow 
+                ? (question.label_text || question.info_text || 'Info Row')
+                : (question.question_text || question.question_template || 'Question ' + questionNumber)
+              }
             </p>
-            {question.correct_answer && (
+            {!isInfoRow && question.correct_answer && (
               <p className="text-xs text-green-600">Answer: {question.correct_answer}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {question.correct_answer && <CheckCircle size={16} className="text-green-500" />}
+          {!isInfoRow && question.correct_answer && <CheckCircle size={16} className="text-green-500" />}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); deleteQuestion(question.id); }}
@@ -847,15 +853,23 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
   const typeInfo = QUESTION_TYPES.find(t => t.value === group.question_type) || QUESTION_TYPES[0];
   const TypeIcon = typeInfo.icon;
 
-  const groupQuestions = questions.filter(q => {
+  // Get all rows (questions + info rows) for this group
+  const groupRows = questions.filter(q => {
     if (q.section_id !== sectionId) return false;
     const qNum = q.question_number;
     return qNum >= group.question_range_start && qNum <= group.question_range_end;
-  }).sort((a, b) => a.question_number - b.question_number);
+  }).sort((a, b) => (a.row_order || a.question_number) - (b.row_order || b.question_number));
+
+  // Only actual questions (not info rows) for counting
+  const actualQuestions = groupRows.filter(q => q.is_info_row !== true);
+  
+  // For backward compatibility, also expose as groupQuestions
+  const groupQuestions = groupRows;
 
   const addQuestionToGroup = () => {
-    const nextNum = groupQuestions.length > 0 
-      ? Math.max(...groupQuestions.map(q => q.question_number)) + 1
+    // For question number, only count actual questions (not info rows)
+    const nextNum = actualQuestions.length > 0 
+      ? Math.max(...actualQuestions.map(q => q.question_number)) + 1
       : group.question_range_start;
     
     if (nextNum > group.question_range_end) {
@@ -863,12 +877,18 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
       return;
     }
 
+    // Calculate row order (for display ordering)
+    const maxRowOrder = groupRows.length > 0 
+      ? Math.max(...groupRows.map(q => q.row_order || q.question_number)) 
+      : 0;
+
     addQuestion(sectionId, {
       question_number: nextNum,
       question_type: group.question_type,
       question_text: '',
       correct_answer: '',
-      points: group.points_per_question || 1
+      points: group.points_per_question || 1,
+      row_order: maxRowOrder + 1
     });
   };
 
@@ -893,7 +913,8 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-            {groupQuestions.length}/{group.question_range_end - group.question_range_start + 1} questions
+            {actualQuestions.length}/{group.question_range_end - group.question_range_start + 1} questions
+            {groupRows.length > actualQuestions.length && ` + ${groupRows.length - actualQuestions.length} info`}
           </span>
           <button
             type="button"
@@ -1049,24 +1070,24 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
           {/* Questions List */}
           <div className="pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between mb-3">
-              <h5 className="text-sm font-semibold text-gray-700">Questions in this Group</h5>
+              <h5 className="text-sm font-semibold text-gray-700">Rows in this Group</h5>
               <button
                 type="button"
                 onClick={addQuestionToGroup}
-                disabled={groupQuestions.length >= (group.question_range_end - group.question_range_start + 1)}
+                disabled={actualQuestions.length >= (group.question_range_end - group.question_range_start + 1)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-40 transition"
               >
-                <Plus size={14} /> Add Question
+                <Plus size={14} /> Add Row
               </button>
             </div>
             
-            {groupQuestions.length > 0 ? (
+            {groupRows.length > 0 ? (
               <div className="space-y-2">
-                {groupQuestions.map((q) => (
+                {groupRows.map((q) => (
                   <QuestionEditor
                     key={q.id}
                     question={q}
-                    questionNumber={globalQuestionNumber + q.question_number}
+                    questionNumber={q.is_info_row ? null : (globalQuestionNumber + q.question_number)}
                     groupType={group.question_type}
                     updateQuestion={updateQuestion}
                     deleteQuestion={deleteQuestion}
