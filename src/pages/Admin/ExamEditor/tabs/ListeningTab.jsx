@@ -267,9 +267,10 @@ const ExampleBlock = ({ group, updateGroup }) => {
           <Trash2 size={14} />
         </button>
       </div>
-      <Input
+      <RichTextArea
         label="Example Stem/Question"
         placeholder="e.g., What is the speaker's name?"
+        rows={2}
         value={exampleData.stem || ""}
         onChange={(e) => updateExample('stem', e.target.value)}
       />
@@ -379,7 +380,7 @@ const ImageUploader = ({ group, updateGroup }) => (
       value={group.image_url || ""}
       onChange={(e) => updateGroup(group.id, { image_url: e.target.value })}
     />
-    <TextArea
+    <RichTextArea
       label="Image Description (optional)"
       placeholder="Describe the diagram for accessibility..."
       rows={2}
@@ -844,9 +845,9 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
           </div>
 
           {/* Instruction Text */}
-          <TextArea
+          <RichTextArea
             label="Instruction Text"
-            hint="IELTS-style instruction shown to students"
+            hint="IELTS-style instruction shown to students. Use formatting toolbar above."
             placeholder="Complete the sentences below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer."
             rows={3}
             value={group.instruction_text || ""}

@@ -35,6 +35,7 @@ function ExamEditorContent() {
   const [examStats, setExamStats] = useState({ active_participants: 0, total_participants: 0, completed_count: 0 });
   const [isActivating, setIsActivating] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const fetchExamStats = useCallback(async () => {
     if (!id) return;
@@ -102,7 +103,9 @@ function ExamEditorContent() {
       clearDeletedQuestionIds();
       clearDeletedGroupIds();
       clearTempCode(); // Clear temporary code from sessionStorage after successful save
-      showModal("Success", "Exam saved successfully!", "success");
+      // Show "Saved" feedback on button
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000);
       if (isNew) {
         navigate(`/admin/exams/editor/${examId}`);
       }
@@ -235,10 +238,15 @@ function ExamEditorContent() {
           </div>
           <button 
             onClick={handleSave}
-            disabled={isSaving}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center space-x-2 disabled:opacity-50"
+            disabled={isSaving || justSaved}
+            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors ${
+              justSaved 
+                ? 'bg-green-500 text-white' 
+                : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+            }`}
           >
-            <Save size={16} /> <span>{isSaving ? "Saving..." : "Save"}</span>
+            {justSaved ? <CheckCircle size={16} /> : <Save size={16} />}
+            <span>{isSaving ? "Saving..." : justSaved ? "Saved!" : "Save"}</span>
           </button>
         </div>
 
@@ -384,10 +392,15 @@ function ExamEditorContent() {
               </button>
               <button 
                 onClick={handleSave}
-                disabled={isSaving}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSaving || justSaved}
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors ${
+                  justSaved 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                }`}
               >
-                <Save size={16} /> <span>{isSaving ? "Saving..." : "Save"}</span>
+                {justSaved ? <CheckCircle size={16} /> : <Save size={16} />}
+                <span>{isSaving ? "Saving..." : justSaved ? "Saved!" : "Save"}</span>
               </button>
             </div>
           </div>
