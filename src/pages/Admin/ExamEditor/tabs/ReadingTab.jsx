@@ -7,22 +7,111 @@ import {
 } from "lucide-react";
 import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 
-// Question types with icons and hints
+// Question types with icons and detailed hints
 const QUESTION_TYPES = [
-  { value: "multiple_choice_single", label: "Multiple Choice", icon: Target, hint: "Choose one correct answer from A-D" },
-  { value: "multiple_choice_multiple", label: "Multi-Select", icon: List, hint: "Choose multiple correct answers" },
-  { value: "true_false_not_given", label: "True/False/NG", icon: CheckCircle, hint: "Factual information questions" },
-  { value: "yes_no_not_given", label: "Yes/No/NG", icon: HelpCircle, hint: "Writer's views/claims questions" },
-  { value: "matching_headings", label: "Match Headings", icon: Type, hint: "Match headings to paragraphs" },
-  { value: "matching_information", label: "Match Info", icon: ArrowRightLeft, hint: "Match statements to paragraphs" },
-  { value: "matching_features", label: "Match Features", icon: ArrowRightLeft, hint: "Match items to categories" },
-  { value: "matching_sentence_endings", label: "Sentence Endings", icon: ArrowRightLeft, hint: "Complete sentences by matching" },
-  { value: "summary_completion", label: "Summary", icon: FileText, hint: "Fill gaps in a summary" },
-  { value: "sentence_completion", label: "Sentence", icon: Type, hint: "Complete sentences with words" },
-  { value: "table_completion", label: "Table", icon: Table2, hint: "Fill gaps in a table" },
-  { value: "diagram_labeling", label: "Diagram", icon: MapPin, hint: "Label parts of a diagram" },
-  { value: "short_answer", label: "Short Answer", icon: MessageSquare, hint: "Answer with words from text" },
+  { 
+    value: "multiple_choice_single", 
+    label: "Multiple Choice", 
+    icon: Target, 
+    hint: "Student selects ONE correct answer from A-D options"
+  },
+  { 
+    value: "multiple_choice_multiple", 
+    label: "Multi-Select", 
+    icon: List, 
+    hint: "Student selects TWO or more correct answers from A-E options"
+  },
+  { 
+    value: "true_false_not_given", 
+    label: "True/False/NG", 
+    icon: CheckCircle, 
+    hint: "Student decides if factual statements agree with, contradict, or go beyond the text"
+  },
+  { 
+    value: "yes_no_not_given", 
+    label: "Yes/No/NG", 
+    icon: HelpCircle, 
+    hint: "Student decides if writer's views/claims match statements (opinion-based)"
+  },
+  { 
+    value: "matching_headings", 
+    label: "Match Headings", 
+    icon: Type, 
+    hint: "Student matches Roman numeral headings (i, ii, iii...) to paragraphs"
+  },
+  { 
+    value: "matching_information", 
+    label: "Match Info", 
+    icon: ArrowRightLeft, 
+    hint: "Student matches statements to the paragraphs (A, B, C...) where info is found"
+  },
+  { 
+    value: "matching_features", 
+    label: "Match Features", 
+    icon: ArrowRightLeft, 
+    hint: "Student matches items/features to categories (e.g., researchers to findings)"
+  },
+  { 
+    value: "matching_sentence_endings", 
+    label: "Sentence Endings", 
+    icon: ArrowRightLeft, 
+    hint: "Student completes sentence beginnings by matching to correct endings (A-G)"
+  },
+  { 
+    value: "summary_completion", 
+    label: "Summary", 
+    icon: FileText, 
+    hint: "Student fills gaps in a summary with words from text or word bank"
+  },
+  { 
+    value: "sentence_completion", 
+    label: "Sentence", 
+    icon: Type, 
+    hint: "Student completes a sentence with 1-3 words from the passage"
+  },
+  { 
+    value: "table_completion", 
+    label: "Table", 
+    icon: Table2, 
+    hint: "Student fills missing cells in a table with information from text"
+  },
+  { 
+    value: "diagram_labeling", 
+    label: "Diagram", 
+    icon: MapPin, 
+    hint: "Student labels parts of a diagram/process with words from text"
+  },
+  { 
+    value: "short_answer", 
+    label: "Short Answer", 
+    icon: MessageSquare, 
+    hint: "Student answers a question with words taken directly from the passage"
+  },
 ];
+
+// Info box component for question type guidance
+const TypeInfoBox = ({ title, description, example, tips }) => (
+  <div className="mb-5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4">
+    <div className="flex items-start gap-3">
+      <div className="w-8 h-8 flex items-center justify-center bg-emerald-100 rounded-lg flex-shrink-0">
+        <Info size={16} className="text-emerald-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-emerald-900 text-sm">{title}</h4>
+        <p className="text-xs text-emerald-700 mt-1">{description}</p>
+        {example && (
+          <div className="mt-2 bg-white/60 rounded-lg px-3 py-2 border border-emerald-100">
+            <span className="text-xs font-medium text-emerald-600">Example: </span>
+            <span className="text-xs text-emerald-800">{example}</span>
+          </div>
+        )}
+        {tips && (
+          <p className="text-xs text-emerald-600 mt-2 italic">💡 {tips}</p>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
 // Styled input
 const Input = ({ label, hint, ...props }) => (
@@ -56,15 +145,23 @@ function QuestionFields({ question, updateQuestion }) {
   if (type === 'multiple_choice_single') {
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Multiple Choice (Single Answer)"
+          description="A question with 4 options (A-D) where only ONE is correct. Tests comprehension of specific information, main ideas, or writer's purpose."
+          example="Q: What is the main purpose of paragraph 3? A) To explain... B) To compare... C) To argue... D) To describe..."
+          tips="Ensure wrong options are plausible but clearly distinguishable. Reference specific paragraphs if asking about detailed information."
+        />
+        
         <Input
           label="Question"
-          placeholder="e.g., What is the main purpose of the passage?"
+          placeholder="e.g., What is the writer's main argument in the passage?"
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
         
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Options</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Answer Options (A-D)</label>
+          <p className="text-xs text-gray-400 mb-3">Write each option as a complete statement or phrase</p>
           <div className="space-y-2">
             {['A', 'B', 'C', 'D'].map((letter) => (
               <div key={letter} className="flex items-center gap-2">
@@ -75,7 +172,7 @@ function QuestionFields({ question, updateQuestion }) {
                 </div>
                 <input
                   className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-                  placeholder={`Option ${letter}`}
+                  placeholder={letter === 'A' ? 'e.g., To explain a new scientific theory' : letter === 'B' ? 'e.g., To compare two different approaches' : letter === 'C' ? 'e.g., To criticize existing methods' : 'e.g., To describe historical events'}
                   value={question[`option_${letter.toLowerCase()}`] || ""}
                   onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
                 />
@@ -85,7 +182,7 @@ function QuestionFields({ question, updateQuestion }) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Correct Answer</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Select Correct Answer</label>
           <div className="flex gap-2">
             {['A', 'B', 'C', 'D'].map((letter) => (
               <button
@@ -119,15 +216,23 @@ function QuestionFields({ question, updateQuestion }) {
 
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Multiple Choice (Multiple Answers)"
+          description="A question where students must select TWO or more correct answers from 5 options. Usually phrased as 'Which TWO...' or 'Which THREE...'"
+          example="Q: Which TWO of the following are mentioned as benefits? → A, D (both correct)"
+          tips="Specify how many answers are needed in your question. Click each correct option to select/deselect it."
+        />
+        
         <Input
           label="Question"
-          placeholder="e.g., Which TWO features are mentioned in the text?"
+          placeholder="e.g., Which TWO features does the author describe as innovative?"
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
         
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Options (click multiple to select)</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Options (click to select correct answers)</label>
+          <p className="text-xs text-gray-400 mb-3">Toggle each option that is CORRECT. Selected options will highlight green.</p>
           <div className="space-y-2">
             {['A', 'B', 'C', 'D', 'E'].map((letter) => (
               <div key={letter} className="flex items-center gap-2">
@@ -142,7 +247,7 @@ function QuestionFields({ question, updateQuestion }) {
                 </button>
                 <input
                   className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-                  placeholder={`Option ${letter}`}
+                  placeholder={letter === 'A' ? 'e.g., Its low environmental impact' : `Option ${letter}`}
                   value={question[`option_${letter.toLowerCase()}`] || ""}
                   onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
                 />
@@ -152,8 +257,8 @@ function QuestionFields({ question, updateQuestion }) {
         </div>
 
         <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1">Selected Answers</label>
-          <p className="text-sm text-green-800 font-medium">{question.answer || 'None selected'}</p>
+          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1">Selected Correct Answers</label>
+          <p className="text-sm text-green-800 font-medium">{question.answer || 'None selected - click options above'}</p>
         </div>
       </div>
     );
@@ -163,16 +268,24 @@ function QuestionFields({ question, updateQuestion }) {
   if (type === 'true_false_not_given') {
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="True / False / Not Given (Factual)"
+          description="Tests whether FACTUAL information in the passage agrees with, contradicts, or doesn't mention the statement. TRUE = passage says this. FALSE = passage says the opposite. NOT GIVEN = passage doesn't give this information."
+          example="Statement: 'The experiment was conducted in 2019.' → TRUE (if passage confirms), FALSE (if passage says different year), NOT GIVEN (if no date mentioned)"
+          tips="Focus on facts, dates, numbers, and specific claims. Be careful: NOT GIVEN means NO information, not 'probably true/false'."
+        />
+        
         <TextArea
-          label="Statement"
-          placeholder="e.g., The author believes that climate change is reversible."
+          label="Statement (Factual Claim)"
+          placeholder="e.g., The research team consisted of five members."
           rows={2}
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Answer</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Select Correct Answer</label>
+          <p className="text-xs text-gray-400 mb-2">Does the passage confirm, contradict, or not mention this fact?</p>
           <div className="flex gap-2">
             {['TRUE', 'FALSE', 'NOT GIVEN'].map((opt) => (
               <button
@@ -200,16 +313,24 @@ function QuestionFields({ question, updateQuestion }) {
   if (type === 'yes_no_not_given') {
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Yes / No / Not Given (Writer's Views)"
+          description="Tests whether the writer's OPINION or CLAIM matches the statement. YES = writer agrees. NO = writer disagrees. NOT GIVEN = writer doesn't express a view on this."
+          example="Statement: 'The author believes technology will solve climate change.' → YES/NO/NOT GIVEN based on writer's expressed opinion"
+          tips="Look for opinion words: believes, argues, suggests, thinks. Different from T/F/NG which tests facts, not opinions."
+        />
+        
         <TextArea
-          label="Statement (Writer's View)"
-          placeholder="e.g., The writer suggests that technology has improved education."
+          label="Statement (Writer's View/Claim)"
+          placeholder="e.g., The author believes that traditional methods are more effective."
           rows={2}
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Answer</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Select Correct Answer</label>
+          <p className="text-xs text-gray-400 mb-2">Does the writer agree, disagree, or not give an opinion?</p>
           <div className="flex gap-2">
             {['YES', 'NO', 'NOT GIVEN'].map((opt) => (
               <button
@@ -238,16 +359,23 @@ function QuestionFields({ question, updateQuestion }) {
     const count = parseInt(question.heading_count) || 4;
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Matching Headings"
+          description="Students match Roman numeral headings (i, ii, iii, iv...) to paragraphs. There are more headings than paragraphs (some are distractors). Each question asks which heading fits ONE paragraph."
+          example="Paragraph C → Heading: iv 'The unexpected benefits of the study'"
+          tips="Use lowercase Roman numerals (i, ii, iii, iv, v). Headings should summarize paragraph main ideas. Include 2-3 extra distractor headings."
+        />
+        
         <Input
-          label="Paragraph Reference"
-          placeholder="e.g., Paragraph A / Section 1"
+          label="Paragraph Being Matched"
+          placeholder="e.g., Paragraph C / Section 2"
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div className="bg-indigo-50/50 rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-indigo-700 uppercase tracking-wide">Heading Options</label>
+            <label className="text-xs font-medium text-indigo-700 uppercase tracking-wide">List of Headings</label>
             <select
               className="text-xs px-2 py-1 border border-indigo-200 rounded bg-white"
               value={count}
@@ -256,13 +384,14 @@ function QuestionFields({ question, updateQuestion }) {
               {[3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
+          <p className="text-xs text-indigo-600 mb-2">Enter the heading options students will choose from (include distractors)</p>
           <div className="space-y-2">
             {[...Array(count)].map((_, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="w-6 text-center text-xs font-medium text-indigo-600">{String.fromCharCode(105 + i)}</span>
+                <span className="w-6 text-center text-xs font-medium text-indigo-600">{['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii'][i]}</span>
                 <input
                   className="flex-1 px-2.5 py-1.5 bg-white border border-indigo-200 rounded text-sm focus:border-indigo-400 outline-none"
-                  placeholder={`Heading ${i + 1}`}
+                  placeholder={i === 0 ? 'e.g., The origins of the problem' : i === 1 ? 'e.g., A surprising solution' : `Heading ${['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii'][i]}`}
                   value={question[`heading_${i + 1}`] || ""}
                   onChange={(e) => updateQuestion(question.id, { [`heading_${i + 1}`]: e.target.value })}
                 />
@@ -272,13 +401,14 @@ function QuestionFields({ question, updateQuestion }) {
         </div>
 
         <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Heading</label>
+          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Heading Number</label>
           <input
             className="w-full px-3 py-2 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., iv (lowercase Roman numeral)"
+            placeholder="e.g., iv"
             value={question.answer || ""}
             onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
           />
+          <p className="text-xs text-green-600 mt-1">Enter the Roman numeral of the correct heading (lowercase)</p>
         </div>
       </div>
     );
@@ -287,14 +417,30 @@ function QuestionFields({ question, updateQuestion }) {
   // MATCHING INFORMATION / FEATURES
   if (type === 'matching_information' || type === 'matching_features') {
     const itemCount = parseInt(question.match_count) || 3;
-    const label = type === 'matching_information' ? 'Statement' : 'Feature';
+    const isInfo = type === 'matching_information';
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title={isInfo ? "Matching Information to Paragraphs" : "Matching Features/Items to Categories"}
+          description={isInfo 
+            ? "Students match statements/questions to the paragraphs (A, B, C...) where the information is found. Same paragraph can be used more than once."
+            : "Students match items or features to named categories (e.g., researchers, time periods, theories). Requires understanding who said/did what."
+          }
+          example={isInfo 
+            ? "Statement: 'A reference to financial costs' → Paragraph B"
+            : "Feature: 'Believed the experiment was flawed' → Dr. Smith (Category A)"
+          }
+          tips={isInfo
+            ? "Statements may paraphrase text. One paragraph can match multiple statements."
+            : "Categories are usually people, time periods, or theories mentioned in the passage."
+          }
+        />
+        
         <Input
-          label={label}
-          placeholder={type === 'matching_information' 
-            ? "e.g., This paragraph mentions the first discovery." 
-            : "e.g., believes traditional methods are superior"}
+          label={isInfo ? "Statement to Match" : "Feature/Item Description"}
+          placeholder={isInfo 
+            ? "e.g., A mention of environmental concerns" 
+            : "e.g., Conducted the longest study"}
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
@@ -347,16 +493,23 @@ function QuestionFields({ question, updateQuestion }) {
     const count = parseInt(question.ending_count) || 4;
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Matching Sentence Endings"
+          description="Students complete sentence beginnings by choosing the correct ending from a list (A-G). There are more endings than beginnings (distractors). Tests understanding of how ideas connect."
+          example="Beginning: 'The scientists concluded that...' + Ending C: '...further research was needed.' → Answer: C"
+          tips="Sentence beginnings and endings should be grammatically compatible. Include plausible distractor endings that don't complete the meaning correctly."
+        />
+        
         <Input
           label="Sentence Beginning"
-          placeholder="e.g., The researcher discovered that..."
+          placeholder="e.g., According to the passage, the main problem was that..."
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div className="bg-teal-50/50 rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-teal-700 uppercase tracking-wide">Sentence Endings</label>
+            <label className="text-xs font-medium text-teal-700 uppercase tracking-wide">Possible Endings (A-G)</label>
             <select
               className="text-xs px-2 py-1 border border-teal-200 rounded bg-white"
               value={count}
@@ -365,6 +518,7 @@ function QuestionFields({ question, updateQuestion }) {
               {[3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
+          <p className="text-xs text-teal-600 mb-2">Enter all possible endings. Include extra distractors. Start each with lowercase.</p>
           <div className="space-y-2">
             {[...Array(count)].map((_, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -373,7 +527,7 @@ function QuestionFields({ question, updateQuestion }) {
                 </span>
                 <input
                   className="flex-1 px-2.5 py-1.5 bg-white border border-teal-200 rounded text-sm focus:border-teal-400 outline-none"
-                  placeholder={`Ending ${String.fromCharCode(65 + i)}`}
+                  placeholder={i === 0 ? 'e.g., ...the project was abandoned.' : i === 1 ? 'e.g., ...funding was increased.' : `Ending ${String.fromCharCode(65 + i)}`}
                   value={question[`ending_${String.fromCharCode(97 + i)}`] || ""}
                   onChange={(e) => updateQuestion(question.id, { [`ending_${String.fromCharCode(97 + i)}`]: e.target.value })}
                 />
@@ -398,12 +552,28 @@ function QuestionFields({ question, updateQuestion }) {
   // SUMMARY/TABLE COMPLETION
   if (type === 'summary_completion' || type === 'table_completion') {
     const gapCount = parseInt(question.gap_count) || 4;
-    const label = type === 'summary_completion' ? 'Summary' : 'Table';
+    const isSummary = type === 'summary_completion';
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title={isSummary ? "Summary Completion" : "Table Completion"}
+          description={isSummary 
+            ? "Students complete a summary of the passage by filling in numbered gaps with words. Words may come directly from the passage or from a provided word bank."
+            : "Students fill in missing cells in a table that organizes information from the passage. Tests ability to locate and understand specific details."
+          }
+          example={isSummary 
+            ? "'The study found that (1)_____ was the main factor...' → Answer: 'pollution' (from passage)"
+            : "| Type | Advantage | → Fill in: (1)_____ in the Advantage column"
+          }
+          tips={isSummary 
+            ? "Ensure answers are exact words from the passage. Specify word limit (e.g., 'NO MORE THAN TWO WORDS')."
+            : "Use clear table structure. Answers should be findable in the passage."
+          }
+        />
+        
         <Input
-          label={`${label} Topic`}
-          placeholder={`e.g., ${type === 'summary_completion' ? 'Summary of the experiment' : 'Comparison table'}`}
+          label={isSummary ? "Summary Title/Topic" : "Table Title/Topic"}
+          placeholder={isSummary ? "e.g., Summary: The Effects of Climate Change" : "e.g., Comparison of Research Methods"}
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
@@ -452,20 +622,28 @@ function QuestionFields({ question, updateQuestion }) {
   if (type === 'sentence_completion') {
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Sentence Completion"
+          description="Students complete a sentence using words taken directly from the passage. Tests locating and understanding specific information. Answers are usually 1-3 words."
+          example="'The main cause of the decline was _____.' → Answer: 'overfishing' (found in passage)"
+          tips="The sentence should paraphrase passage content. Answer must be word(s) that appear in the passage. Specify word limit in instructions."
+        />
+        
         <TextArea
-          label="Sentence with blank"
-          hint="Use ___ to mark where the answer goes"
-          placeholder="e.g., The experiment was conducted in ___ under controlled conditions."
-          rows={2}
+          label="Sentence with Blank"
+          hint="Use _____ to mark where the answer goes"
+          placeholder="e.g., According to the passage, the primary reason for the failure was _____."
+          rows={3}
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div className="bg-green-50 rounded-lg p-3">
           <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Answer</label>
+          <p className="text-xs text-green-600 mb-2">Enter the exact word(s) from the passage that complete the sentence</p>
           <input
             className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., laboratory"
+            placeholder="e.g., insufficient funding"
             value={question.answer || ""}
             onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
           />
@@ -480,18 +658,26 @@ function QuestionFields({ question, updateQuestion }) {
     const labelCount = parseInt(question.label_count) || 4;
     return (
       <div className="space-y-5">
+        <TypeInfoBox
+          title="Diagram/Flow-chart Labeling"
+          description="Students label parts of a diagram, process, or flow-chart with words from the passage. Tests understanding of processes, systems, or relationships described in the text."
+          example="Label 3 on the process diagram → Answer: 'fermentation' (the step described in the passage)"
+          tips="Diagrams should match processes described in the passage. Labels are usually nouns or short noun phrases taken directly from the text."
+        />
+        
         <Input
-          label="Label Reference"
-          placeholder="e.g., Label A / Part 1"
+          label="Label Number/Reference"
+          placeholder="e.g., Label 3 / Part A / Step 2"
           value={question.text || ""}
           onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Diagram Image URL</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Diagram/Process Image URL</label>
+          <p className="text-xs text-gray-400 mb-2">Upload your diagram image and paste the URL. Image should have clearly numbered parts.</p>
           <input
             className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-            placeholder="https://example.com/diagram.png"
+            placeholder="https://example.com/process-diagram.png"
             value={question.image_url || ""}
             onChange={(e) => updateQuestion(question.id, { image_url: e.target.value })}
           />
@@ -503,10 +689,11 @@ function QuestionFields({ question, updateQuestion }) {
         </div>
 
         <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Label</label>
+          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Label Answer</label>
+          <p className="text-xs text-green-600 mb-2">Enter the word(s) from the passage that should label this part</p>
           <input
             className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., control panel"
+            placeholder="e.g., extraction process / heating element"
             value={question.answer || ""}
             onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
           />
@@ -518,22 +705,30 @@ function QuestionFields({ question, updateQuestion }) {
   // SHORT ANSWER (default)
   return (
     <div className="space-y-5">
+      <TypeInfoBox
+        title="Short Answer Question"
+        description="Students answer a question using words taken directly from the passage. Tests ability to locate specific information. Answers are usually factual: names, numbers, places, dates."
+        example="Q: 'In which year was the museum founded?' → Answer: '1892' (from passage)"
+        tips="Questions should be answerable with specific words from the text. Specify word limit (e.g., 'NO MORE THAN THREE WORDS')."
+      />
+      
       <Input
         label="Question"
-        placeholder="e.g., What year was the discovery made?"
+        placeholder="e.g., How many participants were involved in the study?"
         value={question.text || ""}
         onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
       />
 
       <div className="bg-green-50 rounded-lg p-3">
         <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Answer</label>
+        <p className="text-xs text-green-600 mb-2">Enter the exact word(s)/number from the passage</p>
         <input
           className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-          placeholder="e.g., 1998"
+          placeholder="e.g., 250 / three years / Dr. Williams"
           value={question.answer || ""}
           onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
         />
-        <p className="text-xs text-green-600 mt-1.5">Words/numbers from the passage (usually 1-3 words)</p>
+        <p className="text-xs text-green-500 mt-2 italic">💡 Best practice: specify word limit in your question (e.g., 'Answer with NO MORE THAN TWO WORDS')</p>
       </div>
     </div>
   );
