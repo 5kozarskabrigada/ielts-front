@@ -74,11 +74,12 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
           {/* Example header - italic, underlined, bold */}
           <p className="font-bold italic underline mb-2">Example:</p>
           
-          {/* Example question text - all italic, strip HTML for clean display */}
+          {/* Example question text - all italic, render HTML properly */}
           {exampleData.question_text && (
-            <p className="italic mb-2">
-              {stripHtml(exampleData.question_text)}
-            </p>
+            <p 
+              className="italic mb-2"
+              dangerouslySetInnerHTML={{ __html: cleanHtml(exampleData.question_text) }}
+            />
           )}
           
           {/* Example options - all italic, correct answer is bold (NO "Answer: X" shown) */}

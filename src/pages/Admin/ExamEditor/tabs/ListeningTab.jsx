@@ -1647,9 +1647,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
                           {/* Example header - italic, underlined, bold */}
                           <p className="font-bold italic underline mb-2">Example:</p>
                           
-                          {/* Example question text - italic */}
+                          {/* Example question text - italic, render HTML */}
                           {(group.example_data.stem || group.example_data.question_text) && (
-                            <p className="italic mb-2">{group.example_data.stem || group.example_data.question_text}</p>
+                            <p 
+                              className="italic mb-2 [&>*]:m-0"
+                              dangerouslySetInnerHTML={{ __html: group.example_data.stem || group.example_data.question_text }}
+                            />
                           )}
                           
                           {/* Example options - italic, correct one bold (NO "Answer: X") */}
