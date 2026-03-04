@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { 
-  ChevronDown, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
+  ChevronDown, ChevronUp, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
   HelpCircle, ListChecks, ArrowRightLeft, MapPin, FileText, 
   StickyNote, Type, MessageSquare, Settings, Eye, EyeOff
 } from "lucide-react";
@@ -873,8 +873,11 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
       ? Math.max(...actualQuestions.map(q => q.question_number)) + 1
       : group.question_range_start;
     
-    if (nextNum > group.question_range_end) {
-      alert(`This group only covers questions ${group.question_range_start}–${group.question_range_end}`);
+    // For form_completion, auto-expand the range if needed
+    if (nextNum > group.question_range_end && group.question_type === 'form_completion') {
+      updateQuestionGroup(group.id, { question_range_end: nextNum });
+    } else if (nextNum > group.question_range_end) {
+      alert(`This group only covers questions ${group.question_range_start}–${group.question_range_end}. Increase the range to add more.`);
       return;
     }
 
@@ -891,6 +894,28 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
       points: group.points_per_question || 1,
       row_order: maxRowOrder + 1
     });
+  };
+
+  // Move row up or down in the table/form
+  const moveRow = (questionId, direction) => {
+    const sortedRows = [...groupRows].sort((a, b) => 
+      (a.row_order || a.question_number) - (b.row_order || b.question_number)
+    );
+    const currentIndex = sortedRows.findIndex(q => q.id === questionId);
+    if (currentIndex < 0) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= sortedRows.length) return;
+    
+    // Swap row_order values
+    const currentRow = sortedRows[currentIndex];
+    const targetRow = sortedRows[newIndex];
+    
+    const currentOrder = currentRow.row_order || currentRow.question_number;
+    const targetOrder = targetRow.row_order || targetRow.question_number;
+    
+    updateQuestion(currentRow.id, { row_order: targetOrder });
+    updateQuestion(targetRow.id, { row_order: currentOrder });
   };
 
   const globalQuestionNumber = (partNumber - 1) * 10;
@@ -1075,8 +1100,7 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
               <button
                 type="button"
                 onClick={addQuestionToGroup}
-                disabled={actualQuestions.length >= (group.question_range_end - group.question_range_start + 1)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 disabled:opacity-40 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition"
               >
                 <Plus size={14} /> Add Row
               </button>
@@ -1084,15 +1108,41 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
             
             {groupRows.length > 0 ? (
               <div className="space-y-2">
-                {groupRows.map((q) => (
-                  <QuestionEditor
-                    key={q.id}
-                    question={q}
-                    questionNumber={q.is_info_row ? null : (globalQuestionNumber + q.question_number)}
-                    groupType={group.question_type}
-                    updateQuestion={updateQuestion}
-                    deleteQuestion={deleteQuestion}
-                  />
+                {groupRows.map((q, idx) => (
+                  <div key={q.id} className="flex items-start gap-2">
+                    {/* Move buttons for form/table completion */}
+                    {group.question_type === 'form_completion' && (
+                      <div className="flex flex-col gap-0.5 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => moveRow(q.id, 'up')}
+                          disabled={idx === 0}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move up"
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveRow(q.id, 'down')}
+                          disabled={idx === groupRows.length - 1}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move down"
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <QuestionEditor
+                        question={q}
+                        questionNumber={q.is_info_row ? null : (globalQuestionNumber + q.question_number)}
+                        groupType={group.question_type}
+                        updateQuestion={updateQuestion}
+                        deleteQuestion={deleteQuestion}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -1434,13 +1484,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
         >
           {num}
         </span>
-        {/* Rounded input field */}
+        {/* Rounded input field - more rounded and longer */}
         <input 
           type="text" 
-          className="w-28 px-4 py-1.5 border border-gray-300 text-sm text-center bg-white outline-none"
+          className="w-36 px-4 py-1.5 border border-gray-300 text-sm text-center bg-white outline-none"
           style={{ 
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-            borderRadius: '8px'
+            borderRadius: '12px'
           }}
           placeholder=""
         />
@@ -1508,14 +1558,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
         outer: {
           border: '1px solid rgb(221, 221, 221)',
           borderRadius: '10px',
-          padding: '10px',
+          padding: '16px',
           marginTop: '20px',
           marginBottom: '0',
           fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
           fontSize: '14px',
           lineHeight: '21px',
-          color: 'rgb(40, 40, 40)',
-          overflowX: 'auto'
+          color: 'rgb(40, 40, 40)'
         },
         header: {
           color: 'rgb(41, 69, 99)',
@@ -1523,13 +1572,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
           fontSize: '20px',
           fontWeight: 700,
           lineHeight: '24px',
-          marginBottom: '10px',
-          paddingLeft: '8px',
+          marginBottom: '16px',
           textAlign: 'left'
         },
         cell: {
-          padding: '8px',
-          verticalAlign: 'top',
+          padding: '10px 8px',
+          verticalAlign: 'middle',
           fontSize: '14px',
           lineHeight: '20px'
         }
@@ -1537,15 +1585,16 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
       return (
         <div className="mb-4">
-          {/* Outer table container with rounded border - title inside */}
+          {/* Outer box with rounded border - title inside */}
           <div style={tableStyles.outer}>
-            {/* Table/Form Title - inside the container */}
+            {/* Title - inside the container */}
             {group.table_title && (
               <div 
                 style={tableStyles.header}
                 dangerouslySetInnerHTML={{ __html: group.table_title }}
               />
             )}
+            {/* Simple two-column table, no borders between cells */}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
                 {groupQuestions.map(q => {
@@ -1558,10 +1607,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     // Info row - no blank, no question number
                     return (
                       <tr key={q.id}>
-                        <td style={{ ...tableStyles.cell, width: '33%', borderBottom: '1px solid rgb(238, 238, 238)' }}>
+                        <td style={{ ...tableStyles.cell, width: '33%' }}>
                           <RenderHtml html={q.label_text || ''} />
                         </td>
-                        <td style={{ ...tableStyles.cell, borderBottom: '1px solid rgb(238, 238, 238)' }}>
+                        <td style={tableStyles.cell}>
                           <RenderHtml html={q.info_text || ''} />
                         </td>
                       </tr>
@@ -1571,10 +1620,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   // Question row - with blank to fill
                   return (
                     <tr key={q.id}>
-                      <td style={{ ...tableStyles.cell, width: '33%', borderBottom: '1px solid rgb(238, 238, 238)' }}>
+                      <td style={{ ...tableStyles.cell, width: '33%' }}>
                         <RenderHtml html={q.label_text || ''} />
                       </td>
-                      <td style={{ ...tableStyles.cell, borderBottom: '1px solid rgb(238, 238, 238)' }}>
+                      <td style={tableStyles.cell}>
                         {hasBlank ? (
                           template.split('[BLANK]').map((part, idx, arr) => (
                             <React.Fragment key={idx}>
@@ -1826,7 +1875,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                             />
                           )}
                           
-                          {/* Example options - more spaced out, radio + letter order */}
+                          {/* Example options - simple A. B. C. format (no circles) */}
                           {exampleOptions.length > 0 && (
                             <div className="space-y-2 ml-4">
                               {exampleOptions.map((opt, idx) => {
@@ -1835,26 +1884,9 @@ const PreviewMode = ({ isOpen, onClose }) => {
                                 const correctAnswer = group.example_data.answer || group.example_data.correct_answer;
                                 const isCorrect = correctAnswer === letter || correctAnswer === optText || correctAnswer === String(idx);
                                 return (
-                                  <div key={idx} className={`flex items-center gap-2 italic ${isCorrect ? 'font-bold' : ''}`}>
-                                    {/* Letter circle (gray) */}
-                                    <span style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      width: '24px',
-                                      height: '24px',
-                                      borderRadius: '50%',
-                                      backgroundColor: isCorrect ? 'rgb(50, 180, 200)' : 'rgb(223, 223, 223)',
-                                      color: isCorrect ? 'white' : 'rgb(41, 69, 99)',
-                                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                                      fontSize: '14px',
-                                      fontWeight: 700,
-                                      flexShrink: 0
-                                    }}>
-                                      {letter}
-                                    </span>
-                                    <span>{optText}</span>
-                                  </div>
+                                  <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
+                                    {letter}. {optText}
+                                  </p>
                                 );
                               })}
                             </div>
