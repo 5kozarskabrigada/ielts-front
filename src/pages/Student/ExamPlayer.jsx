@@ -63,16 +63,25 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
   }
 
   return (
-    <div className="mb-10">
-      {/* Questions range header - accent color, bold, no container */}
-      <h3 className="text-blue-600 font-bold text-lg mb-3">
+    <div className="mb-10" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+      {/* Questions range header - accent color, Montserrat font */}
+      <h3 style={{
+        color: 'rgb(50, 180, 200)',
+        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+        fontSize: '20px',
+        fontWeight: 700,
+        lineHeight: '24px',
+        marginTop: '10px',
+        marginBottom: '10px'
+      }}>
         Questions {globalStart}–{globalEnd}
       </h3>
 
       {/* Instruction text - rendered as clean HTML, NO container/card/border */}
       {group.instruction_text && (
         <div 
-          className="text-gray-800 mb-4 leading-relaxed [&>*]:m-0"
+          className="mb-4 leading-relaxed [&>*]:m-0"
+          style={{ color: 'rgb(40, 40, 40)', fontSize: '14px', lineHeight: '21px' }}
           dangerouslySetInnerHTML={{ __html: cleanHtml(group.instruction_text) }}
         />
       )}
@@ -121,7 +130,7 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
           // Info rows - display as simple info without question number or input
           if (isInfoRow) {
             return (
-              <div key={q.id} className="flex items-start gap-3 text-gray-600">
+              <div key={q.id} className="flex items-start gap-3 text-gray-600" style={{ fontSize: '14px', lineHeight: '21px' }}>
                 <span className="min-w-[24px]">&nbsp;</span>
                 <div className="flex-1">
                   {q.label_text && (
@@ -137,15 +146,21 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
           }
           
           return (
-            <div key={q.id} className="flex items-start gap-3">
-              {/* Question number */}
-              <span className="font-bold text-gray-700 min-w-[24px]">{globalQNum}</span>
+            <div key={q.id} className="flex items-start gap-3" style={{ fontSize: '14px', lineHeight: '21px' }}>
+              {/* Question number with accent color circle */}
+              <span 
+                className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+                style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(50, 180, 200)' }}
+              >
+                {globalQNum}
+              </span>
               
               <div className="flex-1">
                 {/* Question text - render cleaned HTML */}
                 {q.question_text && (
                   <div 
-                    className="text-gray-800 mb-2"
+                    className="mb-2"
+                    style={{ color: 'rgb(40, 40, 40)' }}
                     dangerouslySetInnerHTML={{ __html: cleanHtml(q.question_text) }}
                   />
                 )}
@@ -164,6 +179,7 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
 // Helper function to render the appropriate input based on question type
 const renderQuestionInput = (question, group, answers, setAnswers, isPreview) => {
   const qType = group.question_type || question.question_type;
+  const inputFont = { fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' };
   
   // Parse options from question
   let options = [];
@@ -175,7 +191,7 @@ const renderQuestionInput = (question, group, answers, setAnswers, isPreview) =>
   switch (qType) {
     case 'multiple_choice':
       return (
-        <div className="space-y-2">
+        <div className="space-y-2" style={inputFont}>
           {options.map((opt, idx) => {
             const letter = String.fromCharCode(65 + idx);
             const optText = typeof opt === 'object' ? opt.text : opt;
@@ -201,7 +217,8 @@ const renderQuestionInput = (question, group, answers, setAnswers, isPreview) =>
       return (
         <div className="flex items-center gap-2">
           <select
-            className="border rounded px-3 py-2 min-w-[80px]"
+            className="border border-gray-300 rounded px-3 py-2 min-w-[80px] outline-none"
+            style={inputFont}
             value={answers[question.id] || ''}
             onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
             disabled={isPreview}
@@ -223,7 +240,8 @@ const renderQuestionInput = (question, group, answers, setAnswers, isPreview) =>
       return (
         <input
           type="text"
-          className="border-b-2 border-gray-300 focus:border-blue-500 outline-none px-1 py-1 min-w-[150px] max-w-[300px]"
+          className="border border-gray-300 rounded px-2 py-1 min-w-[150px] max-w-[300px] outline-none"
+          style={inputFont}
           placeholder={group.max_words ? `No more than ${group.max_words} words` : ''}
           value={answers[question.id] || ''}
           onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}

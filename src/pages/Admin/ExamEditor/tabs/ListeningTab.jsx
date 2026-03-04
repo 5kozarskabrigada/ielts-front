@@ -225,16 +225,17 @@ const RenderHtml = ({ html }) => {
 // ============================================
 const BlankInput = ({ questionNumber }) => (
   <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-    {/* Circle with question number - matches Questions header color */}
+    {/* Circle with question number - accent color */}
     <span 
-      className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0 shadow-sm"
-      style={{ minWidth: '28px', minHeight: '28px' }}
+      className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+      style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(50, 180, 200)' }}
     >
       {questionNumber}
     </span>
-    {/* Rounded rectangular input field */}
+    {/* Input field */}
     <span 
-      className="inline-block px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-gray-50 text-gray-400 text-sm min-w-[100px] text-center"
+      className="inline-block px-4 py-1.5 border border-gray-300 rounded bg-white text-gray-400 text-sm min-w-[100px] text-center"
+      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
     >
       __________
     </span>
@@ -1404,20 +1405,24 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const type = group.question_type;
 
+    // Accent color: rgb(50, 180, 200)
+    const accentColor = 'rgb(50, 180, 200)';
+
     // Reusable blank input for student preview - circle + rounded input
     const StudentBlankInput = ({ num }) => (
       <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-        {/* Circle with question number - matches Questions header color */}
+        {/* Circle with question number - accent color */}
         <span 
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0 shadow-sm"
-          style={{ minWidth: '28px', minHeight: '28px' }}
+          className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+          style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
         >
           {num}
         </span>
         {/* Rounded rectangular input field */}
         <input 
           type="text" 
-          className="w-28 px-4 py-1.5 border-2 border-gray-300 rounded-2xl text-sm text-center bg-white focus:border-blue-400 outline-none"
+          className="w-28 px-4 py-1.5 border border-gray-300 rounded text-sm text-center bg-white outline-none"
+          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
           placeholder=""
         />
       </span>
@@ -1428,11 +1433,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
-          <div key={q.id} className="py-4 border-b border-gray-100 last:border-0">
+          <div key={q.id} className="py-4 border-b border-gray-100 last:border-0" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
             <p className="font-medium mb-3 flex items-start gap-2">
               <span 
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
-                style={{ minWidth: '28px', minHeight: '28px' }}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+                style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
               >
                 {globalNum}
               </span>
@@ -1457,60 +1462,102 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
     // Form/Table Completion: Two-column table format (supports info rows)
     if (type === 'form_completion') {
+      const tableStyles = {
+        outer: {
+          border: '1px solid rgb(221, 221, 221)',
+          borderRadius: '10px',
+          padding: '10px',
+          marginTop: '20px',
+          marginBottom: '0',
+          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+          fontSize: '14px',
+          lineHeight: '21px',
+          color: 'rgb(40, 40, 40)',
+          overflowX: 'auto'
+        },
+        header: {
+          color: 'rgb(41, 69, 99)',
+          fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+          fontSize: '20px',
+          fontWeight: 700,
+          lineHeight: '24px',
+          marginTop: '20px',
+          marginBottom: '10px',
+          textAlign: 'left'
+        },
+        cell: {
+          border: '1px solid rgb(221, 221, 221)',
+          padding: '8px',
+          verticalAlign: 'top',
+          fontSize: '14px',
+          lineHeight: '20px'
+        },
+        caption: {
+          padding: '8px 20px',
+          textAlign: 'left',
+          color: 'rgb(51, 51, 51)',
+          fontSize: '14px',
+          lineHeight: '21px'
+        }
+      };
+
       return (
         <div className="mb-4">
-          {/* Table/Form Title - displayed above table */}
+          {/* Table/Form Title - styled as header */}
           {group.table_title && (
             <div 
-              className="text-center font-bold text-gray-800 mb-3 text-lg"
+              style={tableStyles.header}
               dangerouslySetInnerHTML={{ __html: group.table_title }}
             />
           )}
-          <table className="w-full border-collapse">
-            <tbody>
-              {groupQuestions.map(q => {
-                const globalNum = globalOffset + q.question_number;
-                const template = q.question_template || '';
-                const isInfoRow = q.is_info_row === true;
-                const hasBlank = template.includes('[BLANK]');
-              
-                if (isInfoRow) {
-                  // Info row - no blank, no question number, uniform styling
+          {/* Outer table container with rounded border */}
+          <div style={tableStyles.outer}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {groupQuestions.map(q => {
+                  const globalNum = globalOffset + q.question_number;
+                  const template = q.question_template || '';
+                  const isInfoRow = q.is_info_row === true;
+                  const hasBlank = template.includes('[BLANK]');
+                
+                  if (isInfoRow) {
+                    // Info row - no blank, no question number
+                    return (
+                      <tr key={q.id}>
+                        <td style={{ ...tableStyles.cell, width: '33%' }}>
+                          <RenderHtml html={q.label_text || ''} />
+                        </td>
+                        <td style={tableStyles.cell}>
+                          <RenderHtml html={q.info_text || ''} />
+                        </td>
+                      </tr>
+                    );
+                  }
+                
+                  // Question row - with blank to fill
                   return (
-                    <tr key={q.id} className="border border-gray-300">
-                      <td className="border border-gray-300 px-4 py-2 w-1/3">
+                    <tr key={q.id}>
+                      <td style={{ ...tableStyles.cell, width: '33%' }}>
                         <RenderHtml html={q.label_text || ''} />
                       </td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        <RenderHtml html={q.info_text || ''} />
+                      <td style={tableStyles.cell}>
+                        {hasBlank ? (
+                          template.split('[BLANK]').map((part, idx, arr) => (
+                            <React.Fragment key={idx}>
+                              <RenderHtml html={part} />
+                              {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
+                            </React.Fragment>
+                          ))
+                        ) : (
+                          <RenderHtml html={template} />
+                        )}
                       </td>
                     </tr>
                   );
-                }
-              
-                // Question row - only show question number if has [BLANK], uniform styling
-                return (
-                  <tr key={q.id} className="border border-gray-300">
-                    <td className="border border-gray-300 px-4 py-2 w-1/3">
-                      <RenderHtml html={q.label_text || ''} />
-                    </td>
-                    <td className="border border-gray-300 px-4 py-3">
-                      {hasBlank ? (
-                        template.split('[BLANK]').map((part, idx, arr) => (
-                          <React.Fragment key={idx}>
-                            <RenderHtml html={part} />
-                            {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
-                          </React.Fragment>
-                        ))
-                      ) : (
-                        <RenderHtml html={template} />
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       );
     }
@@ -1521,7 +1568,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         const template = q.question_template || '';
         return (
-          <div key={q.id} className="py-3 flex items-center flex-wrap gap-1">
+          <div 
+            key={q.id} 
+            className="py-3 flex items-center flex-wrap gap-1"
+            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px', lineHeight: '21px' }}
+          >
             {template.split('[BLANK]').map((part, idx, arr) => (
               <React.Fragment key={idx}>
                 <RenderHtml html={part} />
@@ -1536,7 +1587,17 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Note/Summary Completion
     if (type === 'note_completion') {
       return (
-        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+        <div 
+          className="rounded-lg p-4 space-y-3"
+          style={{ 
+            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+            fontSize: '14px', 
+            lineHeight: '21px',
+            border: '1px solid rgb(221, 221, 221)',
+            borderRadius: '10px',
+            padding: '10px'
+          }}
+        >
           {groupQuestions.map(q => {
             const globalNum = globalOffset + q.question_number;
             const template = q.question_template || '';
@@ -1560,15 +1621,18 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
-          <div key={q.id} className="py-3 flex items-center gap-3">
+          <div key={q.id} className="py-3 flex items-center gap-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
             <span 
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
-              style={{ minWidth: '28px', minHeight: '28px' }}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+              style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
             >
               {globalNum}
             </span>
             <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
-            <select className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-white focus:border-blue-400 outline-none min-w-[100px]">
+            <select 
+              className="px-4 py-1.5 border border-gray-300 rounded bg-white outline-none min-w-[100px]"
+              style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+            >
               <option value="">Select</option>
               {(group.shared_options || []).map(opt => (
                 <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -1583,17 +1647,18 @@ const PreviewMode = ({ isOpen, onClose }) => {
     return groupQuestions.map(q => {
       const globalNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="py-3 flex items-center gap-3">
+        <div key={q.id} className="py-3 flex items-center gap-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <span 
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
-            style={{ minWidth: '28px', minHeight: '28px' }}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+            style={{ minWidth: '28px', minHeight: '28px', backgroundColor: accentColor }}
           >
             {globalNum}
           </span>
           <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
           <input 
             type="text" 
-            className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl w-32 focus:border-blue-400 outline-none"
+            className="px-4 py-1.5 border border-gray-300 rounded w-32 outline-none"
+            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
             placeholder=""
           />
         </div>
@@ -1666,16 +1731,29 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   }
 
                   return (
-                    <div key={group.id} className="mb-8 pb-6 border-b border-gray-100 last:border-0">
-                      {/* Questions header - accent color, bold, no container */}
-                      <p className="font-bold text-blue-600 text-lg mb-2">
+                    <div 
+                      key={group.id} 
+                      className="mb-8 pb-6 border-b border-gray-100 last:border-0"
+                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                    >
+                      {/* Questions header - accent color, Montserrat font */}
+                      <p style={{
+                        color: 'rgb(50, 180, 200)',
+                        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                        fontSize: '20px',
+                        fontWeight: 700,
+                        lineHeight: '24px',
+                        marginTop: '10px',
+                        marginBottom: '10px'
+                      }}>
                         Questions {globalOffset + group.question_range_start}–{globalOffset + group.question_range_end}
                       </p>
                       
                       {/* Instruction text - render as HTML, no container */}
                       {group.instruction_text && (
                         <div 
-                          className="text-gray-700 mb-4 [&>*]:m-0"
+                          className="mb-4 [&>*]:m-0"
+                          style={{ color: 'rgb(40, 40, 40)', fontSize: '14px', lineHeight: '21px' }}
                           dangerouslySetInnerHTML={{ __html: group.instruction_text }}
                         />
                       )}
