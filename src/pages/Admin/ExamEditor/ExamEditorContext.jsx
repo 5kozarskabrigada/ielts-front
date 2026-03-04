@@ -76,7 +76,9 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   // Writing: Fixed 2 tasks
   const [sections, setSections] = useState(initialData?.sections || []);
   const [questions, setQuestions] = useState(initialData?.questions || []);
+  const [questionGroups, setQuestionGroups] = useState(initialData?.questionGroups || []);
   const [deletedQuestionIds, setDeletedQuestionIds] = useState([]); // Track deleted question IDs for soft delete
+  const [deletedGroupIds, setDeletedGroupIds] = useState([]); // Track deleted group IDs
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -166,24 +168,50 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
     setDeletedQuestionIds([]);
   };
 
+  // Question Group management for Listening
+  const addQuestionGroup = (sectionId, groupData) => {
+    setQuestionGroups(prev => [
+      ...prev,
+      { 
+        id: `temp_group_${Date.now()}`, 
+        section_id: sectionId,
+        group_order: (prev.filter(g => g.section_id === sectionId).length || 0) + 1,
+        ...groupData 
+      }
+    ]);
+  };
+
+  const updateQuestionGroup = (id, updates) => {
+    setQuestionGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+  };
+
+  const deleteQuestionGroup = (id) => {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isUUID) {
+      setDeletedGroupIds(prev => [...prev, id]);
+    }
+    setQuestionGroups(prev => prev.filter(g => g.id !== id));
+  };
+
+  const clearDeletedGroupIds = () => {
+    setDeletedGroupIds([]);
+  };
+
+  const reorderQuestionGroups = (sectionId, newOrder) => {
+    setQuestionGroups(prev => {
+      const sectionGroups = prev.filter(g => g.section_id === sectionId);
+      const otherGroups = prev.filter(g => g.section_id !== sectionId);
+      const reordered = newOrder.map((groupId, idx) => {
+        const group = sectionGroups.find(g => g.id === groupId);
+        return group ? { ...group, group_order: idx + 1 } : null;
+      }).filter(Boolean);
+      return [...otherGroups, ...reordered];
+    });
+  };
+
   const updateIds = (mapping) => {
     if (!mapping) return;
     
-    // Update sections
-    if (mapping.sections) {
-      setSections(prev => prev.map(s => {
-        const newId = mapping.sections[s.id];
-        return newId ? { ...s, id: newId } : s;
-      }));
-      
-      // Also update section_id in questions if the section ID changed
-      // But wait, if we update section ID, we must update question's section_id too
-      // The questions state relies on section_id to filter.
-      
-      // Actually, let's do questions first or handle it carefully.
-      // If we update section ID 'l1' -> 'uuid-1', all questions with section_id 'l1' must now have 'uuid-1'.
-    }
-
     // We need to do this carefully.
     setSections(prevSections => {
       const newSections = prevSections.map(s => {
@@ -207,6 +235,21 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       });
       
       return newQuestions;
+    });
+
+    // Update question groups
+    setQuestionGroups(prevGroups => {
+      let newGroups = prevGroups.map(g => {
+        const newSectionId = mapping.sections && mapping.sections[g.section_id];
+        return newSectionId ? { ...g, section_id: newSectionId } : g;
+      });
+
+      newGroups = newGroups.map(g => {
+        const newId = mapping.groups && mapping.groups[g.id];
+        return newId ? { ...g, id: newId } : g;
+      });
+
+      return newGroups;
     });
   };
 
@@ -248,7 +291,9 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       exam, updateExam,
       sections, updateSection,
       questions, addQuestion, updateQuestion, deleteQuestion,
+      questionGroups, addQuestionGroup, updateQuestionGroup, deleteQuestionGroup, reorderQuestionGroups,
       deletedQuestionIds, clearDeletedQuestionIds,
+      deletedGroupIds, clearDeletedGroupIds,
       validationErrors, validate, isSaving, updateIds, clearTempCode
     }}>
       {children}

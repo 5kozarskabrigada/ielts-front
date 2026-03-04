@@ -21,7 +21,7 @@ const generateCode = () => {
 };
 
 function ExamEditorContent() {
-  const { exam, sections, questions, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, clearTempCode } = useExamEditor();
+  const { exam, sections, questions, questionGroups, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, deletedGroupIds, clearDeletedGroupIds, clearTempCode } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const [fullScreenModule, setFullScreenModule] = useState(null);
   const { token } = useAuth();
@@ -90,7 +90,9 @@ function ExamEditorContent() {
         exam: { ...exam, access_code: exam.code },
         sections, 
         questions,
-        deletedQuestionIds
+        questionGroups,
+        deletedQuestionIds,
+        deletedGroupIds
       });
       
       if (response.idMapping) {
@@ -98,6 +100,7 @@ function ExamEditorContent() {
       }
       
       clearDeletedQuestionIds();
+      clearDeletedGroupIds();
       clearTempCode(); // Clear temporary code from sessionStorage after successful save
       showModal("Success", "Exam saved successfully!", "success");
       if (isNew) {
