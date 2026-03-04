@@ -579,7 +579,7 @@ function QuestionFields({ question, updateQuestion }) {
         />
 
         <TextArea
-          label={`${label} Content`}
+          label={isSummary ? "Summary Content" : "Table Content"}
           hint="Use (1) ___, (2) ___ to mark blanks"
           placeholder={type === 'summary_completion' 
             ? "The study found that (1) ___ was the main factor affecting (2) ___..."
