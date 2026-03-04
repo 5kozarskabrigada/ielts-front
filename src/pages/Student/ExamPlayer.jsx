@@ -176,6 +176,22 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
   );
 };
 
+// Helper function to count words and numbers in text
+const countWordsAndNumbers = (text) => {
+  if (!text || !text.trim()) return { words: 0, numbers: 0, total: 0 };
+  const tokens = text.trim().split(/\s+/);
+  let words = 0;
+  let numbers = 0;
+  tokens.forEach(token => {
+    if (/^-?\d+(\.\d+)?$/.test(token)) {
+      numbers++;
+    } else {
+      words++;
+    }
+  });
+  return { words, numbers, total: words + numbers };
+};
+
 // Helper function to render the appropriate input based on question type
 const renderQuestionInput = (question, group, answers, setAnswers, isPreview) => {
   const qType = group.question_type || question.question_type;
@@ -236,18 +252,43 @@ const renderQuestionInput = (question, group, answers, setAnswers, isPreview) =>
     case 'sentence_completion':
     case 'summary_completion':
     case 'short_answer':
-    default:
+    default: {
+      const maxWords = group.max_words;
+      const maxNumbers = group.max_numbers;
+      const currentValue = answers[question.id] || '';
+      const { words, numbers } = countWordsAndNumbers(currentValue);
+      const isOverLimit = (maxWords && words > maxWords) || (maxNumbers && numbers > maxNumbers);
+      
+      const handleChange = (e) => {
+        if (isPreview) return;
+        const newValue = e.target.value;
+        const { words: newWords, numbers: newNumbers } = countWordsAndNumbers(newValue);
+        
+        // Allow typing but show visual feedback when over limit
+        setAnswers({ ...answers, [question.id]: newValue });
+      };
+      
+      const placeholderText = maxWords 
+        ? `Max ${maxWords} word${maxWords > 1 ? 's' : ''}${maxNumbers ? ` + ${maxNumbers} #` : ''}`
+        : '';
+      
       return (
         <input
           type="text"
-          className="border border-gray-300 rounded px-2 py-1 min-w-[150px] max-w-[300px] outline-none"
-          style={inputFont}
-          placeholder={group.max_words ? `No more than ${group.max_words} words` : ''}
-          value={answers[question.id] || ''}
-          onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
+          className="px-3 py-1.5 min-w-[150px] max-w-[300px] outline-none"
+          style={{
+            ...inputFont,
+            borderRadius: '12px',
+            border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(209, 213, 219)'
+          }}
+          placeholder={placeholderText}
+          value={currentValue}
+          onChange={handleChange}
           disabled={isPreview}
+          title={isOverLimit ? 'Too many words/numbers!' : placeholderText}
         />
       );
+    }
   }
 };
 

@@ -1458,44 +1458,109 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Accent color: rgb(50, 180, 200)
     const accentColor = 'rgb(50, 180, 200)';
 
-    // Reusable blank input for student preview - circle + rounded input
-    const StudentBlankInput = ({ num }) => (
-      <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-        {/* Circle with question number - accent color, Montserrat */}
-        <span 
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            width: '28px',
-            height: '28px',
-            minWidth: '28px',
-            minHeight: '28px',
-            backgroundColor: accentColor,
-            borderRadius: '50%',
-            color: 'rgb(255, 255, 255)',
-            fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
-            fontSize: '14px',
-            fontWeight: 600,
-            padding: '10px',
-            margin: '2px 0'
-          }}
-        >
-          {num}
+    // Word/number counting and validation helper
+    const countWordsAndNumbers = (text) => {
+      if (!text || !text.trim()) return { words: 0, numbers: 0 };
+      const tokens = text.trim().split(/\s+/);
+      let words = 0;
+      let numbers = 0;
+      tokens.forEach(token => {
+        // Check if token is a number (including decimals, negatives)
+        if (/^-?\d+(\.\d+)?$/.test(token)) {
+          numbers++;
+        } else {
+          words++;
+        }
+      });
+      return { words, numbers };
+    };
+
+    // Validate input against max_words and max_numbers
+    const validateInput = (value, maxWords, maxNumbers) => {
+      const { words, numbers } = countWordsAndNumbers(value);
+      const totalAllowed = (maxWords || 999) + (maxNumbers || 999);
+      const total = words + numbers;
+      
+      // Check if within limits
+      if (maxWords && words > maxWords) return false;
+      if (maxNumbers && numbers > maxNumbers) return false;
+      return true;
+    };
+
+    // Reusable blank input for student preview - circle + rounded input with word/number limit
+    const StudentBlankInput = ({ num }) => {
+      const [value, setValue] = React.useState('');
+      const [isOverLimit, setIsOverLimit] = React.useState(false);
+      
+      const maxWords = group.max_words;
+      const maxNumbers = group.max_numbers;
+      
+      const handleChange = (e) => {
+        const newValue = e.target.value;
+        const { words, numbers } = countWordsAndNumbers(newValue);
+        
+        // Check limits
+        const wordsOk = !maxWords || words <= maxWords;
+        const numbersOk = !maxNumbers || numbers <= maxNumbers;
+        
+        if (wordsOk && numbersOk) {
+          setValue(newValue);
+          setIsOverLimit(false);
+        } else {
+          // Show visual feedback but don't update value
+          setIsOverLimit(true);
+          // Still allow typing but show it's over limit
+          setValue(newValue);
+        }
+      };
+
+      // Calculate limit text for placeholder
+      const limitText = maxWords 
+        ? `Max ${maxWords} word${maxWords > 1 ? 's' : ''}${maxNumbers ? ` + ${maxNumbers} number${maxNumbers > 1 ? 's' : ''}` : ''}`
+        : '';
+
+      return (
+        <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+          {/* Circle with question number - accent color, Montserrat */}
+          <span 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              width: '28px',
+              height: '28px',
+              minWidth: '28px',
+              minHeight: '28px',
+              backgroundColor: accentColor,
+              borderRadius: '50%',
+              color: 'rgb(255, 255, 255)',
+              fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+              fontSize: '14px',
+              fontWeight: 600,
+              padding: '10px',
+              margin: '2px 0'
+            }}
+          >
+            {num}
+          </span>
+          {/* Rounded input field with limit validation */}
+          <input 
+            type="text" 
+            value={value}
+            onChange={handleChange}
+            className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none"
+            style={{ 
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              borderRadius: '12px',
+              border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(209, 213, 219)'
+            }}
+            placeholder=""
+            title={limitText}
+          />
         </span>
-        {/* Rounded input field - more rounded and longer */}
-        <input 
-          type="text" 
-          className="w-36 px-4 py-1.5 border border-gray-300 text-sm text-center bg-white outline-none"
-          style={{ 
-            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-            borderRadius: '12px'
-          }}
-          placeholder=""
-        />
-      </span>
-    );
+      );
+    };
 
     // Multiple Choice: Number, question, then A/B/C options below
     if (type === 'multiple_choice') {
