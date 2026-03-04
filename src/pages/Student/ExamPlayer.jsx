@@ -5,7 +5,38 @@ import { apiGetExam, apiLogViolation, apiSubmitExam } from "../../api";
 import { AlertTriangle, Clock, Save, ShieldAlert, Headphones, BookOpen, PenTool, SkipForward, CheckSquare, FileText, Eye, X } from "lucide-react";
 
 // ============================================
-// LISTENING QUESTION GROUP RENDERER
+// HTML HELPERS
+// ============================================
+
+// Decode HTML entities (in case they were double-encoded)
+const decodeHtmlEntities = (text) => {
+  if (!text) return '';
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
+// Strip all HTML tags to get plain text
+const stripHtml = (html) => {
+  if (!html) return '';
+  // First decode any entities
+  const decoded = decodeHtmlEntities(html);
+  const doc = new DOMParser().parseFromString(decoded, 'text/html');
+  return doc.body.textContent || '';
+};
+
+// Clean HTML - decode entities and prepare for rendering
+const cleanHtml = (html) => {
+  if (!html) return '';
+  // Decode HTML entities
+  let cleaned = decodeHtmlEntities(html);
+  // Remove any escaped quotes that might cause issues
+  cleaned = cleaned.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  return cleaned;
+};
+
+// ============================================
+// LISTENING QUESTION GROUP RENDERER  
 // ============================================
 const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setAnswers, isPreview }) => {
   // Filter questions that belong to this group
@@ -20,42 +51,48 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
 
   // Parse example data
   const exampleData = group.example_data || {};
+  const exampleOptions = exampleData.options || [];
 
   return (
     <div className="mb-10">
-      {/* Questions range header - accent color, bold */}
+      {/* Questions range header - accent color, bold, no container */}
       <h3 className="text-blue-600 font-bold text-lg mb-3">
         Questions {globalStart}–{globalEnd}
       </h3>
 
-      {/* Instruction text - rendered as HTML, no container */}
+      {/* Instruction text - rendered as clean HTML, NO container/card/border */}
       {group.instruction_text && (
         <div 
-          className="text-gray-800 mb-4 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: group.instruction_text }}
+          className="text-gray-800 mb-4 leading-relaxed [&>*]:m-0"
+          dangerouslySetInnerHTML={{ __html: cleanHtml(group.instruction_text) }}
         />
       )}
 
-      {/* Example section - if has_example */}
-      {group.has_example && exampleData && (
-        <div className="mb-6">
+      {/* Example section - only if has_example is true */}
+      {group.has_example && (
+        <div className="mb-6 text-gray-700">
           {/* Example header - italic, underlined, bold */}
           <p className="font-bold italic underline mb-2">Example:</p>
           
-          {/* Example question text - italic */}
+          {/* Example question text - all italic, strip HTML for clean display */}
           {exampleData.question_text && (
-            <p className="italic text-gray-700 mb-2" dangerouslySetInnerHTML={{ __html: exampleData.question_text }} />
+            <p className="italic mb-2">
+              {stripHtml(exampleData.question_text)}
+            </p>
           )}
           
-          {/* Example options with correct answer bold */}
-          {exampleData.options && exampleData.options.length > 0 && (
-            <div className="space-y-1 mb-2">
-              {exampleData.options.map((opt, idx) => {
+          {/* Example options - all italic, correct answer is bold (NO "Answer: X" shown) */}
+          {exampleOptions.length > 0 && (
+            <div className="space-y-1 ml-4">
+              {exampleOptions.map((opt, idx) => {
                 const letter = String.fromCharCode(65 + idx); // A, B, C...
-                const isCorrect = exampleData.correct_answer === letter || exampleData.correct_answer === opt;
+                const optText = typeof opt === 'object' ? (opt.text || opt.label || '') : opt;
+                const isCorrect = exampleData.correct_answer === letter || 
+                                  exampleData.correct_answer === optText ||
+                                  exampleData.correct_answer === String(idx);
                 return (
                   <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
-                    {letter} {opt}
+                    <span className={isCorrect ? 'font-bold' : 'font-semibold'}>{letter}</span> {optText}
                   </p>
                 );
               })}
@@ -64,8 +101,8 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
         </div>
       )}
 
-      {/* Questions */}
-      <div className="space-y-6">
+      {/* Questions list */}
+      <div className="space-y-6 mt-6">
         {groupQuestions.map((q) => {
           const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
           
@@ -75,15 +112,15 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
               <span className="font-bold text-gray-700 min-w-[24px]">{globalQNum}</span>
               
               <div className="flex-1">
-                {/* Question text */}
+                {/* Question text - render cleaned HTML */}
                 {q.question_text && (
                   <div 
                     className="text-gray-800 mb-2"
-                    dangerouslySetInnerHTML={{ __html: q.question_text }}
+                    dangerouslySetInnerHTML={{ __html: cleanHtml(q.question_text) }}
                   />
                 )}
                 
-                {/* Render based on question type */}
+                {/* Input based on question type */}
                 {renderQuestionInput(q, group, answers, setAnswers, isPreview)}
               </div>
             </div>

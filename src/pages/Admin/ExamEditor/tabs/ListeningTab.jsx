@@ -1604,17 +1604,22 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     .sort((a, b) => a.question_number - b.question_number);
 
                   const globalOffset = (selectedPart - 1) * 10;
+                  const exampleOptions = group.example_data?.options || [];
 
                   return (
-                    <div key={group.id} className="mb-8 pb-6 border-b border-gray-200 last:border-0">
-                      <div className="bg-gray-100 rounded-lg p-4 mb-4">
-                        <p className="font-semibold text-gray-700">
-                          Questions {globalOffset + group.question_range_start}–{globalOffset + group.question_range_end}
-                        </p>
-                        {group.instruction_text && (
-                          <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{group.instruction_text}</p>
-                        )}
-                      </div>
+                    <div key={group.id} className="mb-8 pb-6 border-b border-gray-100 last:border-0">
+                      {/* Questions header - accent color, bold, no container */}
+                      <p className="font-bold text-blue-600 text-lg mb-2">
+                        Questions {globalOffset + group.question_range_start}–{globalOffset + group.question_range_end}
+                      </p>
+                      
+                      {/* Instruction text - render as HTML, no container */}
+                      {group.instruction_text && (
+                        <div 
+                          className="text-gray-700 mb-4 [&>*]:m-0"
+                          dangerouslySetInnerHTML={{ __html: group.instruction_text }}
+                        />
+                      )}
 
                       {group.question_type === 'matching' && group.shared_options?.length > 0 && (
                         <div className="bg-purple-50 rounded-lg p-4 mb-4">
@@ -1636,13 +1641,33 @@ const PreviewMode = ({ isOpen, onClose }) => {
                         </div>
                       )}
 
+                      {/* Example section - styled as requested */}
                       {group.has_example && group.example_data && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                          <p className="text-sm font-semibold text-amber-700 mb-2">Example:</p>
-                          <p className="text-sm">{group.example_data.stem}</p>
-                          <p className="text-sm mt-1">
-                            <strong>Answer:</strong> <span className="bg-amber-200 px-2 rounded">{group.example_data.answer}</span>
-                          </p>
+                        <div className="mb-4 text-gray-700">
+                          {/* Example header - italic, underlined, bold */}
+                          <p className="font-bold italic underline mb-2">Example:</p>
+                          
+                          {/* Example question text - italic */}
+                          {(group.example_data.stem || group.example_data.question_text) && (
+                            <p className="italic mb-2">{group.example_data.stem || group.example_data.question_text}</p>
+                          )}
+                          
+                          {/* Example options - italic, correct one bold (NO "Answer: X") */}
+                          {exampleOptions.length > 0 && (
+                            <div className="space-y-1 ml-4">
+                              {exampleOptions.map((opt, idx) => {
+                                const letter = String.fromCharCode(65 + idx);
+                                const optText = typeof opt === 'object' ? (opt.text || opt.label || '') : opt;
+                                const correctAnswer = group.example_data.answer || group.example_data.correct_answer;
+                                const isCorrect = correctAnswer === letter || correctAnswer === optText || correctAnswer === String(idx);
+                                return (
+                                  <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
+                                    <span className={isCorrect ? 'font-bold' : ''}>{letter}</span> {optText}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
 
