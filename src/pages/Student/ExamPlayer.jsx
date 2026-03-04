@@ -49,9 +49,18 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
   const globalStart = (sectionNumber - 1) * 10 + group.question_range_start;
   const globalEnd = (sectionNumber - 1) * 10 + group.question_range_end;
 
-  // Parse example data
+  // Parse example data - options are stored as option_a, option_b, etc.
   const exampleData = group.example_data || {};
-  const exampleOptions = exampleData.options || [];
+  const exampleOptions = [];
+  ['a', 'b', 'c', 'd'].forEach(letter => {
+    if (exampleData[`option_${letter}`]) {
+      exampleOptions.push(exampleData[`option_${letter}`]);
+    }
+  });
+  // Fallback to options array if exists
+  if (exampleOptions.length === 0 && exampleData.options) {
+    exampleOptions.push(...exampleData.options);
+  }
 
   return (
     <div className="mb-10">
@@ -74,11 +83,11 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
           {/* Example header - italic, underlined, bold */}
           <p className="font-bold italic underline mb-2">Example:</p>
           
-          {/* Example question text - all italic, render HTML properly */}
-          {exampleData.question_text && (
+          {/* Example question text - all italic, render HTML properly (stem or question_text) */}
+          {(exampleData.stem || exampleData.question_text) && (
             <p 
               className="italic mb-2"
-              dangerouslySetInnerHTML={{ __html: cleanHtml(exampleData.question_text) }}
+              dangerouslySetInnerHTML={{ __html: cleanHtml(exampleData.stem || exampleData.question_text) }}
             />
           )}
           
@@ -88,9 +97,10 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
               {exampleOptions.map((opt, idx) => {
                 const letter = String.fromCharCode(65 + idx); // A, B, C...
                 const optText = typeof opt === 'object' ? (opt.text || opt.label || '') : opt;
-                const isCorrect = exampleData.correct_answer === letter || 
-                                  exampleData.correct_answer === optText ||
-                                  exampleData.correct_answer === String(idx);
+                const correctAnswer = exampleData.answer || exampleData.correct_answer;
+                const isCorrect = correctAnswer === letter || 
+                                  correctAnswer === optText ||
+                                  correctAnswer === String(idx);
                 return (
                   <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
                     <span className={isCorrect ? 'font-bold' : 'font-semibold'}>{letter}</span> {optText}

@@ -225,9 +225,9 @@ const RenderHtml = ({ html }) => {
 // ============================================
 const BlankInput = ({ questionNumber }) => (
   <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-    {/* Circle with question number */}
+    {/* Circle with question number - matches Questions header color */}
     <span 
-      className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0 shadow-sm"
+      className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0 shadow-sm"
       style={{ minWidth: '28px', minHeight: '28px' }}
     >
       {questionNumber}
@@ -637,15 +637,15 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                       onChange={(e) => updateQuestion(question.id, { info_text: e.target.value })}
                     />
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <p className="text-xs text-blue-600 mb-2">Info Row Preview:</p>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-2">Info Row Preview:</p>
                     <table className="w-full border-collapse">
                       <tbody>
                         <tr className="border border-gray-300">
-                          <td className="border border-gray-300 px-3 py-2 bg-blue-100 font-medium w-1/3">
+                          <td className="border border-gray-300 px-3 py-2 w-1/3">
                             <RenderHtml html={question.label_text || 'Label'} />
                           </td>
-                          <td className="border border-gray-300 px-3 py-2 bg-white">
+                          <td className="border border-gray-300 px-3 py-2">
                             <RenderHtml html={question.info_text || 'Information'} />
                           </td>
                         </tr>
@@ -672,12 +672,12 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                       onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
                     />
                   </div>
-                  <div className="bg-gray-100 rounded-lg p-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500 mb-2">Table Preview (Q{questionNumber}):</p>
                     <table className="w-full border-collapse">
                       <tbody>
                         <tr className="border border-gray-300">
-                          <td className="border border-gray-300 px-3 py-2 bg-gray-50 font-medium w-1/3">
+                          <td className="border border-gray-300 px-3 py-2 w-1/3">
                             <RenderHtml html={question.label_text || 'Label'} />
                           </td>
                           <td className="border border-gray-300 px-3 py-2">
@@ -992,6 +992,18 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
                 { value: 'summary', label: 'Summary' },
                 { value: 'flowchart', label: 'Flow-chart' }
               ]}
+            />
+          )}
+
+          {/* Table/Form Title - shown above the table */}
+          {group.question_type === 'form_completion' && (
+            <RichTextArea
+              label="Table/Form Title"
+              placeholder="e.g., REGISTRATION FORM, Event Details, etc."
+              hint="Displayed as header above the table (supports formatting)"
+              rows={2}
+              value={group.table_title || ""}
+              onChange={(e) => updateQuestionGroup(group.id, { table_title: e.target.value })}
             />
           )}
 
@@ -1374,9 +1386,9 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Reusable blank input for student preview - circle + rounded input
     const StudentBlankInput = ({ num }) => (
       <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-        {/* Circle with question number */}
+        {/* Circle with question number - matches Questions header color */}
         <span 
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0 shadow-sm"
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0 shadow-sm"
           style={{ minWidth: '28px', minHeight: '28px' }}
         >
           {num}
@@ -1384,7 +1396,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
         {/* Rounded rectangular input field */}
         <input 
           type="text" 
-          className="w-28 px-4 py-1.5 border-2 border-gray-300 rounded-2xl text-sm text-center bg-white focus:border-amber-400 outline-none"
+          className="w-28 px-4 py-1.5 border-2 border-gray-300 rounded-2xl text-sm text-center bg-white focus:border-blue-400 outline-none"
           placeholder=""
         />
       </span>
@@ -1398,7 +1410,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
           <div key={q.id} className="py-4 border-b border-gray-100 last:border-0">
             <p className="font-medium mb-3 flex items-start gap-2">
               <span 
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
                 style={{ minWidth: '28px', minHeight: '28px' }}
               >
                 {globalNum}
@@ -1425,46 +1437,60 @@ const PreviewMode = ({ isOpen, onClose }) => {
     // Form/Table Completion: Two-column table format (supports info rows)
     if (type === 'form_completion') {
       return (
-        <table className="w-full border-collapse mb-4">
-          <tbody>
-            {groupQuestions.map(q => {
-              const globalNum = globalOffset + q.question_number;
-              const template = q.question_template || '';
-              const isInfoRow = q.is_info_row === true;
+        <div className="mb-4">
+          {/* Table/Form Title - displayed above table */}
+          {group.table_title && (
+            <div 
+              className="text-center font-bold text-gray-800 mb-3 text-lg"
+              dangerouslySetInnerHTML={{ __html: group.table_title }}
+            />
+          )}
+          <table className="w-full border-collapse">
+            <tbody>
+              {groupQuestions.map(q => {
+                const globalNum = globalOffset + q.question_number;
+                const template = q.question_template || '';
+                const isInfoRow = q.is_info_row === true;
+                const hasBlank = template.includes('[BLANK]');
               
-              if (isInfoRow) {
-                // Info row - no blank, just display information
+                if (isInfoRow) {
+                  // Info row - no blank, no question number, uniform styling
+                  return (
+                    <tr key={q.id} className="border border-gray-300">
+                      <td className="border border-gray-300 px-4 py-2 w-1/3">
+                        <RenderHtml html={q.label_text || ''} />
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        <RenderHtml html={q.info_text || ''} />
+                      </td>
+                    </tr>
+                  );
+                }
+              
+                // Question row - only show question number if has [BLANK], uniform styling
                 return (
                   <tr key={q.id} className="border border-gray-300">
-                    <td className="border border-gray-300 px-4 py-2 bg-blue-50 font-medium w-1/3">
+                    <td className="border border-gray-300 px-4 py-2 w-1/3">
                       <RenderHtml html={q.label_text || ''} />
                     </td>
-                    <td className="border border-gray-300 px-4 py-2 bg-white">
-                      <RenderHtml html={q.info_text || ''} />
+                    <td className="border border-gray-300 px-4 py-3">
+                      {hasBlank ? (
+                        template.split('[BLANK]').map((part, idx, arr) => (
+                          <React.Fragment key={idx}>
+                            <RenderHtml html={part} />
+                            {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        <RenderHtml html={template} />
+                      )}
                     </td>
                   </tr>
                 );
-              }
-              
-              // Question row - with blank to fill
-              return (
-                <tr key={q.id} className="border border-gray-300">
-                  <td className="border border-gray-300 px-4 py-2 bg-gray-50 font-medium w-1/3">
-                    <RenderHtml html={q.label_text || ''} />
-                  </td>
-                  <td className="border border-gray-300 px-4 py-3">
-                    {template.split('[BLANK]').map((part, idx, arr) => (
-                      <React.Fragment key={idx}>
-                        <RenderHtml html={part} />
-                        {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
-                      </React.Fragment>
-                    ))}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              })}
+            </tbody>
+          </table>
+        </div>
       );
     }
 
@@ -1515,13 +1541,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
         return (
           <div key={q.id} className="py-3 flex items-center gap-3">
             <span 
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
               style={{ minWidth: '28px', minHeight: '28px' }}
             >
               {globalNum}
             </span>
             <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
-            <select className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-white focus:border-amber-400 outline-none min-w-[100px]">
+            <select className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl bg-white focus:border-blue-400 outline-none min-w-[100px]">
               <option value="">Select</option>
               {(group.shared_options || []).map(opt => (
                 <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -1538,7 +1564,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return (
         <div key={q.id} className="py-3 flex items-center gap-3">
           <span 
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0"
             style={{ minWidth: '28px', minHeight: '28px' }}
           >
             {globalNum}
@@ -1546,7 +1572,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
           <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
           <input 
             type="text" 
-            className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl w-32 focus:border-amber-400 outline-none"
+            className="px-4 py-1.5 border-2 border-gray-300 rounded-2xl w-32 focus:border-blue-400 outline-none"
             placeholder=""
           />
         </div>
@@ -1604,7 +1630,19 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     .sort((a, b) => a.question_number - b.question_number);
 
                   const globalOffset = (selectedPart - 1) * 10;
-                  const exampleOptions = group.example_data?.options || [];
+                  
+                  // Build exampleOptions from option_a, option_b, etc.
+                  const exampleData = group.example_data || {};
+                  const exampleOptions = [];
+                  ['a', 'b', 'c', 'd'].forEach(letter => {
+                    if (exampleData[`option_${letter}`]) {
+                      exampleOptions.push(exampleData[`option_${letter}`]);
+                    }
+                  });
+                  // Fallback to options array if exists
+                  if (exampleOptions.length === 0 && exampleData.options) {
+                    exampleOptions.push(...exampleData.options);
+                  }
 
                   return (
                     <div key={group.id} className="mb-8 pb-6 border-b border-gray-100 last:border-0">
