@@ -1,25 +1,261 @@
 import React, { useState } from "react";
 import { useExamEditor } from "../ExamEditorContext";
-import { ChevronDown, ChevronUp, FileText, Image, Clock, Target, BookOpen, PenTool, AlertCircle, CheckCircle, Eye, EyeOff, Upload, Trash2, Plus, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Image, Clock, Target, BookOpen, PenTool, AlertCircle, CheckCircle, Eye, EyeOff, Upload, Trash2, Plus, Info, Lightbulb, HelpCircle } from "lucide-react";
 
-// Task 1 types based on IELTS
+// Task 1 types based on IELTS with detailed hints
 const TASK1_TYPES = [
-  { value: "graph", label: "Graph/Chart Description", description: "Line graph, bar chart, pie chart, or table" },
-  { value: "process", label: "Process Diagram", description: "Describe stages of a process or how something works" },
-  { value: "map", label: "Map Comparison", description: "Compare two maps showing changes over time" },
-  { value: "letter_formal", label: "Formal Letter", description: "Write a formal/business letter" },
-  { value: "letter_informal", label: "Informal Letter", description: "Write to a friend or family member" },
-  { value: "letter_semiformal", label: "Semi-formal Letter", description: "Write to someone you know professionally" },
+  { 
+    value: "graph", 
+    label: "Graph/Chart Description", 
+    description: "Line graph, bar chart, pie chart, or table",
+    hint: "Student describes data trends, compares figures, highlights key features. Requires visual material upload."
+  },
+  { 
+    value: "process", 
+    label: "Process Diagram", 
+    description: "Describe stages of a process or how something works",
+    hint: "Student explains sequential steps in a natural/manufacturing process. Upload a diagram showing numbered or labeled stages."
+  },
+  { 
+    value: "map", 
+    label: "Map Comparison", 
+    description: "Compare two maps showing changes over time",
+    hint: "Student compares two versions of a location (past/present or before/after development). Upload side-by-side maps."
+  },
+  { 
+    value: "letter_formal", 
+    label: "Formal Letter (GT)", 
+    description: "Write a formal/business letter",
+    hint: "General Training only. Student writes to an authority figure, company, or organization with proper formal register."
+  },
+  { 
+    value: "letter_informal", 
+    label: "Informal Letter (GT)", 
+    description: "Write to a friend or family member",
+    hint: "General Training only. Student writes a personal letter with casual tone and friendly expressions."
+  },
+  { 
+    value: "letter_semiformal", 
+    label: "Semi-formal Letter (GT)", 
+    description: "Write to someone you know professionally",
+    hint: "General Training only. Student writes to a colleague, landlord, or acquaintance with polite but not overly formal tone."
+  },
 ];
 
-// Task 2 essay types
+// Task 2 essay types with detailed hints
 const TASK2_TYPES = [
-  { value: "opinion", label: "Opinion Essay", description: "Do you agree or disagree with a statement?" },
-  { value: "discussion", label: "Discussion Essay", description: "Discuss both views and give your opinion" },
-  { value: "problem_solution", label: "Problem & Solution", description: "Discuss problems and suggest solutions" },
-  { value: "advantages_disadvantages", label: "Advantages & Disadvantages", description: "Discuss pros and cons" },
-  { value: "two_part", label: "Two-Part Question", description: "Answer two related questions" },
+  { 
+    value: "opinion", 
+    label: "Opinion Essay", 
+    description: "Do you agree or disagree with a statement?",
+    hint: "Prompt presents a viewpoint. Student must give their opinion clearly and support it with reasons throughout the essay."
+  },
+  { 
+    value: "discussion", 
+    label: "Discussion Essay", 
+    description: "Discuss both views and give your opinion",
+    hint: "Prompt presents two opposing views. Student must discuss BOTH perspectives fairly before stating which they agree with more."
+  },
+  { 
+    value: "problem_solution", 
+    label: "Problem & Solution", 
+    description: "Discuss problems and suggest solutions",
+    hint: "Prompt asks about causes/problems and solutions. Student identifies issues and proposes practical remedies."
+  },
+  { 
+    value: "advantages_disadvantages", 
+    label: "Advantages & Disadvantages", 
+    description: "Discuss pros and cons",
+    hint: "Student analyzes benefits and drawbacks of a situation, trend, or proposal. May or may not need to give opinion depending on prompt."
+  },
+  { 
+    value: "two_part", 
+    label: "Two-Part Question", 
+    description: "Answer two related questions",
+    hint: "Prompt contains TWO distinct questions. Student must address BOTH fully (often: 'Why is this happening? What can be done?')."
+  },
 ];
+
+// Detailed guidance for each task type
+const TASK_TYPE_GUIDANCE = {
+  // Task 1 Academic
+  graph: {
+    title: "Graph/Chart Description",
+    description: "Student analyzes and summarizes visual data (line graph, bar chart, pie chart, table) in 150+ words.",
+    example: "The line graph shows population growth in three countries between 1960 and 2020. Summarize the information by selecting and reporting the main features.",
+    tips: [
+      "Upload a clear, high-resolution graph or chart image",
+      "Include specific numerical data in the visual",
+      "Ensure all axes, labels, and legends are readable",
+      "Multi-data visuals (comparing multiple items) work best"
+    ]
+  },
+  process: {
+    title: "Process Diagram",
+    description: "Student describes a cyclical or linear process, explaining each stage in order.",
+    example: "The diagram shows how chocolate is produced. Summarize the information by selecting and reporting the main features.",
+    tips: [
+      "Upload a clear diagram with numbered/labeled stages",
+      "Natural processes (water cycle, life cycle) or manufacturing processes work well",
+      "Include 5-10 distinct stages for ideal complexity",
+      "Arrows should clearly show the sequence/direction"
+    ]
+  },
+  map: {
+    title: "Map Comparison",
+    description: "Student compares two maps of the same location showing development/changes over time.",
+    example: "The maps show changes to Riverside town between 1990 and 2020. Summarize the information by selecting and reporting the main features.",
+    tips: [
+      "Upload two maps side-by-side (or clearly labeled 'before/after')",
+      "Include obvious changes (new buildings, removed features, land use changes)",
+      "Compass direction (N/S/E/W) adds reference points for students",
+      "Label key features: road, river, buildings, etc."
+    ]
+  },
+  // Task 1 General Training Letters
+  letter_formal: {
+    title: "Formal Letter",
+    description: "Student writes a formal letter following business letter conventions with appropriate tone.",
+    example: "You recently bought a product online, but it arrived damaged. Write a letter to the company. Include: what you bought, the problem, what action you want.",
+    tips: [
+      "Specify clearly who the recipient is (manager, company, official)",
+      "Provide 3 bullet points of what to include in the letter",
+      "Scenario should require formal register (complaints, requests, applications)",
+      "Model answer should demonstrate: salutation, clear paragraphs, formal closing"
+    ]
+  },
+  letter_informal: {
+    title: "Informal Letter",
+    description: "Student writes a friendly, personal letter with casual language and warm tone.",
+    example: "Your English-speaking friend is coming to visit your country. Write a letter telling them: what places you'll visit together, what they should bring, why you're excited.",
+    tips: [
+      "Recipient should be a friend or family member",
+      "Provide 3 engaging bullet points as conversation starters",
+      "Encourage friendly expressions, questions, enthusiasm",
+      "Model answer should show: casual greeting, personal anecdotes, warm sign-off"
+    ]
+  },
+  letter_semiformal: {
+    title: "Semi-formal Letter",
+    description: "Student writes a polite but not overly formal letter to someone they know professionally.",
+    example: "You want to organize a welcome party for new employees. Write to your manager. Include: why you want to organize it, your suggestions for the event, offer to help with arrangements.",
+    tips: [
+      "Recipient: colleague, landlord, neighbor, teacher, local official",
+      "Tone: polite and respectful but not stiff",
+      "Scenarios: requests, suggestions, invitations, apologies",
+      "Model should balance politeness with a personable touch"
+    ]
+  },
+  // Task 2 Essays
+  opinion: {
+    title: "Opinion (Agree/Disagree) Essay",
+    description: "Student states their opinion clearly and supports it with reasons and examples throughout.",
+    example: "Some people believe that children should begin formal education at a very early age. Others think they should not start school until they are older. Discuss both views and give your opinion.",
+    tips: [
+      "Use clear stance language: 'To what extent do you agree or disagree?'",
+      "Avoid ambiguous prompts—make the statement debatable",
+      "Topic should be accessible (education, technology, society, environment)",
+      "Model answer should show: clear thesis, strong topic sentences, consistent stance"
+    ]
+  },
+  discussion: {
+    title: "Discussion Essay",
+    description: "Student presents both sides of an argument fairly before giving their own view.",
+    example: "Some people think that parents should teach children how to be good members of society. Others believe that school is the place to learn this. Discuss both views and give your own opinion.",
+    tips: [
+      "Always include: 'Discuss both views and give your opinion'",
+      "Present two genuinely opposing viewpoints",
+      "Student must discuss BOTH sides (not choose one immediately)",
+      "Model should have balanced body paragraphs + clear opinion in conclusion"
+    ]
+  },
+  problem_solution: {
+    title: "Problem & Solution Essay",
+    description: "Student identifies causes/problems and proposes practical solutions with explanations.",
+    example: "In many countries, people are living in 'throwaway societies' where things are used for a short time then thrown away. What are the causes of this? What problems does it lead to?",
+    tips: [
+      "Use prompts asking: 'What are the causes/problems? What solutions can you suggest?'",
+      "Can separate problems from solutions OR combine them",
+      "Topic should have identifiable issues AND actionable solutions",
+      "Model should propose realistic, explained solutions (not just list them)"
+    ]
+  },
+  advantages_disadvantages: {
+    title: "Advantages & Disadvantages Essay",
+    description: "Student analyzes both benefits and drawbacks systematically.",
+    example: "In many countries, shopping online is becoming increasingly popular. What are the advantages and disadvantages of this trend?",
+    tips: [
+      "May ask for opinion: 'Do the advantages outweigh the disadvantages?'",
+      "Or neutral analysis: 'Discuss the advantages and disadvantages'",
+      "Topic should have clear pros AND cons (not one-sided issues)",
+      "Model should give balanced coverage or clear judgment if asked"
+    ]
+  },
+  two_part: {
+    title: "Two-Part Question Essay",
+    description: "Student must address TWO distinct but related questions in their response.",
+    example: "Many young people today are leaving their homes in rural areas to study or work in cities. Why is this happening? Do you think this trend has more advantages or disadvantages?",
+    tips: [
+      "ALWAYS include two distinct questions in the prompt",
+      "Common pairs: Why + What solutions / What causes + What effects",
+      "Make it clear both questions require substantial answers",
+      "Model should dedicate adequate space to BOTH questions (roughly equal)"
+    ]
+  }
+};
+
+// TypeInfoBox component for task guidance
+function TypeInfoBox({ type, isTask1 }) {
+  const guidance = TASK_TYPE_GUIDANCE[type];
+  if (!guidance) return null;
+
+  return (
+    <div className={`rounded-lg p-4 border-l-4 mb-4 ${
+      isTask1 
+        ? 'bg-blue-50 border-blue-500' 
+        : 'bg-purple-50 border-purple-500'
+    }`}>
+      <div className="flex items-start space-x-3">
+        <HelpCircle size={20} className={isTask1 ? 'text-blue-600 mt-0.5' : 'text-purple-600 mt-0.5'} />
+        <div className="flex-1">
+          <h5 className={`font-semibold ${isTask1 ? 'text-blue-900' : 'text-purple-900'}`}>
+            {guidance.title}
+          </h5>
+          <p className={`text-sm mt-1 ${isTask1 ? 'text-blue-800' : 'text-purple-800'}`}>
+            {guidance.description}
+          </p>
+          
+          <div className={`mt-3 text-xs p-2 rounded ${
+            isTask1 ? 'bg-blue-100 text-blue-900' : 'bg-purple-100 text-purple-900'
+          }`}>
+            <strong>Example Prompt:</strong><br/>
+            <em>"{guidance.example}"</em>
+          </div>
+
+          <div className="mt-3">
+            <div className={`text-xs font-semibold uppercase tracking-wide mb-1.5 flex items-center ${
+              isTask1 ? 'text-blue-700' : 'text-purple-700'
+            }`}>
+              <Lightbulb size={12} className="mr-1" /> Setup Tips
+            </div>
+            <ul className={`text-xs space-y-1 ${
+              isTask1 ? 'text-blue-800' : 'text-purple-800'
+            }`}>
+              {guidance.tips.map((tip, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className={`w-1.5 h-1.5 rounded-full mt-1.5 mr-2 flex-shrink-0 ${
+                    isTask1 ? 'bg-blue-500' : 'bg-purple-500'
+                  }`}></span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TaskEditor({ section, taskNumber }) {
   const { updateSection } = useExamEditor();
@@ -134,10 +370,16 @@ function TaskEditor({ section, taskNumber }) {
                 >
                   <div className="font-medium text-gray-900 text-sm">{type.label}</div>
                   <div className="text-xs text-gray-500 mt-1">{type.description}</div>
+                  {type.hint && (
+                    <div className="text-xs text-gray-400 mt-1 italic">{type.hint}</div>
+                  )}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Task Type Guidance Box */}
+          <TypeInfoBox type={taskConfig.type} isTask1={isTask1} />
 
           {/* Visual Material (Task 1 only for graph/process/map types) */}
           {isTask1 && ['graph', 'process', 'map'].includes(taskConfig.type) && (

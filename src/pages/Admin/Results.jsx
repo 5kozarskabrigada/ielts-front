@@ -1,26 +1,666 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
-import { apiListExams } from "../../api"; // Reuse list exams or create specific results endpoint
-import { Search, Download, Eye, RotateCcw } from "lucide-react";
+import { 
+  apiListExams, 
+  apiGetSubmissionsForGrading, 
+  apiGetSubmissionDetail,
+  apiOverrideAnswerGrade,
+  apiOverrideWritingGrade,
+  apiExportResultsCSV,
+  apiGradeWritingWithAI
+} from "../../api";
+import { 
+  Search, Download, Eye, ChevronDown, ChevronUp, Check, X, 
+  AlertCircle, Edit2, Save, RefreshCw, User, Calendar, Clock,
+  FileText, Headphones, BookOpen, PenTool, Sparkles
+} from "lucide-react";
 
+// Submission Detail Modal
+function SubmissionDetailModal({ submissionId, token, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [editingAnswers, setEditingAnswers] = useState({});
+  const [savingAnswer, setSavingAnswer] = useState(null);
+  const [activeTab, setActiveTab] = useState('listening');
+
+  useEffect(() => {
+    loadDetail();
+  }, [submissionId]);
+
+  const loadDetail = async () => {
+    setLoading(true);
+    try {
+      const result = await apiGetSubmissionDetail(token, submissionId);
+      setData(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOverrideAnswer = async (answerId) => {
+    const edit = editingAnswers[answerId];
+    if (!edit) return;
+
+    setSavingAnswer(answerId);
+    try {
+      await apiOverrideAnswerGrade(token, answerId, {
+        is_correct: edit.is_correct,
+        score: edit.score,
+        notes: edit.notes
+      });
+      // Reload data
+      await loadDetail();
+      setEditingAnswers(prev => {
+        const next = { ...prev };
+        delete next[answerId];
+        return next;
+      });
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setSavingAnswer(null);
+    }
+  };
+
+  const startEditing = (answer) => {
+    setEditingAnswers(prev => ({
+      ...prev,
+      [answer.id]: {
+        is_correct: answer.admin_override_correct ?? answer.is_correct,
+        score: answer.admin_override_score ?? answer.score,
+        notes: answer.admin_notes || ""
+      }
+    }));
+  };
+
+  const cancelEditing = (answerId) => {
+    setEditingAnswers(prev => {
+      const next = { ...prev };
+      delete next[answerId];
+      return next;
+    });
+  };
+
+  // Group answers by module
+  const groupedAnswers = data?.answers?.reduce((acc, ans) => {
+    const module = ans.questions?.exam_sections?.module_type || 'other';
+    if (!acc[module]) acc[module] = [];
+    acc[module].push(ans);
+    return acc;
+  }, {}) || {};
+
+  const moduleIcons = {
+    listening: Headphones,
+    reading: BookOpen,
+    writing: PenTool
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-8 text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+          <p className="mt-3 text-gray-600">Loading submission details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              {data?.submission?.users?.name || "Student"}'s Submission
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {data?.submission?.users?.email} • Submitted {data?.submission?.submitted_at ? new Date(data.submission.submitted_at).toLocaleString() : 'N/A'}
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-600">
+                {data?.submission?.overall_band_score?.toFixed(1) || '-'}
+              </div>
+              <div className="text-xs text-gray-500">Overall Band</div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-lg">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b bg-gray-50">
+          {['listening', 'reading', 'writing'].map(tab => {
+            const Icon = moduleIcons[tab];
+            const count = groupedAnswers[tab]?.length || 0;
+            const writingCount = tab === 'writing' ? (data?.writingResponses?.length || 0) : count;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center space-x-2 px-6 py-3 font-medium text-sm transition ${
+                  activeTab === tab 
+                    ? 'bg-white border-b-2 border-blue-600 text-blue-600' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon size={16} />
+                <span className="capitalize">{tab}</span>
+                <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                  {tab === 'writing' ? writingCount : count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
+          {/* Listening/Reading Answers */}
+          {(activeTab === 'listening' || activeTab === 'reading') && (
+            <div className="space-y-3">
+              {(groupedAnswers[activeTab] || []).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  No {activeTab} answers found for this submission.
+                </div>
+              ) : (
+                (groupedAnswers[activeTab] || []).map(answer => {
+                  const isEditing = editingAnswers[answer.id];
+                  const currentCorrect = isEditing?.is_correct ?? answer.admin_override_correct ?? answer.is_correct;
+                  const hasOverride = answer.admin_override_correct !== null;
+
+                  return (
+                    <div 
+                      key={answer.id}
+                      className={`border rounded-lg p-4 ${
+                        currentCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-xs font-medium text-gray-500">
+                              Q{answer.questions?.question_number || '?'}
+                            </span>
+                            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
+                              {answer.questions?.question_type}
+                            </span>
+                            {hasOverride && (
+                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                                Admin Override
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-800 mb-2">
+                            {answer.questions?.question_text || 'Question text not available'}
+                          </p>
+                          <div className="flex items-center space-x-4 text-sm">
+                            <span className="text-gray-600">
+                              <strong>Student:</strong> {JSON.stringify(answer.user_answer) || '-'}
+                            </span>
+                            <span className="text-gray-600">
+                              <strong>Correct:</strong> {answer.questions?.correct_answer || '-'}
+                            </span>
+                          </div>
+                          {answer.admin_notes && (
+                            <p className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                              <strong>Admin Note:</strong> {answer.admin_notes}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-2 ml-4">
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={() => setEditingAnswers(prev => ({
+                                  ...prev,
+                                  [answer.id]: { ...prev[answer.id], is_correct: true }
+                                }))}
+                                className={`p-2 rounded-lg ${
+                                  isEditing.is_correct 
+                                    ? 'bg-green-500 text-white' 
+                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                }`}
+                              >
+                                <Check size={16} />
+                              </button>
+                              <button
+                                onClick={() => setEditingAnswers(prev => ({
+                                  ...prev,
+                                  [answer.id]: { ...prev[answer.id], is_correct: false }
+                                }))}
+                                className={`p-2 rounded-lg ${
+                                  !isEditing.is_correct 
+                                    ? 'bg-red-500 text-white' 
+                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                }`}
+                              >
+                                <X size={16} />
+                              </button>
+                              <input
+                                type="text"
+                                placeholder="Note..."
+                                className="text-xs border rounded px-2 py-1 w-32"
+                                value={isEditing.notes}
+                                onChange={(e) => setEditingAnswers(prev => ({
+                                  ...prev,
+                                  [answer.id]: { ...prev[answer.id], notes: e.target.value }
+                                }))}
+                              />
+                              <button
+                                onClick={() => handleOverrideAnswer(answer.id)}
+                                disabled={savingAnswer === answer.id}
+                                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                {savingAnswer === answer.id ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                              </button>
+                              <button
+                                onClick={() => cancelEditing(answer.id)}
+                                className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                              >
+                                <X size={16} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`p-2 rounded-lg ${currentCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                {currentCorrect ? <Check size={16} /> : <X size={16} />}
+                              </div>
+                              <button
+                                onClick={() => startEditing(answer)}
+                                className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600"
+                                title="Override grade"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Writing Responses */}
+          {activeTab === 'writing' && (
+            <div className="space-y-6">
+              {(data?.writingResponses || []).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  No writing responses found for this submission.
+                </div>
+              ) : (
+                data.writingResponses.map(wr => (
+                  <WritingResponseCard 
+                    key={wr.id} 
+                    response={wr} 
+                    token={token}
+                    onUpdate={loadDetail}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Writing Response Card Component
+function WritingResponseCard({ response, token, onUpdate }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [overrideBand, setOverrideBand] = useState(response.admin_override_band || response.ai_overall_band || 5);
+  const [feedback, setFeedback] = useState(response.admin_feedback || '');
+  const [saving, setSaving] = useState(false);
+  const [aiGrading, setAiGrading] = useState(false);
+
+  let aiFeedback = {};
+  try {
+    aiFeedback = response.ai_feedback ? JSON.parse(response.ai_feedback) : {};
+  } catch { }
+
+  const handleSaveOverride = async () => {
+    setSaving(true);
+    try {
+      await apiOverrideWritingGrade(token, response.id, {
+        override_band: parseFloat(overrideBand),
+        feedback
+      });
+      await onUpdate();
+      setIsEditing(false);
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAIGrade = async () => {
+    setAiGrading(true);
+    try {
+      await apiGradeWritingWithAI(token, {
+        submissionId: response.submission_id,
+        sectionId: response.section_id,
+        taskNumber: response.task_number,
+        responseText: response.response_text
+      });
+      await onUpdate();
+    } catch (err) {
+      alert("AI Grading failed: " + err.message);
+    } finally {
+      setAiGrading(false);
+    }
+  };
+
+  return (
+    <div className="border rounded-xl overflow-hidden bg-white">
+      {/* Header */}
+      <div 
+        className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 flex justify-between items-center cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center space-x-4">
+          <div className="w-10 h-10 bg-purple-600 text-white rounded-lg flex items-center justify-center font-bold">
+            {response.task_number}
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900">Writing Task {response.task_number}</h4>
+            <p className="text-xs text-gray-500">{response.word_count} words</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <div className="text-xl font-bold text-purple-600">
+              {response.final_band?.toFixed(1) || response.ai_overall_band?.toFixed(1) || '-'}
+            </div>
+            <div className="text-xs text-gray-500">
+              {response.admin_override_band ? 'Admin Score' : response.ai_overall_band ? 'AI Score' : 'Not Graded'}
+            </div>
+          </div>
+          {isExpanded ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="p-5 space-y-4">
+          {/* Response Text */}
+          <div>
+            <h5 className="font-medium text-gray-700 mb-2">Student's Response</h5>
+            <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-800 max-h-48 overflow-y-auto whitespace-pre-wrap">
+              {response.response_text}
+            </div>
+          </div>
+
+          {/* AI Scores */}
+          {response.ai_overall_band && (
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h5 className="font-medium text-blue-900 mb-3 flex items-center">
+                <Sparkles size={16} className="mr-2" /> AI Grading Results
+              </h5>
+              <div className="grid grid-cols-4 gap-4 mb-3">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{response.ai_task_response_score?.toFixed(1)}</div>
+                  <div className="text-xs text-gray-500">Task Response</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{response.ai_coherence_score?.toFixed(1)}</div>
+                  <div className="text-xs text-gray-500">Coherence</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{response.ai_lexical_score?.toFixed(1)}</div>
+                  <div className="text-xs text-gray-500">Lexical</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">{response.ai_grammar_score?.toFixed(1)}</div>
+                  <div className="text-xs text-gray-500">Grammar</div>
+                </div>
+              </div>
+              {aiFeedback.feedback && (
+                <div className="text-sm text-gray-700 bg-white p-3 rounded">
+                  <strong>Feedback:</strong> {aiFeedback.feedback}
+                </div>
+              )}
+              {aiFeedback.key_improvements?.length > 0 && (
+                <div className="mt-2 text-sm">
+                  <strong className="text-gray-700">Key Improvements:</strong>
+                  <ul className="list-disc list-inside text-gray-600 mt-1">
+                    {aiFeedback.key_improvements.map((imp, i) => <li key={i}>{imp}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Admin Override Section */}
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center mb-3">
+              <h5 className="font-medium text-gray-700">Admin Grading</h5>
+              <div className="flex space-x-2">
+                {!response.ai_overall_band && (
+                  <button
+                    onClick={handleAIGrade}
+                    disabled={aiGrading}
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {aiGrading ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                    <span>Grade with AI</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="flex items-center space-x-1 px-3 py-1.5 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700"
+                >
+                  <Edit2 size={14} />
+                  <span>Override</span>
+                </button>
+              </div>
+            </div>
+
+            {isEditing && (
+              <div className="bg-amber-50 p-4 rounded-lg space-y-3">
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-gray-700">Override Band Score:</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="9"
+                    value={overrideBand}
+                    onChange={(e) => setOverrideBand(e.target.value)}
+                    className="w-20 px-2 py-1 border rounded text-center"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Admin Feedback:</label>
+                  <textarea
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    className="w-full h-24 p-3 border rounded-lg text-sm"
+                    placeholder="Add feedback for the student..."
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleSaveOverride}
+                    disabled={saving}
+                    className="flex items-center space-x-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                    <span>Save Override</span>
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {response.admin_override_band && !isEditing && (
+              <div className="bg-amber-50 p-3 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-amber-800">
+                    <strong>Admin Override:</strong> Band {response.admin_override_band}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {response.admin_graded_at ? new Date(response.admin_graded_at).toLocaleString() : ''}
+                  </span>
+                </div>
+                {response.admin_feedback && (
+                  <p className="text-sm text-gray-700 mt-2">{response.admin_feedback}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Main Results Page
 export default function ResultsPage() {
   const { token } = useAuth();
-  const [results, setResults] = useState([]); // Placeholder for now
-  const [loading, setLoading] = useState(false);
-
-  // This would ideally fetch from a dedicated /admin/results endpoint
-  // For now, we'll just show a placeholder UI as the endpoint needs to be built in backend first
+  const [submissions, setSubmissions] = useState([]);
+  const [exams, setExams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
   
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedExam, setSelectedExam] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    loadSubmissions();
+  }, [selectedExam, statusFilter]);
+
+  const loadData = async () => {
+    try {
+      const examList = await apiListExams(token);
+      setExams(examList);
+      await loadSubmissions();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSubmissions = async () => {
+    try {
+      const params = {};
+      if (selectedExam) params.examId = selectedExam;
+      if (statusFilter) params.status = statusFilter;
+      
+      const result = await apiGetSubmissionsForGrading(token, params);
+      setSubmissions(result.submissions || []);
+    } catch (err) {
+      console.error("Failed to load submissions:", err);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const blob = await apiExportResultsCSV(token, selectedExam);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'exam_results.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    }
+  };
+
+  const filteredSubmissions = submissions.filter(sub => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      sub.users?.name?.toLowerCase().includes(q) ||
+      sub.users?.email?.toLowerCase().includes(q)
+    );
+  });
+
+  const getStatusBadge = (status, writingStatus) => {
+    if (status === 'submitted' || status === 'auto_submitted') {
+      if (writingStatus === 'pending') {
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Needs Grading</span>;
+      }
+      if (writingStatus === 'ai_graded') {
+        return <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">AI Graded</span>;
+      }
+      if (writingStatus === 'admin_reviewed') {
+        return <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Reviewed</span>;
+      }
+      return <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Completed</span>;
+    }
+    if (status === 'in_progress') {
+      return <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">In Progress</span>;
+    }
+    return <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">{status}</span>;
+  };
+  
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Exam Results</h1>
         <div className="flex space-x-2">
-          <button className="bg-white border text-gray-700 px-4 py-2 rounded flex items-center space-x-2 hover:bg-gray-50">
+          <button 
+            onClick={loadSubmissions}
+            className="bg-white border text-gray-700 px-4 py-2 rounded flex items-center space-x-2 hover:bg-gray-50"
+          >
+            <RefreshCw size={16} /> <span>Refresh</span>
+          </button>
+          <button 
+            onClick={handleExportCSV}
+            className="bg-white border text-gray-700 px-4 py-2 rounded flex items-center space-x-2 hover:bg-gray-50"
+          >
             <Download size={16} /> <span>Export CSV</span>
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6 flex items-center space-x-2">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border mb-6 flex space-x-4">
@@ -29,16 +669,29 @@ export default function ResultsPage() {
           <input 
             className="w-full pl-10 pr-4 py-2 border rounded outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Search by student name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <select className="border rounded px-4 py-2 bg-white">
-          <option>All Exams</option>
-          <option>Academic IELTS Mock 1</option>
+        <select 
+          className="border rounded px-4 py-2 bg-white"
+          value={selectedExam}
+          onChange={(e) => setSelectedExam(e.target.value)}
+        >
+          <option value="">All Exams</option>
+          {exams.map(exam => (
+            <option key={exam.id} value={exam.id}>{exam.title}</option>
+          ))}
         </select>
-        <select className="border rounded px-4 py-2 bg-white">
-          <option>All Statuses</option>
-          <option>Completed</option>
-          <option>Pending Grading</option>
+        <select 
+          className="border rounded px-4 py-2 bg-white"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">All Statuses</option>
+          <option value="submitted">Completed</option>
+          <option value="needs_grading">Needs Grading</option>
+          <option value="in_progress">In Progress</option>
         </select>
       </div>
 
@@ -51,25 +704,86 @@ export default function ResultsPage() {
               <th className="p-4 font-medium text-gray-600">Exam</th>
               <th className="p-4 font-medium text-gray-600">Date</th>
               <th className="p-4 font-medium text-gray-600">Overall Band</th>
-              <th className="p-4 font-medium text-gray-600">L / R / W</th>
+              <th className="p-4 font-medium text-gray-600">Correct</th>
               <th className="p-4 font-medium text-gray-600">Status</th>
               <th className="p-4 font-medium text-gray-600">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            <tr>
-              <td colSpan="7" className="p-12 text-center text-gray-500">
-                <div className="flex flex-col items-center">
-                  <div className="bg-gray-100 p-4 rounded-full mb-3">
-                    <Search size={24} className="text-gray-400" />
+            {filteredSubmissions.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="p-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center">
+                    <div className="bg-gray-100 p-4 rounded-full mb-3">
+                      <Search size={24} className="text-gray-400" />
+                    </div>
+                    <p>No results found matching your criteria.</p>
                   </div>
-                  <p>No results found matching your criteria.</p>
-                </div>
-              </td>
-            </tr>
+                </td>
+              </tr>
+            ) : (
+              filteredSubmissions.map(sub => (
+                <tr key={sub.id} className="hover:bg-gray-50">
+                  <td className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User size={16} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{sub.users?.name || "Unknown"}</div>
+                        <div className="text-xs text-gray-500">{sub.users?.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-sm text-gray-900">{sub.exams?.title || "Exam"}</div>
+                    <div className="text-xs text-gray-500 capitalize">{sub.exams?.type || "-"}</div>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-sm text-gray-900">
+                      {sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : "-"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {sub.submitted_at ? new Date(sub.submitted_at).toLocaleTimeString() : ""}
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <span className="text-lg font-bold text-blue-600">
+                      {sub.overall_band_score?.toFixed(1) || "-"}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span className="text-sm text-gray-600">
+                      {sub.total_correct || 0} / {sub.total_questions || 0}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    {getStatusBadge(sub.status, sub.writing_grading_status)}
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => setSelectedSubmission(sub.id)}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                    >
+                      <Eye size={14} />
+                      <span>Review</span>
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Detail Modal */}
+      {selectedSubmission && (
+        <SubmissionDetailModal
+          submissionId={selectedSubmission}
+          token={token}
+          onClose={() => setSelectedSubmission(null)}
+        />
+      )}
     </div>
   );
 }

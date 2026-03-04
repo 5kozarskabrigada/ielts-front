@@ -529,3 +529,95 @@ export async function apiGetExamStats(token, examId) {
   }
   return res.json();
 }
+
+// ---------- Grading & Results ----------
+
+export async function apiGradeWritingWithAI(token, data) {
+  const res = await fetch(`${API_URL}/grading/writing/ai-grade`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to grade writing");
+  }
+  return res.json();
+}
+
+export async function apiGetSubmissionsForGrading(token, params = {}) {
+  const queryString = new URLSearchParams(params).toString();
+  const url = queryString ? `${API_URL}/grading/submissions?${queryString}` : `${API_URL}/grading/submissions`;
+  const res = await fetch(url, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get submissions");
+  }
+  return res.json();
+}
+
+export async function apiGetSubmissionDetail(token, submissionId) {
+  const res = await fetch(`${API_URL}/grading/submissions/${submissionId}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get submission details");
+  }
+  return res.json();
+}
+
+export async function apiOverrideWritingGrade(token, responseId, data) {
+  const res = await fetch(`${API_URL}/grading/writing/${responseId}/override`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to override writing grade");
+  }
+  return res.json();
+}
+
+export async function apiOverrideAnswerGrade(token, answerId, data) {
+  const res = await fetch(`${API_URL}/grading/answers/${answerId}/override`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to override answer grade");
+  }
+  return res.json();
+}
+
+export async function apiBulkOverrideAnswers(token, overrides) {
+  const res = await fetch(`${API_URL}/grading/answers/bulk-override`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ overrides }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to bulk override answers");
+  }
+  return res.json();
+}
+
+export async function apiExportResultsCSV(token, examId) {
+  const url = examId 
+    ? `${API_URL}/grading/export?examId=${examId}` 
+    : `${API_URL}/grading/export`;
+  const res = await fetch(url, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to export results");
+  }
+  return res.blob();
+}
