@@ -1,10 +1,9 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { 
   ChevronDown, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
   HelpCircle, ListChecks, ArrowRightLeft, MapPin, FileText, 
-  StickyNote, Table2, Type, MessageSquare, Settings, Eye, EyeOff,
-  Bold, Italic, Underline, Palette
+  StickyNote, Type, MessageSquare, Settings, Eye, EyeOff
 } from "lucide-react";
 
 // ============================================
@@ -95,80 +94,99 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
   </div>
 );
 
-// Rich Text formatting helper
-const RichTextToolbar = ({ textareaRef, onInsert }) => {
-  const wrapSelection = (before, after = before) => {
-    if (!textareaRef.current) return;
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selected = text.substring(start, end);
-    const newText = text.substring(0, start) + before + selected + after + text.substring(end);
-    onInsert(newText);
-    // Restore selection
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, end + before.length);
-    }, 0);
+// ============================================
+// WYSIWYG RICH TEXT EDITOR (No HTML tags visible)
+// ============================================
+const RichTextArea = ({ label, hint, className = "", value = "", onChange, ...props }) => {
+  const editorRef = useRef(null);
+  const [isFocused, setIsFocused] = useState(false);
+  
+  // Convert HTML to display in the editor
+  useEffect(() => {
+    if (editorRef.current && !isFocused) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value, isFocused]);
+  
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange({ target: { value: editorRef.current.innerHTML } });
+    }
+  };
+  
+  const execCommand = (command, value = null) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+    handleInput();
   };
 
   return (
-    <div className="flex items-center gap-1 mb-1.5">
-      <button
-        type="button"
-        onClick={() => wrapSelection('<b>', '</b>')}
-        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
-        title="Bold"
-      >
-        <Bold size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => wrapSelection('<i>', '</i>')}
-        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
-        title="Italic"
-      >
-        <Italic size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => wrapSelection('<u>', '</u>')}
-        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
-        title="Underline"
-      >
-        <Underline size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => wrapSelection('<span style="color:red">', '</span>')}
-        className="p-1.5 rounded hover:bg-gray-100 text-red-500 hover:text-red-600 transition"
-        title="Red Text"
-      >
-        <Palette size={14} />
-      </button>
-      <span className="text-xs text-gray-400 ml-2">Select text then click to format</span>
-    </div>
-  );
-};
-
-// Rich Text TextArea with toolbar
-const RichTextArea = ({ label, hint, className = "", value, onChange, ...props }) => {
-  const textareaRef = useRef(null);
-  
-  return (
     <div className={className}>
       {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</label>}
-      <RichTextToolbar 
-        textareaRef={textareaRef} 
-        onInsert={(newText) => onChange({ target: { value: newText } })}
-      />
-      <textarea
-        ref={textareaRef}
-        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none font-mono"
-        value={value}
-        onChange={onChange}
-        {...props}
+      
+      {/* Toolbar with visual buttons */}
+      <div className="flex items-center gap-1 mb-1.5 p-1 bg-gray-50 rounded-t-lg border border-b-0 border-gray-200">
+        <button
+          type="button"
+          onClick={() => execCommand('bold')}
+          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition font-bold text-sm"
+          title="Bold"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onClick={() => execCommand('italic')}
+          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition italic text-sm"
+          title="Italic"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          onClick={() => execCommand('underline')}
+          className="p-1.5 rounded hover:bg-gray-200 text-gray-700 transition underline text-sm"
+          title="Underline"
+        >
+          U
+        </button>
+        <button
+          type="button"
+          onClick={() => execCommand('foreColor', 'red')}
+          className="p-1.5 rounded hover:bg-gray-200 text-red-500 transition font-bold text-sm"
+          title="Red Text"
+        >
+          A
+        </button>
+        <div className="h-4 w-px bg-gray-300 mx-1" />
+        <button
+          type="button"
+          onClick={() => {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              range.insertNode(document.createTextNode('[BLANK]'));
+              handleInput();
+            }
+          }}
+          className="px-2 py-1 rounded hover:bg-amber-100 text-amber-700 transition text-xs font-medium border border-amber-300"
+          title="Insert Blank"
+        >
+          + Blank
+        </button>
+        <span className="text-xs text-gray-400 ml-auto">Select text to format</span>
+      </div>
+      
+      {/* Editable area */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition min-h-[60px]"
+        style={{ minHeight: props.rows ? `${props.rows * 24}px` : '60px' }}
+        suppressContentEditableWarning
       />
       {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
     </div>
@@ -177,7 +195,42 @@ const RichTextArea = ({ label, hint, className = "", value, onChange, ...props }
 
 // Render HTML safely (for preview)
 const RenderHtml = ({ html }) => {
-  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+  return <span dangerouslySetInnerHTML={{ __html: html || '' }} />;
+};
+
+// ============================================
+// BLANK INPUT COMPONENT - Circle number + rounded input
+// ============================================
+const BlankInput = ({ questionNumber, isPreview = false }) => (
+  <span className="inline-flex items-center gap-1 mx-1">
+    <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+      {questionNumber}
+    </span>
+    {isPreview ? (
+      <input 
+        type="text" 
+        className="w-24 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-white focus:border-amber-400 outline-none"
+        placeholder=""
+        disabled={!isPreview}
+      />
+    ) : (
+      <span className="w-24 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-gray-50 text-gray-400">
+        _______
+      </span>
+    )}
+  </span>
+);
+
+// Render template with proper blank inputs
+const renderTemplateWithBlanks = (template, questionNumber, isPreview = false) => {
+  if (!template) return null;
+  const parts = template.split('[BLANK]');
+  return parts.map((part, idx, arr) => (
+    <React.Fragment key={idx}>
+      <RenderHtml html={part} />
+      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} isPreview={isPreview} />}
+    </React.Fragment>
+  ));
 };
 
 const Toggle = ({ label, checked, onChange }) => (
@@ -545,16 +598,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                         <RenderHtml html={question.label_text || 'Label'} />
                       </td>
                       <td className="border border-gray-300 px-3 py-2">
-                        {(question.question_template || '[BLANK]').split('[BLANK]').map((part, idx, arr) => (
-                          <React.Fragment key={idx}>
-                            <RenderHtml html={part} />
-                            {idx < arr.length - 1 && (
-                              <span className="inline-block mx-1 px-3 py-0.5 bg-amber-100 border border-amber-300 text-amber-700 text-xs font-mono">
-                                ({questionNumber}) _____
-                              </span>
-                            )}
-                          </React.Fragment>
-                        ))}
+                        {renderTemplateWithBlanks(question.question_template || '[BLANK]', questionNumber)}
                       </td>
                     </tr>
                   </tbody>
@@ -590,18 +634,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               />
               <div className="bg-gray-100 rounded-lg p-3">
                 <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
-                <p className="text-sm text-gray-700">
-                  <span className="font-bold text-amber-700 mr-2">{questionNumber}.</span>
-                  {(question.question_template || 'Write sentence with [BLANK]').split('[BLANK]').map((part, idx, arr) => (
-                    <React.Fragment key={idx}>
-                      <RenderHtml html={part} />
-                      {idx < arr.length - 1 && (
-                        <span className="inline-block mx-1 px-4 border-b-2 border-gray-400 text-gray-400 text-sm">
-                          _________
-                        </span>
-                      )}
-                    </React.Fragment>
-                  ))}
+                <p className="text-sm text-gray-700 flex items-center flex-wrap">
+                  {renderTemplateWithBlanks(question.question_template || 'Write sentence with [BLANK]', questionNumber)}
                 </p>
               </div>
               <Input
@@ -634,17 +668,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               />
               <div className="bg-gray-100 rounded-lg p-3">
                 <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
-                <p className="text-sm text-gray-700">
-                  {(question.question_template || '• [BLANK]').split('[BLANK]').map((part, idx, arr) => (
-                    <React.Fragment key={idx}>
-                      <RenderHtml html={part} />
-                      {idx < arr.length - 1 && (
-                        <span className="inline-block mx-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-700 text-xs font-mono">
-                          ({questionNumber}) _____
-                        </span>
-                      )}
-                    </React.Fragment>
-                  ))}
+                <p className="text-sm text-gray-700 flex items-center flex-wrap">
+                  {renderTemplateWithBlanks(question.question_template || '• [BLANK]', questionNumber)}
                 </p>
               </div>
               <Input
@@ -1261,6 +1286,20 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const type = group.question_type;
 
+    // Reusable blank input for student preview
+    const StudentBlankInput = ({ num }) => (
+      <span className="inline-flex items-center gap-1 mx-1">
+        <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+          {num}
+        </span>
+        <input 
+          type="text" 
+          className="w-28 px-3 py-1 border-2 border-gray-300 rounded-xl text-sm text-center bg-white focus:border-amber-400 outline-none"
+          placeholder=""
+        />
+      </span>
+    );
+
     // Multiple Choice: Number, question, then A/B/C options below
     if (type === 'multiple_choice') {
       return groupQuestions.map(q => {
@@ -1268,10 +1307,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
         return (
           <div key={q.id} className="py-4 border-b border-gray-100 last:border-0">
             <p className="font-medium mb-3">
-              <span className="text-amber-700">{globalNum}.</span>{' '}
+              <span className="w-6 h-6 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold mr-2">
+                {globalNum}
+              </span>
               <RenderHtml html={q.question_text || ''} />
             </p>
-            <div className="ml-6 space-y-2">
+            <div className="ml-8 space-y-2">
               {['A', 'B', 'C', 'D'].map(letter => {
                 const text = q[`option_${letter.toLowerCase()}`];
                 if (!text) return null;
@@ -1301,20 +1342,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   <td className="border border-gray-300 px-4 py-2 bg-gray-50 font-medium w-1/3">
                     <RenderHtml html={q.label_text || ''} />
                   </td>
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="border border-gray-300 px-4 py-3">
                     {template.split('[BLANK]').map((part, idx, arr) => (
                       <React.Fragment key={idx}>
                         <RenderHtml html={part} />
-                        {idx < arr.length - 1 && (
-                          <span className="inline-flex items-center">
-                            <span className="text-amber-700 font-medium mr-1">({globalNum})</span>
-                            <input 
-                              type="text" 
-                              className="inline-block mx-1 px-3 py-1 border-b-2 border-gray-400 bg-transparent w-24 text-center"
-                              placeholder="_____"
-                            />
-                          </span>
-                        )}
+                        {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
                       </React.Fragment>
                     ))}
                   </td>
@@ -1332,18 +1364,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         const template = q.question_template || '';
         return (
-          <div key={q.id} className="py-2">
-            <span className="font-bold text-amber-700 mr-2">{globalNum}.</span>
+          <div key={q.id} className="py-2 flex items-center flex-wrap">
             {template.split('[BLANK]').map((part, idx, arr) => (
               <React.Fragment key={idx}>
                 <RenderHtml html={part} />
-                {idx < arr.length - 1 && (
-                  <input 
-                    type="text" 
-                    className="inline-block mx-1 px-3 py-1 border-b-2 border-gray-400 bg-transparent w-32 text-center"
-                    placeholder="_________"
-                  />
-                )}
+                {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
               </React.Fragment>
             ))}
           </div>
@@ -1359,20 +1384,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
             const globalNum = globalOffset + q.question_number;
             const template = q.question_template || '';
             return (
-              <div key={q.id} className="py-1">
+              <div key={q.id} className="py-1 flex items-center flex-wrap">
                 {template.split('[BLANK]').map((part, idx, arr) => (
                   <React.Fragment key={idx}>
                     <RenderHtml html={part} />
-                    {idx < arr.length - 1 && (
-                      <span className="inline-flex items-center">
-                        <span className="text-amber-700 font-medium mr-1">({globalNum})</span>
-                        <input 
-                          type="text" 
-                          className="inline-block mx-1 px-2 py-0.5 border-b-2 border-gray-400 bg-transparent w-24 text-center text-sm"
-                          placeholder="_____"
-                        />
-                      </span>
-                    )}
+                    {idx < arr.length - 1 && <StudentBlankInput num={globalNum} />}
                   </React.Fragment>
                 ))}
               </div>
@@ -1387,10 +1403,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
-          <div key={q.id} className="py-2 flex items-center gap-4">
-            <span className="font-bold text-amber-700">{globalNum}.</span>
+          <div key={q.id} className="py-2 flex items-center gap-3">
+            <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+              {globalNum}
+            </span>
             <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
-            <select className="px-3 py-1.5 border border-gray-300 rounded bg-white">
+            <select className="px-3 py-1.5 border-2 border-gray-300 rounded-xl bg-white focus:border-amber-400 outline-none">
               <option value="">Select</option>
               {(group.shared_options || []).map(opt => (
                 <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -1406,12 +1424,14 @@ const PreviewMode = ({ isOpen, onClose }) => {
       const globalNum = globalOffset + q.question_number;
       return (
         <div key={q.id} className="py-2 flex items-center gap-3">
-          <span className="font-bold text-amber-700">{globalNum}.</span>
+          <span className="w-6 h-6 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+            {globalNum}
+          </span>
           <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
           <input 
             type="text" 
-            className="px-3 py-1.5 border border-gray-300 rounded w-40"
-            placeholder="Your answer"
+            className="px-3 py-1.5 border-2 border-gray-300 rounded-xl w-32 focus:border-amber-400 outline-none"
+            placeholder=""
           />
         </div>
       );
