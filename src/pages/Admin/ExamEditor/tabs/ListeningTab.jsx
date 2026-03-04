@@ -1,9 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { 
   ChevronDown, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
   HelpCircle, ListChecks, ArrowRightLeft, MapPin, FileText, 
-  StickyNote, Table2, Type, MessageSquare, Settings, Eye, EyeOff
+  StickyNote, Table2, Type, MessageSquare, Settings, Eye, EyeOff,
+  Bold, Italic, Underline, Palette
 } from "lucide-react";
 
 // ============================================
@@ -93,6 +94,91 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
+
+// Rich Text formatting helper
+const RichTextToolbar = ({ textareaRef, onInsert }) => {
+  const wrapSelection = (before, after = before) => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+    const newText = text.substring(0, start) + before + selected + after + text.substring(end);
+    onInsert(newText);
+    // Restore selection
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  return (
+    <div className="flex items-center gap-1 mb-1.5">
+      <button
+        type="button"
+        onClick={() => wrapSelection('<b>', '</b>')}
+        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
+        title="Bold"
+      >
+        <Bold size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => wrapSelection('<i>', '</i>')}
+        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
+        title="Italic"
+      >
+        <Italic size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => wrapSelection('<u>', '</u>')}
+        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
+        title="Underline"
+      >
+        <Underline size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => wrapSelection('<span style="color:red">', '</span>')}
+        className="p-1.5 rounded hover:bg-gray-100 text-red-500 hover:text-red-600 transition"
+        title="Red Text"
+      >
+        <Palette size={14} />
+      </button>
+      <span className="text-xs text-gray-400 ml-2">Select text then click to format</span>
+    </div>
+  );
+};
+
+// Rich Text TextArea with toolbar
+const RichTextArea = ({ label, hint, className = "", value, onChange, ...props }) => {
+  const textareaRef = useRef(null);
+  
+  return (
+    <div className={className}>
+      {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</label>}
+      <RichTextToolbar 
+        textareaRef={textareaRef} 
+        onInsert={(newText) => onChange({ target: { value: newText } })}
+      />
+      <textarea
+        ref={textareaRef}
+        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none font-mono"
+        value={value}
+        onChange={onChange}
+        {...props}
+      />
+      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+    </div>
+  );
+};
+
+// Render HTML safely (for preview)
+const RenderHtml = ({ html }) => {
+  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+};
 
 const Toggle = ({ label, checked, onChange }) => (
   <label className="flex items-center gap-2 cursor-pointer">
@@ -353,18 +439,38 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
 
       {isExpanded && (
         <div className="px-4 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
-          {/* Multiple Choice */}
+          {/* Multiple Choice - Question number, question text, then A/B/C below */}
           {groupType === 'multiple_choice' && (
             <>
-              <TextArea
-                label="Question Stem"
+              <RichTextArea
+                label="Question Text"
                 placeholder="What is the main purpose of the speaker's announcement?"
                 rows={2}
                 value={question.question_text || ""}
                 onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })}
               />
+              <div className="bg-gray-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
+                <div className="text-sm text-gray-700">
+                  <p className="font-medium mb-2">
+                    <span className="text-amber-700">{questionNumber}.</span>{' '}
+                    <RenderHtml html={question.question_text || 'Question text...'} />
+                  </p>
+                  <div className="ml-4 space-y-1">
+                    {['A', 'B', 'C', 'D'].map(letter => {
+                      const text = question[`option_${letter.toLowerCase()}`];
+                      if (!text) return null;
+                      return (
+                        <div key={letter} className={`${question.correct_answer === letter ? 'text-green-600 font-medium' : ''}`}>
+                          <span className="font-semibold">{letter}</span> <RenderHtml html={text} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Options</label>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Options (click letter to set correct answer)</label>
                 {['A', 'B', 'C', 'D'].map(letter => (
                   <div key={letter} className="flex items-center gap-2">
                     <button
@@ -380,7 +486,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                     </button>
                     <input
                       className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 outline-none"
-                      placeholder={`Option ${letter}`}
+                      placeholder={`Option ${letter} text`}
                       value={question[`option_${letter.toLowerCase()}`] || ""}
                       onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
                     />
@@ -393,8 +499,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
           {/* Matching */}
           {groupType === 'matching' && (
             <>
-              <TextArea
-                label="Question/Item Text"
+              <RichTextArea
+                label="Question/Item Text (with formatting)"
                 placeholder="The speaker mentions that the new policy will..."
                 rows={2}
                 value={question.question_text || ""}
@@ -410,31 +516,48 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
             </>
           )}
 
-          {/* Form/Table/Note/Sentence Completion - with inline blank */}
-          {['form_completion', 'sentence_completion', 'note_completion'].includes(groupType) && (
+          {/* Form/Table Completion - Two column format: label | text with (number) blank */}
+          {groupType === 'form_completion' && (
             <>
-              <TextArea
-                label="Template with Blank"
-                placeholder="Customer's name: [BLANK] or The library opens at [BLANK] on weekdays."
-                hint="Use [BLANK] to mark where the answer should appear inline"
-                rows={3}
-                value={question.question_template || ""}
-                onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Left Column (Label)"
+                  placeholder="e.g., Name, Date, Time, Location"
+                  value={question.label_text || ""}
+                  onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })}
+                />
+                <RichTextArea
+                  label="Right Column (with blank)"
+                  placeholder="e.g., Mr. [BLANK] or [BLANK] September"
+                  hint="Use [BLANK] where the answer goes"
+                  rows={2}
+                  value={question.question_template || ""}
+                  onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
+                />
+              </div>
               <div className="bg-gray-100 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-2">Preview:</p>
-                <p className="text-sm text-gray-700">
-                  {(question.question_template || '').split('[BLANK]').map((part, idx, arr) => (
-                    <React.Fragment key={idx}>
-                      {part}
-                      {idx < arr.length - 1 && (
-                        <span className="inline-block mx-1 px-4 py-0.5 bg-amber-100 border border-amber-300 rounded text-amber-600 text-xs">
-                          {question.correct_answer || '____'}
-                        </span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </p>
+                <p className="text-xs text-gray-500 mb-2">Table Preview (Q{questionNumber}):</p>
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr className="border border-gray-300">
+                      <td className="border border-gray-300 px-3 py-2 bg-gray-50 font-medium w-1/3">
+                        <RenderHtml html={question.label_text || 'Label'} />
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2">
+                        {(question.question_template || '[BLANK]').split('[BLANK]').map((part, idx, arr) => (
+                          <React.Fragment key={idx}>
+                            <RenderHtml html={part} />
+                            {idx < arr.length - 1 && (
+                              <span className="inline-block mx-1 px-3 py-0.5 bg-amber-100 border border-amber-300 text-amber-700 text-xs font-mono">
+                                ({questionNumber}) _____
+                              </span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <Input
                 label="Correct Answer"
@@ -449,7 +572,93 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 onChange={(e) => updateQuestion(question.id, { 
                   answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                 })}
-                hint="Accept multiple correct spellings/formats"
+              />
+            </>
+          )}
+
+          {/* Sentence Completion - One sentence per line with inline blank */}
+          {groupType === 'sentence_completion' && (
+            <>
+              <RichTextArea
+                label="Sentence with blank"
+                placeholder="The museum opens at [BLANK] o'clock every day."
+                hint="One sentence per question. Use [BLANK] for the answer position."
+                rows={2}
+                value={question.question_template || ""}
+                onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
+              />
+              <div className="bg-gray-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-bold text-amber-700 mr-2">{questionNumber}.</span>
+                  {(question.question_template || 'Write sentence with [BLANK]').split('[BLANK]').map((part, idx, arr) => (
+                    <React.Fragment key={idx}>
+                      <RenderHtml html={part} />
+                      {idx < arr.length - 1 && (
+                        <span className="inline-block mx-1 px-4 border-b-2 border-gray-400 text-gray-400 text-sm">
+                          _________
+                        </span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </p>
+              </div>
+              <Input
+                label="Correct Answer"
+                placeholder="e.g., nine, 15, Tuesday"
+                value={question.correct_answer || ""}
+                onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
+              />
+              <Input
+                label="Alternative Answers (comma-separated)"
+                placeholder="e.g., 9, Nine, nine o'clock"
+                value={(question.answer_alternatives || []).join(', ')}
+                onChange={(e) => updateQuestion(question.id, { 
+                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                })}
+              />
+            </>
+          )}
+
+          {/* Note/Summary Completion */}
+          {groupType === 'note_completion' && (
+            <>
+              <RichTextArea
+                label="Note line with blank"
+                placeholder="e.g., • Date of meeting: [BLANK]"
+                hint="Use [BLANK] for the answer position. Use bullet points (•) for notes."
+                rows={2}
+                value={question.question_template || ""}
+                onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })}
+              />
+              <div className="bg-gray-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
+                <p className="text-sm text-gray-700">
+                  {(question.question_template || '• [BLANK]').split('[BLANK]').map((part, idx, arr) => (
+                    <React.Fragment key={idx}>
+                      <RenderHtml html={part} />
+                      {idx < arr.length - 1 && (
+                        <span className="inline-block mx-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-700 text-xs font-mono">
+                          ({questionNumber}) _____
+                        </span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </p>
+              </div>
+              <Input
+                label="Correct Answer"
+                placeholder="e.g., September, 500, students"
+                value={question.correct_answer || ""}
+                onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
+              />
+              <Input
+                label="Alternative Answers (comma-separated)"
+                placeholder="Accept multiple spellings/formats"
+                value={(question.answer_alternatives || []).join(', ')}
+                onChange={(e) => updateQuestion(question.id, { 
+                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                })}
               />
             </>
           )}
@@ -1047,76 +1256,165 @@ const PreviewMode = ({ isOpen, onClose }) => {
     .filter(g => g.section_id === currentSection?.id)
     .sort((a, b) => a.group_order - b.group_order);
 
-  const renderQuestion = (q, group, globalNum) => {
+  // Render questions grouped by type for proper IELTS layout
+  const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const type = group.question_type;
 
+    // Multiple Choice: Number, question, then A/B/C options below
     if (type === 'multiple_choice') {
+      return groupQuestions.map(q => {
+        const globalNum = globalOffset + q.question_number;
+        return (
+          <div key={q.id} className="py-4 border-b border-gray-100 last:border-0">
+            <p className="font-medium mb-3">
+              <span className="text-amber-700">{globalNum}.</span>{' '}
+              <RenderHtml html={q.question_text || ''} />
+            </p>
+            <div className="ml-6 space-y-2">
+              {['A', 'B', 'C', 'D'].map(letter => {
+                const text = q[`option_${letter.toLowerCase()}`];
+                if (!text) return null;
+                return (
+                  <label key={letter} className="flex items-start gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
+                    <input type="radio" name={`q${q.id}`} className="w-4 h-4 mt-0.5" />
+                    <span><strong>{letter}</strong> <RenderHtml html={text} /></span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      });
+    }
+
+    // Form/Table Completion: Two-column table format
+    if (type === 'form_completion') {
       return (
-        <div key={q.id} className="py-3">
-          <p className="font-medium mb-2">{globalNum}. {q.question_text}</p>
-          <div className="space-y-1 ml-4">
-            {['A', 'B', 'C', 'D'].map(letter => {
-              const text = q[`option_${letter.toLowerCase()}`];
-              if (!text) return null;
+        <table className="w-full border-collapse mb-4">
+          <tbody>
+            {groupQuestions.map(q => {
+              const globalNum = globalOffset + q.question_number;
+              const template = q.question_template || '';
               return (
-                <label key={letter} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name={`q${q.id}`} className="w-4 h-4" />
-                  <span><strong>{letter}</strong> {text}</span>
-                </label>
+                <tr key={q.id} className="border border-gray-300">
+                  <td className="border border-gray-300 px-4 py-2 bg-gray-50 font-medium w-1/3">
+                    <RenderHtml html={q.label_text || ''} />
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {template.split('[BLANK]').map((part, idx, arr) => (
+                      <React.Fragment key={idx}>
+                        <RenderHtml html={part} />
+                        {idx < arr.length - 1 && (
+                          <span className="inline-flex items-center">
+                            <span className="text-amber-700 font-medium mr-1">({globalNum})</span>
+                            <input 
+                              type="text" 
+                              className="inline-block mx-1 px-3 py-1 border-b-2 border-gray-400 bg-transparent w-24 text-center"
+                              placeholder="_____"
+                            />
+                          </span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </td>
+                </tr>
               );
             })}
-          </div>
-        </div>
+          </tbody>
+        </table>
       );
     }
 
-    if (['form_completion', 'sentence_completion', 'note_completion'].includes(type)) {
-      const template = q.question_template || q.question_text || '';
-      return (
-        <div key={q.id} className="py-3">
-          <span className="font-medium">{globalNum}. </span>
-          {template.split('[BLANK]').map((part, idx, arr) => (
-            <React.Fragment key={idx}>
-              {part}
-              {idx < arr.length - 1 && (
-                <input 
-                  type="text" 
-                  className="inline-block mx-1 px-3 py-1 border border-gray-300 rounded w-32 text-center"
-                  placeholder="____"
-                />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      );
-    }
-
-    if (type === 'matching') {
-      return (
-        <div key={q.id} className="py-3 flex items-center gap-4">
-          <span className="font-medium">{globalNum}.</span>
-          <span className="flex-1">{q.question_text}</span>
-          <select className="px-3 py-1.5 border border-gray-300 rounded">
-            <option value="">Select</option>
-            {(group.shared_options || []).map(opt => (
-              <option key={opt.label} value={opt.label}>{opt.label}</option>
+    // Sentence Completion: One sentence per line
+    if (type === 'sentence_completion') {
+      return groupQuestions.map(q => {
+        const globalNum = globalOffset + q.question_number;
+        const template = q.question_template || '';
+        return (
+          <div key={q.id} className="py-2">
+            <span className="font-bold text-amber-700 mr-2">{globalNum}.</span>
+            {template.split('[BLANK]').map((part, idx, arr) => (
+              <React.Fragment key={idx}>
+                <RenderHtml html={part} />
+                {idx < arr.length - 1 && (
+                  <input 
+                    type="text" 
+                    className="inline-block mx-1 px-3 py-1 border-b-2 border-gray-400 bg-transparent w-32 text-center"
+                    placeholder="_________"
+                  />
+                )}
+              </React.Fragment>
             ))}
-          </select>
+          </div>
+        );
+      });
+    }
+
+    // Note/Summary Completion
+    if (type === 'note_completion') {
+      return (
+        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          {groupQuestions.map(q => {
+            const globalNum = globalOffset + q.question_number;
+            const template = q.question_template || '';
+            return (
+              <div key={q.id} className="py-1">
+                {template.split('[BLANK]').map((part, idx, arr) => (
+                  <React.Fragment key={idx}>
+                    <RenderHtml html={part} />
+                    {idx < arr.length - 1 && (
+                      <span className="inline-flex items-center">
+                        <span className="text-amber-700 font-medium mr-1">({globalNum})</span>
+                        <input 
+                          type="text" 
+                          className="inline-block mx-1 px-2 py-0.5 border-b-2 border-gray-400 bg-transparent w-24 text-center text-sm"
+                          placeholder="_____"
+                        />
+                      </span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            );
+          })}
         </div>
       );
     }
 
-    return (
-      <div key={q.id} className="py-3">
-        <span className="font-medium">{globalNum}. </span>
-        <span>{q.question_text}</span>
-        <input 
-          type="text" 
-          className="ml-2 px-3 py-1 border border-gray-300 rounded w-40"
-          placeholder="Your answer"
-        />
-      </div>
-    );
+    // Matching
+    if (type === 'matching') {
+      return groupQuestions.map(q => {
+        const globalNum = globalOffset + q.question_number;
+        return (
+          <div key={q.id} className="py-2 flex items-center gap-4">
+            <span className="font-bold text-amber-700">{globalNum}.</span>
+            <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
+            <select className="px-3 py-1.5 border border-gray-300 rounded bg-white">
+              <option value="">Select</option>
+              {(group.shared_options || []).map(opt => (
+                <option key={opt.label} value={opt.label}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        );
+      });
+    }
+
+    // Map/Diagram Labeling & Short Answer (default)
+    return groupQuestions.map(q => {
+      const globalNum = globalOffset + q.question_number;
+      return (
+        <div key={q.id} className="py-2 flex items-center gap-3">
+          <span className="font-bold text-amber-700">{globalNum}.</span>
+          <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
+          <input 
+            type="text" 
+            className="px-3 py-1.5 border border-gray-300 rounded w-40"
+            placeholder="Your answer"
+          />
+        </div>
+      );
+    });
   };
 
   return (
@@ -1211,8 +1509,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                         </div>
                       )}
 
-                      <div className="divide-y divide-gray-100">
-                        {groupQuestions.map(q => renderQuestion(q, group, globalOffset + q.question_number))}
+                      <div>
+                        {renderQuestionGroup(group, groupQuestions, globalOffset)}
                       </div>
                     </div>
                   );
