@@ -1502,7 +1502,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
-          <div key={q.id} className="py-4 border-b border-gray-100 last:border-0" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+          <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
             {/* Question number as plain bold text */}
             <p style={{
               color: 'rgb(40, 40, 40)',
@@ -1576,7 +1576,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
           textAlign: 'left'
         },
         cell: {
-          padding: '10px 8px',
+          border: '1px solid rgb(221, 221, 221)',
+          padding: '10px 12px',
           verticalAlign: 'middle',
           fontSize: '14px',
           lineHeight: '20px'
@@ -1594,8 +1595,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 dangerouslySetInnerHTML={{ __html: group.table_title }}
               />
             )}
-            {/* Simple two-column table, no borders between cells */}
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            {/* Two-column table with proper borders */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)' }}>
               <tbody>
                 {groupQuestions.map(q => {
                   const globalNum = globalOffset + q.question_number;
