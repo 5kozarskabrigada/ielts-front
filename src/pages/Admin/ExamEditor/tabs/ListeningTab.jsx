@@ -1792,7 +1792,62 @@ const PreviewMode = ({ isOpen, onClose }) => {
       });
     }
 
-    // Map/Diagram Labeling & Short Answer (default)
+    // Short Answer: Question text on top, numbered input below
+    if (type === 'short_answer') {
+      return groupQuestions.map(q => {
+        const globalNum = globalOffset + q.question_number;
+        return (
+          <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+            {/* Question text - styled bold text */}
+            <p style={{
+              color: 'rgb(40, 40, 40)',
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              fontSize: '16px',
+              fontWeight: 700,
+              lineHeight: '24px',
+              marginTop: '10px',
+              marginBottom: '10px'
+            }}>
+              <RenderHtml html={q.question_text || ''} />
+            </p>
+            {/* Answer input with question number in front */}
+            <div className="flex items-center gap-2 mt-2">
+              <span 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  minWidth: '28px',
+                  minHeight: '28px',
+                  backgroundColor: accentColor,
+                  borderRadius: '50%',
+                  color: 'rgb(255, 255, 255)',
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 600
+                }}
+              >
+                {globalNum}
+              </span>
+              <input 
+                type="text" 
+                className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none"
+                style={{ 
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  borderRadius: '12px',
+                  border: '1px solid rgb(209, 213, 219)'
+                }}
+                placeholder=""
+              />
+            </div>
+          </div>
+        );
+      });
+    }
+
+    // Map/Diagram Labeling (default)
     return groupQuestions.map(q => {
       const globalNum = globalOffset + q.question_number;
       return (
