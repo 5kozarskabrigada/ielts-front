@@ -87,11 +87,38 @@ function ExamEditorContent() {
     }
 
     try {
+      // Generate questions from table_data groups (TableBuilder format)
+      const allQuestions = [...questions];
+      (questionGroups || []).forEach(group => {
+        if (group.question_type === 'form_completion' && group.table_data?.answers) {
+          const startNum = group.question_range_start || 1;
+          Object.entries(group.table_data.answers).forEach(([blankIdx, answer]) => {
+            const questionNumber = startNum + parseInt(blankIdx);
+            // Check if question already exists
+            const existingIdx = allQuestions.findIndex(q => 
+              q.section_id === group.section_id && q.question_number === questionNumber
+            );
+            const questionData = {
+              section_id: group.section_id,
+              question_number: questionNumber,
+              question_type: 'form_completion',
+              correct_answer: answer,
+              points: 1
+            };
+            if (existingIdx >= 0) {
+              allQuestions[existingIdx] = { ...allQuestions[existingIdx], ...questionData };
+            } else {
+              allQuestions.push({ id: `temp_tableq_${Date.now()}_${questionNumber}`, ...questionData });
+            }
+          });
+        }
+      });
+
       console.log('[SAVE] Sending payload:', {
         exam: exam.title,
         sectionsCount: sections.length,
-        questionsCount: questions.length,
-        questions: questions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
+        questionsCount: allQuestions.length,
+        questions: allQuestions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
         questionGroupsCount: questionGroups?.length || 0,
         questionGroups: questionGroups?.map(g => ({
           id: g.id,
@@ -106,7 +133,7 @@ function ExamEditorContent() {
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
-        questions,
+        questions: allQuestions,
         questionGroups,
         deletedQuestionIds,
         deletedGroupIds

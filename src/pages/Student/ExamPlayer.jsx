@@ -48,6 +48,9 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
   // Calculate global question number (for display)
   const globalStart = (sectionNumber - 1) * 10 + group.question_range_start;
   const globalEnd = (sectionNumber - 1) * 10 + group.question_range_end;
+  
+  // Check if this group uses table_data format (TableBuilder)
+  const hasTableData = group.question_type === 'form_completion' && group.table_data?.cells;
 
   // Parse example data - options are stored as option_a, option_b, etc.
   const exampleData = group.example_data || {};
@@ -121,57 +124,199 @@ const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setA
         </div>
       )}
 
-      {/* Questions list */}
-      <div className="space-y-6 mt-6">
-        {groupQuestions.map((q) => {
-          const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
-          const isInfoRow = q.is_info_row === true;
+      {/* Render table if using TableBuilder format */}
+      {hasTableData && (() => {
+        const { cells, hasHeaders, headers } = group.table_data;
+        let blankCounter = 0;
+        
+        // Helper to render cell content with inputs for blanks
+        const renderCellWithInputs = (cellContent, startBlankIdx) => {
+          if (!cellContent) return null;
+          const parts = cellContent.split(/(\[BLANK\])/g);
+          let localBlank = 0;
           
-          // Info rows - display as simple info without question number or input
-          if (isInfoRow) {
+          return parts.map((part, idx) => {
+            if (part === '[BLANK]') {
+              const blankNum = startBlankIdx + localBlank;
+              localBlank++;
+              // Find the question for this blank
+              const questionNum = group.question_range_start + blankNum;
+              const question = groupQuestions.find(q => q.question_number === questionNum);
+              const globalQNum = (sectionNumber - 1) * 10 + questionNum;
+              
+              if (question) {
+                return (
+                  <span key={idx} className="inline-flex items-center gap-1">
+                    <span 
+                      className="w-5 h-5 flex items-center justify-center rounded-full text-white text-xs font-bold"
+                      style={{ backgroundColor: 'rgb(50, 180, 200)', fontSize: '10px' }}
+                    >
+                      {globalQNum}
+                    </span>
+                    <input
+                      type="text"
+                      className="px-2 py-1 min-w-[100px] max-w-[150px] outline-none"
+                      style={{
+                        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                        fontSize: '14px',
+                        borderRadius: '8px',
+                        border: '1px solid rgb(209, 213, 219)'
+                      }}
+                      value={answers[question.id] || ''}
+                      onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
+                      disabled={isPreview}
+                    />
+                  </span>
+                );
+              }
+              return <span key={idx} className="text-gray-400">[?]</span>;
+            }
+            return <span key={idx} dangerouslySetInnerHTML={{ __html: cleanHtml(part) }} />;
+          });
+        };
+        
+        return (
+          <div className="mt-6">
+            {/* Table title */}
+            {group.table_title && (
+              <div 
+                style={{
+                  color: 'rgb(41, 69, 99)',
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  marginBottom: '12px'
+                }}
+                dangerouslySetInnerHTML={{ __html: cleanHtml(group.table_title) }}
+              />
+            )}
+            
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse', 
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid rgb(221, 221, 221)'
+            }}>
+              {hasHeaders && headers?.some(h => h) && (
+                <thead>
+                  <tr>
+                    {headers.map((header, idx) => (
+                      <th 
+                        key={idx}
+                        style={{
+                          backgroundColor: 'rgb(221, 221, 221)',
+                          border: '1px solid rgb(221, 221, 221)',
+                          padding: '10px 12px',
+                          textAlign: 'center',
+                          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                          fontSize: '14px',
+                          fontWeight: 600
+                        }}
+                      >
+                        {header || ''}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {cells.map((row, rowIdx) => {
+                  // Count blanks in previous rows
+                  let blanksBefore = 0;
+                  for (let r = 0; r < rowIdx; r++) {
+                    cells[r].forEach(c => {
+                      blanksBefore += (c.match(/\[BLANK\]/g) || []).length;
+                    });
+                  }
+                  
+                  return (
+                    <tr key={rowIdx}>
+                      {row.map((cell, colIdx) => {
+                        // Count blanks before this cell in this row
+                        let blanksInRowBefore = 0;
+                        for (let c = 0; c < colIdx; c++) {
+                          blanksInRowBefore += (row[c].match(/\[BLANK\]/g) || []).length;
+                        }
+                        const startBlank = blanksBefore + blanksInRowBefore;
+                        
+                        return (
+                          <td 
+                            key={colIdx}
+                            style={{
+                              border: '1px solid rgb(221, 221, 221)',
+                              padding: '10px 12px',
+                              verticalAlign: 'middle',
+                              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                              fontSize: '14px'
+                            }}
+                          >
+                            {renderCellWithInputs(cell, startBlank)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+
+      {/* Questions list - only if NOT using table_data format */}
+      {!hasTableData && (
+        <div className="space-y-6 mt-6">
+          {groupQuestions.map((q) => {
+            const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
+            const isInfoRow = q.is_info_row === true;
+            
+            // Info rows - display as simple info without question number or input
+            if (isInfoRow) {
+              return (
+                <div key={q.id} className="flex items-start gap-3 text-gray-600" style={{ fontSize: '14px', lineHeight: '21px' }}>
+                  <span className="min-w-[24px]">&nbsp;</span>
+                  <div className="flex-1">
+                    {q.label_text && (
+                      <span className="font-medium" dangerouslySetInnerHTML={{ __html: cleanHtml(q.label_text) }} />
+                    )}
+                    {q.label_text && q.info_text && ': '}
+                    {q.info_text && (
+                      <span dangerouslySetInnerHTML={{ __html: cleanHtml(q.info_text) }} />
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            
             return (
-              <div key={q.id} className="flex items-start gap-3 text-gray-600" style={{ fontSize: '14px', lineHeight: '21px' }}>
-                <span className="min-w-[24px]">&nbsp;</span>
+              <div key={q.id} className="flex items-start gap-3" style={{ fontSize: '14px', lineHeight: '21px' }}>
+                {/* Question number with accent color circle */}
+                <span 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+                  style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(50, 180, 200)' }}
+                >
+                  {globalQNum}
+                </span>
+                
                 <div className="flex-1">
-                  {q.label_text && (
-                    <span className="font-medium" dangerouslySetInnerHTML={{ __html: cleanHtml(q.label_text) }} />
+                  {/* Question text - render cleaned HTML */}
+                  {q.question_text && (
+                    <div 
+                      className="mb-2"
+                      style={{ color: 'rgb(40, 40, 40)' }}
+                      dangerouslySetInnerHTML={{ __html: cleanHtml(q.question_text) }}
+                    />
                   )}
-                  {q.label_text && q.info_text && ': '}
-                  {q.info_text && (
-                    <span dangerouslySetInnerHTML={{ __html: cleanHtml(q.info_text) }} />
-                  )}
+                  
+                  {/* Input based on question type */}
+                  {renderQuestionInput(q, group, answers, setAnswers, isPreview)}
                 </div>
               </div>
             );
-          }
-          
-          return (
-            <div key={q.id} className="flex items-start gap-3" style={{ fontSize: '14px', lineHeight: '21px' }}>
-              {/* Question number with accent color circle */}
-              <span 
-                className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
-                style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(50, 180, 200)' }}
-              >
-                {globalQNum}
-              </span>
-              
-              <div className="flex-1">
-                {/* Question text - render cleaned HTML */}
-                {q.question_text && (
-                  <div 
-                    className="mb-2"
-                    style={{ color: 'rgb(40, 40, 40)' }}
-                    dangerouslySetInnerHTML={{ __html: cleanHtml(q.question_text) }}
-                  />
-                )}
-                
-                {/* Input based on question type */}
-                {renderQuestionInput(q, group, answers, setAnswers, isPreview)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 };
