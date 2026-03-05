@@ -25,6 +25,37 @@ const getStableCode = () => {
   return newCode;
 };
 
+// Assign group_id to questions based on section_id and question_number range
+// This ensures questions loaded from the database display in their correct groups
+const assignGroupIds = (questions, groups) => {
+  if (!questions || !groups || questions.length === 0 || groups.length === 0) {
+    return questions || [];
+  }
+  
+  return questions.map(q => {
+    // If question already has a valid group_id that exists in groups, keep it
+    if (q.group_id && groups.some(g => g.id === q.group_id)) {
+      return q;
+    }
+    
+    // Find matching group by section_id and question_number range
+    const qNum = parseInt(q.question_number, 10);
+    const matchingGroup = groups.find(g => {
+      const matchesSection = g.section_id === q.section_id;
+      const start = parseInt(g.question_range_start, 10);
+      const end = parseInt(g.question_range_end, 10);
+      const inRange = !isNaN(qNum) && !isNaN(start) && !isNaN(end) && qNum >= start && qNum <= end;
+      return matchesSection && inRange;
+    });
+    
+    if (matchingGroup) {
+      return { ...q, group_id: matchingGroup.id };
+    }
+    
+    return q;
+  });
+};
+
 export const ExamEditorProvider = ({ children, initialData = null }) => {
   // For existing exams (has id), use the code from the database
   // For new exams, use a stable code from sessionStorage
@@ -75,8 +106,11 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   // Reading: Fixed 3 passages
   // Writing: Fixed 2 tasks
   const [sections, setSections] = useState(initialData?.sections || []);
-  const [questions, setQuestions] = useState(initialData?.questions || []);
   const [questionGroups, setQuestionGroups] = useState(initialData?.questionGroups || []);
+  // Initialize questions with group_id assigned based on section_id + question_number range
+  const [questions, setQuestions] = useState(() => 
+    assignGroupIds(initialData?.questions || [], initialData?.questionGroups || [])
+  );
 
   const [deletedQuestionIds, setDeletedQuestionIds] = useState([]); // Track deleted question IDs for soft delete
   const [deletedGroupIds, setDeletedGroupIds] = useState([]); // Track deleted group IDs
