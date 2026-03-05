@@ -902,7 +902,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
 // ============================================
 // SUMMARY BUILDER COMPONENT (for summary_completion)
 // ============================================
-const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
+const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, questions, setQuestions }) => {
   const summaryData = group.summary_data || { text: '', answers: {} };
   
   const updateSummaryData = (updates) => {
@@ -911,11 +911,76 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
 
   const text = summaryData.text || '';
   const answers = summaryData.answers || {};
+  const answersJson = JSON.stringify(answers); // Stable dependency for useEffect
 
   // Count blanks in the text
   const totalBlanks = () => {
     return (text.match(/\[BLANK\]/g) || []).length;
   };
+
+  // Sync questions based on blanks in the summary text
+  useEffect(() => {
+    const currentAnswers = JSON.parse(answersJson);
+    const blankCount = (text.match(/\[BLANK\]/g) || []).length;
+    
+    // Get existing questions for this group
+    const existingGroupQuestions = questions.filter(q => 
+      q.group_id === group.id && q.question_type === 'summary_completion'
+    ).sort((a, b) => a.question_number - b.question_number);
+    
+    // If blank count matches existing questions, just update answers
+    if (existingGroupQuestions.length === blankCount) {
+      // Update correct_answer for each question from answers
+      let needsUpdate = false;
+      const updatedQuestions = questions.map(q => {
+        if (q.group_id === group.id && q.question_type === 'summary_completion') {
+          const blankIdx = q.question_number - group.question_range_start;
+          const newAnswer = currentAnswers[blankIdx] || '';
+          if (q.correct_answer !== newAnswer) {
+            needsUpdate = true;
+            return { ...q, correct_answer: newAnswer };
+          }
+        }
+        return q;
+      });
+      if (needsUpdate) {
+        setQuestions(updatedQuestions);
+      }
+      return;
+    }
+    
+    // Need to create/remove questions to match blank count
+    // Remove all existing summary questions for this group
+    const otherQuestions = questions.filter(q => 
+      !(q.group_id === group.id && q.question_type === 'summary_completion')
+    );
+    
+    // Create new questions for each blank
+    const newQuestions = [];
+    for (let i = 0; i < blankCount; i++) {
+      newQuestions.push({
+        id: `temp_summary_${group.id}_${i}_${Date.now()}`,
+        section_id: sectionId,
+        group_id: group.id,
+        question_type: 'summary_completion',
+        question_number: group.question_range_start + i,
+        question_text: `Summary blank ${i + 1}`,
+        correct_answer: currentAnswers[i] || '',
+        points: group.points_per_question || 1
+      });
+    }
+    
+    setQuestions([...otherQuestions, ...newQuestions]);
+    
+    // Auto-expand range if needed
+    if (blankCount > 0) {
+      const newEnd = group.question_range_start + blankCount - 1;
+      if (newEnd !== group.question_range_end) {
+        updateGroup(group.id, { question_range_end: newEnd });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, answersJson, group.id, group.question_range_start, sectionId]);
 
   const handleTextChange = (value) => {
     updateSummaryData({ text: value });
@@ -1620,7 +1685,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
 // QUESTION GROUP CARD
 // ============================================
 const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
-  const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
+  const { updateQuestionGroup, deleteQuestionGroup, questions, setQuestions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
   
   const typeInfo = QUESTION_TYPES.find(t => t.value === group.question_type) || QUESTION_TYPES[0];
@@ -1903,6 +1968,9 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
                 group={group} 
                 updateGroup={updateQuestionGroup}
                 baseQuestionNumber={globalQuestionNumber + group.question_range_start}
+                sectionId={sectionId}
+                questions={questions}
+                setQuestions={setQuestions}
               />
             </div>
           )}
