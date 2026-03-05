@@ -117,17 +117,31 @@ function ExamEditorContent() {
         }
       });
 
-      // If we generated new questions, update the context immediately
-      if (questionsAdded) {
-        setQuestions(allQuestions);
-      }
+      // FIX: Ensure each question has correct section_id from its parent group
+      // This fixes the bug where questions get the wrong section_id
+      const listeningGroups = (questionGroups || []).filter(g => g.question_type);
+      const correctedQuestions = allQuestions.map(q => {
+        // Find the group this question belongs to based on question_number range
+        const parentGroup = listeningGroups.find(g => 
+          q.question_number >= g.question_range_start && 
+          q.question_number <= g.question_range_end &&
+          (q.question_type === g.question_type || !q.question_type)
+        );
+        if (parentGroup && parentGroup.section_id) {
+          return { ...q, section_id: parentGroup.section_id };
+        }
+        return q;
+      });
+
+      // Update context with corrected questions
+      setQuestions(correctedQuestions);
 
       console.log('[SAVE] Sending payload:', {
         exam: exam.title,
         sectionsCount: sections.length,
         sections: sections.map(s => ({ id: s.id, type: s.module_type, order: s.section_order })),
-        questionsCount: allQuestions.length,
-        questions: allQuestions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
+        questionsCount: correctedQuestions.length,
+        questions: correctedQuestions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
         questionGroupsCount: questionGroups?.length || 0,
         questionGroups: questionGroups?.map(g => ({
           id: g.id,
@@ -142,7 +156,7 @@ function ExamEditorContent() {
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
-        questions: allQuestions,
+        questions: correctedQuestions,
         questionGroups,
         deletedQuestionIds,
         deletedGroupIds
