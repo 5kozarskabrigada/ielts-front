@@ -37,9 +37,15 @@ const QUESTION_TYPES = [
   },
   { 
     value: "note_completion", 
-    label: "Note/Summary Completion", 
+    label: "Note Completion", 
     icon: StickyNote, 
-    hint: "Complete notes, summary, or flow-chart"
+    hint: "Complete notes or flow-chart with blanks"
+  },
+  { 
+    value: "summary_completion", 
+    label: "Summary Completion", 
+    icon: FileText, 
+    hint: "Complete a paragraph/summary with multiple blanks"
   },
   { 
     value: "map_labeling", 
@@ -888,6 +894,184 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
 };
 
 // ============================================
+// SUMMARY BUILDER COMPONENT (for summary_completion)
+// ============================================
+const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
+  const summaryData = group.summary_data || { text: '', answers: {} };
+  
+  const updateSummaryData = (updates) => {
+    updateGroup(group.id, { summary_data: { ...summaryData, ...updates } });
+  };
+
+  const text = summaryData.text || '';
+  const answers = summaryData.answers || {};
+
+  // Count blanks in the text
+  const totalBlanks = () => {
+    return (text.match(/\[BLANK\]/g) || []).length;
+  };
+
+  const handleTextChange = (value) => {
+    updateSummaryData({ text: value });
+  };
+
+  const handleAnswerChange = (blankNum, value) => {
+    updateSummaryData({ answers: { ...answers, [blankNum]: value } });
+  };
+
+  const insertBlank = () => {
+    const textarea = document.getElementById(`summary-textarea-${group.id}`);
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText = text.slice(0, start) + '[BLANK]' + text.slice(end);
+      handleTextChange(newText);
+      // Set cursor position after the inserted blank
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 7, start + 7);
+      }, 0);
+    } else {
+      handleTextChange(text + '[BLANK]');
+    }
+  };
+
+  // Render preview with question numbers for blanks
+  const renderPreview = () => {
+    if (!text) return <span className="text-gray-400 italic">Enter your summary text above...</span>;
+    
+    const parts = text.split(/(\[BLANK\])/);
+    let blankCount = 0;
+    
+    return parts.map((part, idx) => {
+      if (part === '[BLANK]') {
+        const qNum = baseQuestionNumber + blankCount;
+        blankCount++;
+        return (
+          <span key={idx} className="inline-flex items-center gap-1 mx-0.5">
+            <span 
+              className="w-5 h-5 flex items-center justify-center rounded-full text-white text-xs font-bold"
+              style={{ backgroundColor: 'rgb(50, 180, 200)' }}
+            >
+              {qNum}
+            </span>
+            <span className="w-20 h-6 border border-dashed border-amber-400 rounded bg-amber-50"></span>
+          </span>
+        );
+      }
+      // Handle newlines in preview
+      return part.split('\n').map((line, lineIdx, arr) => (
+        <span key={`${idx}-${lineIdx}`}>
+          {line}
+          {lineIdx < arr.length - 1 && <br />}
+        </span>
+      ));
+    });
+  };
+
+  return (
+    <div className="bg-amber-50 rounded-xl p-4 space-y-4">
+      <h5 className="text-base font-bold text-amber-800 flex items-center gap-2 pb-2 border-b border-amber-200">
+        <FileText size={20} className="text-amber-600" />
+        Summary Builder - Create Your Summary
+      </h5>
+      <p className="text-sm text-gray-600">
+        Write your summary paragraph below. Click <strong>+ Add [BLANK]</strong> or type <code className="bg-gray-200 px-1 rounded">[BLANK]</code> to add input fields for student answers.
+      </p>
+
+      {/* Summary Text Editor */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-700">Summary Text:</label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={insertBlank}
+              className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 font-medium transition flex items-center gap-1"
+            >
+              <Plus size={14} />
+              Add [BLANK]
+            </button>
+            <span className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-medium">
+              {totalBlanks()} blanks → Q{baseQuestionNumber}–{baseQuestionNumber + Math.max(totalBlanks(), 1) - 1}
+            </span>
+          </div>
+        </div>
+        <textarea
+          id={`summary-textarea-${group.id}`}
+          value={text}
+          onChange={(e) => handleTextChange(e.target.value)}
+          placeholder="English is made up of 26 letters, with 44 [BLANK] and 70 ways of [BLANK]. Unsuccessful teaching practices persist, however, because reading is [BLANK]..."
+          className="w-full px-4 py-3 text-sm border-2 border-gray-300 rounded-lg resize-none outline-none focus:border-amber-400 min-h-[150px] leading-relaxed"
+          rows={6}
+        />
+        <p className="text-xs text-gray-500">
+          Tip: Each [BLANK] becomes a numbered question. Press Enter for new paragraphs.
+        </p>
+      </div>
+
+      {/* Answers section - one for each blank */}
+      {totalBlanks() > 0 && (
+        <div className="border-t border-amber-200 pt-4">
+          <h6 className="text-sm font-semibold text-gray-700 mb-3">Correct Answers</h6>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: totalBlanks() }, (_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: 'rgb(50, 180, 200)' }}
+                >
+                  {baseQuestionNumber + i}
+                </span>
+                <input
+                  type="text"
+                  value={answers[i] || ''}
+                  onChange={(e) => handleAnswerChange(i, e.target.value)}
+                  placeholder="Answer..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-amber-400 outline-none"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      <div className="border-t border-amber-200 pt-4">
+        <h6 className="text-sm font-semibold text-gray-700 mb-2">Preview</h6>
+        <div 
+          style={{ 
+            border: '1px solid rgb(221, 221, 221)', 
+            borderRadius: '10px', 
+            padding: '16px',
+            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+            fontSize: '14px',
+            lineHeight: '24px',
+            color: 'rgb(40, 40, 40)'
+          }}
+        >
+          {group.summary_title && (
+            <div 
+              style={{
+                color: 'rgb(41, 69, 99)',
+                fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                fontSize: '18px',
+                fontWeight: 700,
+                marginBottom: '12px'
+              }}
+              dangerouslySetInnerHTML={{ __html: group.summary_title }}
+            />
+          )}
+          <div className="leading-relaxed">
+            {renderPreview()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // EXAMPLE BLOCK COMPONENT
 // ============================================
 const ExampleBlock = ({ group, updateGroup }) => {
@@ -1602,7 +1786,7 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
           />
 
           {/* Answer Constraints */}
-          {['form_completion', 'sentence_completion', 'note_completion', 'short_answer'].includes(group.question_type) && (
+          {['form_completion', 'sentence_completion', 'note_completion', 'summary_completion', 'short_answer'].includes(group.question_type) && (
             <AnswerConstraintFields group={group} updateGroup={updateQuestionGroup} />
           )}
 
@@ -1641,6 +1825,18 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
               rows={2}
               value={group.table_title || ""}
               onChange={(e) => updateQuestionGroup(group.id, { table_title: e.target.value })}
+            />
+          )}
+
+          {/* Summary Title - shown above the summary */}
+          {group.question_type === 'summary_completion' && (
+            <RichTextArea
+              label="Summary Title (optional)"
+              placeholder="e.g., Summary of Reading Methods, The History of..."
+              hint="Displayed as header above the summary paragraph"
+              rows={2}
+              value={group.summary_title || ""}
+              onChange={(e) => updateQuestionGroup(group.id, { summary_title: e.target.value })}
             />
           )}
 
@@ -1694,8 +1890,19 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
             </div>
           )}
 
-          {/* Questions List - for non-form_completion types */}
-          {group.question_type !== 'form_completion' && (
+          {/* Summary Builder for summary_completion - replaces individual question editing */}
+          {group.question_type === 'summary_completion' && (
+            <div className="border-2 border-amber-300 rounded-xl">
+              <SummaryBuilder 
+                group={group} 
+                updateGroup={updateQuestionGroup}
+                baseQuestionNumber={globalQuestionNumber + group.question_range_start}
+              />
+            </div>
+          )}
+
+          {/* Questions List - for non-builder types */}
+          {!['form_completion', 'summary_completion'].includes(group.question_type) && (
             <div className="pt-4 border-t border-gray-200">
               <div className="flex items-center justify-between mb-3">
                 <h5 className="text-sm font-semibold text-gray-700">Questions in this Group</h5>
@@ -2439,6 +2646,68 @@ const PreviewMode = ({ isOpen, onClose }) => {
               </div>
             );
           })}
+        </div>
+      );
+    }
+
+    // Summary Completion - Paragraph with inline blanks
+    if (type === 'summary_completion') {
+      const summaryData = group.summary_data;
+      if (!summaryData || !summaryData.text) {
+        return <p className="text-gray-400 italic">No summary text added yet</p>;
+      }
+
+      const { text } = summaryData;
+      let blankCounter = 0;
+      
+      // Split text by [BLANK] and render with StudentBlankInput
+      const renderSummaryContent = () => {
+        const parts = text.split(/(\[BLANK\])/);
+        return parts.map((part, idx) => {
+          if (part === '[BLANK]') {
+            const qNum = globalOffset + group.question_range_start + blankCounter;
+            blankCounter++;
+            return <StudentBlankInput key={idx} num={qNum} />;
+          }
+          // Handle newlines
+          return part.split('\n').map((line, lineIdx, arr) => (
+            <span key={`${idx}-${lineIdx}`}>
+              {line}
+              {lineIdx < arr.length - 1 && <br />}
+            </span>
+          ));
+        });
+      };
+
+      return (
+        <div className="mb-4">
+          <div 
+            style={{ 
+              border: '1px solid rgb(221, 221, 221)', 
+              borderRadius: '10px', 
+              padding: '16px',
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              fontSize: '14px',
+              lineHeight: '24px',
+              color: 'rgb(40, 40, 40)'
+            }}
+          >
+            {group.summary_title && (
+              <div 
+                style={{
+                  color: 'rgb(41, 69, 99)',
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  marginBottom: '12px'
+                }}
+                dangerouslySetInnerHTML={{ __html: group.summary_title }}
+              />
+            )}
+            <div className="leading-relaxed">
+              {renderSummaryContent()}
+            </div>
+          </div>
         </div>
       );
     }
