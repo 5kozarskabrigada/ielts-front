@@ -290,7 +290,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
     <ExamEditorContext.Provider value={{
       exam, updateExam,
       sections, updateSection,
-      questions, addQuestion, updateQuestion, deleteQuestion,
+      questions, setQuestions, addQuestion, updateQuestion, deleteQuestion,
       questionGroups, addQuestionGroup, updateQuestionGroup, deleteQuestionGroup, reorderQuestionGroups,
       deletedQuestionIds, clearDeletedQuestionIds,
       deletedGroupIds, clearDeletedGroupIds,

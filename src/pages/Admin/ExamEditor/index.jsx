@@ -21,7 +21,7 @@ const generateCode = () => {
 };
 
 function ExamEditorContent() {
-  const { exam, sections, questions, questionGroups, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, deletedGroupIds, clearDeletedGroupIds, clearTempCode } = useExamEditor();
+  const { exam, sections, questions, questionGroups, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, deletedGroupIds, clearDeletedGroupIds, clearTempCode, setQuestions } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const [fullScreenModule, setFullScreenModule] = useState(null);
   const { token } = useAuth();
@@ -89,6 +89,8 @@ function ExamEditorContent() {
     try {
       // Generate questions from table_data groups (TableBuilder format)
       const allQuestions = [...questions];
+      let questionsAdded = false;
+      
       (questionGroups || []).forEach(group => {
         if (group.question_type === 'form_completion' && group.table_data?.answers) {
           const startNum = group.question_range_start || 1;
@@ -108,15 +110,22 @@ function ExamEditorContent() {
             if (existingIdx >= 0) {
               allQuestions[existingIdx] = { ...allQuestions[existingIdx], ...questionData };
             } else {
-              allQuestions.push({ id: `temp_tableq_${Date.now()}_${questionNumber}`, ...questionData });
+              allQuestions.push({ id: `temp_tableq_${Date.now()}_${questionNumber}_${Math.random().toString(36).substr(2, 9)}`, ...questionData });
+              questionsAdded = true;
             }
           });
         }
       });
 
+      // If we generated new questions, update the context immediately
+      if (questionsAdded) {
+        setQuestions(allQuestions);
+      }
+
       console.log('[SAVE] Sending payload:', {
         exam: exam.title,
         sectionsCount: sections.length,
+        sections: sections.map(s => ({ id: s.id, type: s.module_type, order: s.section_order })),
         questionsCount: allQuestions.length,
         questions: allQuestions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
         questionGroupsCount: questionGroups?.length || 0,
