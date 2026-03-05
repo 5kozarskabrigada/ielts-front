@@ -2997,8 +2997,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   return (
                     <div 
                       key={group.id} 
-                      className="mb-8 pb-6"
-                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                      className="mb-4 pb-4"
+                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontWeight: 400 }}
                     >
                       {/* Questions header - accent color, Montserrat font */}
                       <p style={{
