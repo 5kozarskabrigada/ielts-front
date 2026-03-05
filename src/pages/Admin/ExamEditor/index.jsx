@@ -118,19 +118,39 @@ function ExamEditorContent() {
       });
 
       // FIX: Ensure each question has correct section_id from its parent group
-      // This fixes the bug where questions get the wrong section_id
+      // Question numbers are LOCAL per section (1-10), so we must match within the same section
       const listeningGroups = (questionGroups || []).filter(g => g.question_type);
+      const listeningSectionIds = sections
+        .filter(s => s.module_type === 'listening')
+        .map(s => s.id);
+      
       const correctedQuestions = allQuestions.map(q => {
-        // Find the group this question belongs to based on question_number range
-        const parentGroup = listeningGroups.find(g => 
-          q.question_number >= g.question_range_start && 
-          q.question_number <= g.question_range_end &&
-          (q.question_type === g.question_type || !q.question_type)
-        );
-        if (parentGroup && parentGroup.section_id) {
-          return { ...q, section_id: parentGroup.section_id };
+        // If question already has a valid listening section_id, find its group within that section
+        const hasValidSection = listeningSectionIds.includes(q.section_id);
+        
+        if (hasValidSection) {
+          // Question has valid section - find matching group within SAME section
+          const parentGroup = listeningGroups.find(g => 
+            g.section_id === q.section_id &&
+            q.question_number >= g.question_range_start && 
+            q.question_number <= g.question_range_end
+          );
+          // If found, confirm section_id; otherwise keep current section_id
+          return parentGroup ? { ...q, section_id: parentGroup.section_id } : q;
+        } else {
+          // Question has invalid section - this is a fallback for orphaned questions
+          // Try to find ANY matching group by question_type (last resort)
+          const parentGroup = listeningGroups.find(g => 
+            q.question_number >= g.question_range_start && 
+            q.question_number <= g.question_range_end &&
+            q.question_type === g.question_type
+          );
+          if (parentGroup) {
+            console.log(`[SAVE] Correcting orphan question ${q.id} section_id from ${q.section_id} to ${parentGroup.section_id}`);
+            return { ...q, section_id: parentGroup.section_id };
+          }
+          return q;
         }
-        return q;
       });
 
       // Update context with corrected questions
