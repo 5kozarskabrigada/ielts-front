@@ -432,108 +432,138 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
   };
 
   return (
-    <div className="bg-gray-50 rounded-xl p-4 space-y-4">
-      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-        <FileText size={16} className="text-amber-500" />
-        Table Builder
+    <div className="bg-amber-50 rounded-xl p-4 space-y-4">
+      <h5 className="text-base font-bold text-amber-800 flex items-center gap-2 pb-2 border-b border-amber-200">
+        <FileText size={20} className="text-amber-600" />
+        Table Builder - Create Your Table
       </h5>
+      <p className="text-sm text-gray-600">
+        Set the number of rows and columns, then fill in the cells. Use <code className="bg-gray-200 px-1 rounded">[BLANK]</code> to add input fields for student answers.
+      </p>
 
-      {/* Table dimensions */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Rows:</label>
-          <input
-            type="number"
-            min="1"
-            max="20"
-            value={rows}
-            onChange={(e) => handleRowsChange(parseInt(e.target.value) || 2)}
-            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-          />
+      {/* Table Dimensions */}
+      <div className="flex flex-wrap items-center gap-6 p-4 bg-white rounded-lg border border-amber-200">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Rows:</label>
+          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => rows > 1 && handleRowsChange(rows - 1)}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+            >−</button>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={rows}
+              onChange={(e) => handleRowsChange(parseInt(e.target.value) || 2)}
+              className="w-14 px-2 py-2 text-center border-x border-gray-300 text-sm font-medium"
+            />
+            <button
+              type="button"
+              onClick={() => rows < 20 && handleRowsChange(rows + 1)}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+            >+</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Columns:</label>
-          <input
-            type="number"
-            min="1"
-            max="10"
-            value={cols}
-            onChange={(e) => handleColsChange(parseInt(e.target.value) || 2)}
-            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
-          />
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Columns:</label>
+          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => cols > 1 && handleColsChange(cols - 1)}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+            >−</button>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={cols}
+              onChange={(e) => handleColsChange(parseInt(e.target.value) || 2)}
+              className="w-14 px-2 py-2 text-center border-x border-gray-300 text-sm font-medium"
+            />
+            <button
+              type="button"
+              onClick={() => cols < 10 && handleColsChange(cols + 1)}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold"
+            >+</button>
+          </div>
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={hasHeaders}
             onChange={(e) => updateTableData({ hasHeaders: e.target.checked })}
-            className="w-4 h-4 text-amber-500"
+            className="w-5 h-5 rounded text-amber-500 border-gray-300 focus:ring-amber-400"
           />
-          <span className="text-sm text-gray-700">Include header row</span>
+          <span className="text-sm font-medium text-gray-700">Include header row</span>
         </label>
-        <span className="ml-auto text-xs text-gray-500">
-          Questions: {totalBlanks()} blanks = Q{baseQuestionNumber}–{baseQuestionNumber + totalBlanks() - 1 || baseQuestionNumber}
+        <span className="ml-auto text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-medium">
+          {totalBlanks()} blanks → Q{baseQuestionNumber}–{baseQuestionNumber + Math.max(totalBlanks(), 1) - 1}
         </span>
       </div>
 
       {/* Table Editor */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse border border-gray-300">
-          {/* Header row (optional) */}
-          {hasHeaders && (
-            <thead>
-              <tr>
-                {headers.map((header, colIdx) => (
-                  <th key={colIdx} className="border border-gray-300 p-0">
-                    <input
-                      type="text"
-                      value={header}
-                      onChange={(e) => handleHeaderChange(colIdx, e.target.value)}
-                      placeholder={`Header ${colIdx + 1}`}
-                      className="w-full px-2 py-2 text-center font-semibold text-sm bg-gray-100 outline-none"
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
-          <tbody>
-            {cells.map((row, rowIdx) => (
-              <tr key={rowIdx}>
-                {row.map((cell, colIdx) => {
-                  const blanksBeforeThis = countBlanksUpTo(rowIdx, colIdx);
-                  return (
-                    <td key={colIdx} className="border border-gray-300 p-0 align-top">
-                      <div className="flex flex-col">
-                        <textarea
-                          value={cell}
-                          onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
-                          placeholder="Cell content. Use [BLANK] for student input"
-                          className="w-full px-2 py-1.5 text-sm outline-none resize-none min-h-[60px]"
-                          rows={2}
-                        />
-                        <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-t border-gray-200">
-                          <button
-                            type="button"
-                            onClick={() => insertBlank(rowIdx, colIdx)}
-                            className="text-xs text-amber-600 hover:text-amber-700 font-medium"
-                          >
-                            + Add [BLANK]
-                          </button>
-                          {cell.includes('[BLANK]') && (
-                            <span className="text-xs text-gray-400">
-                              {(cell.match(/\[BLANK\]/g) || []).length} blank(s)
-                            </span>
-                          )}
+      <div>
+        <h6 className="text-sm font-semibold text-gray-700 mb-2">Edit Table Content:</h6>
+        <div className="overflow-x-auto rounded-lg border-2 border-gray-300 bg-white">
+          <table className="w-full border-collapse">
+            {/* Header row (optional) */}
+            {hasHeaders && (
+              <thead>
+                <tr>
+                  {headers.map((header, colIdx) => (
+                    <th key={colIdx} className="border border-gray-200 p-0 bg-amber-50">
+                      <input
+                        type="text"
+                        value={header}
+                        onChange={(e) => handleHeaderChange(colIdx, e.target.value)}
+                        placeholder={`Header ${colIdx + 1}`}
+                        className="w-full px-3 py-2 text-center font-bold text-sm bg-transparent outline-none placeholder-gray-400"
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {cells.map((row, rowIdx) => (
+                <tr key={rowIdx}>
+                  {row.map((cell, colIdx) => {
+                    const blanksBeforeThis = countBlanksUpTo(rowIdx, colIdx);
+                    return (
+                      <td key={colIdx} className="border border-gray-200 p-0 align-top bg-white">
+                        <div className="flex flex-col">
+                          <textarea
+                            value={cell}
+                            onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
+                            placeholder="Type cell content here...&#10;Click + Add [BLANK] below to add answer fields"
+                            className="w-full px-3 py-2 text-sm outline-none resize-none min-h-[80px] placeholder-gray-400"
+                            rows={3}
+                          />
+                          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
+                            <button
+                              type="button"
+                              onClick={() => insertBlank(rowIdx, colIdx)}
+                              className="px-3 py-1 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 font-medium transition"
+                            >
+                              + Add [BLANK]
+                            </button>
+                            {cell.includes('[BLANK]') && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                {(cell.match(/\[BLANK\]/g) || []).length} blank(s)
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Answers section - one for each blank */}
@@ -1432,11 +1462,13 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
 
           {/* Table Builder for form_completion - replaces individual question editing */}
           {group.question_type === 'form_completion' && (
-            <TableBuilder 
-              group={group} 
-              updateGroup={updateQuestionGroup}
-              baseQuestionNumber={globalQuestionNumber + group.question_range_start}
-            />
+            <div className="border-2 border-amber-300 rounded-xl">
+              <TableBuilder 
+                group={group} 
+                updateGroup={updateQuestionGroup}
+                baseQuestionNumber={globalQuestionNumber + group.question_range_start}
+              />
+            </div>
           )}
 
           {/* Questions List - for non-form_completion types */}
