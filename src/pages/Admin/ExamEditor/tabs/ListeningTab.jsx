@@ -1221,12 +1221,26 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
   const typeInfo = QUESTION_TYPES.find(t => t.value === group.question_type) || QUESTION_TYPES[0];
   const TypeIcon = typeInfo.icon;
 
+  // DEBUG: Log filtering
+  console.log(`[QuestionGroupCard] Part ${partNumber}, sectionId: ${sectionId}, group.section_id: ${group.section_id}`);
+  console.log(`[QuestionGroupCard] All questions (${questions.length}):`, questions.map(q => ({
+    id: q.id?.substring(0, 8),
+    section_id: q.section_id?.substring(0, 8),
+    qNum: q.question_number
+  })));
+
   // Get all rows (questions + info rows) for this group
   const groupRows = questions.filter(q => {
-    if (q.section_id !== sectionId) return false;
+    const matches = q.section_id === sectionId;
     const qNum = q.question_number;
-    return qNum >= group.question_range_start && qNum <= group.question_range_end;
+    const inRange = qNum >= group.question_range_start && qNum <= group.question_range_end;
+    if (!matches) {
+      console.log(`[QuestionGroupCard] Q${qNum} section_id ${q.section_id?.substring(0,8)} !== ${sectionId?.substring(0,8)}`);
+    }
+    return matches && inRange;
   }).sort((a, b) => (a.row_order || a.question_number) - (b.row_order || b.question_number));
+  
+  console.log(`[QuestionGroupCard] Filtered groupRows: ${groupRows.length}`);
 
   // Only actual questions (not info rows) for counting
   const actualQuestions = groupRows.filter(q => q.is_info_row !== true);
@@ -1523,9 +1537,20 @@ const PartCard = ({ section, partNumber }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
+  // DEBUG
+  console.log(`[PartCard] Part ${partNumber}, section.id: ${section.id}`);
+  console.log(`[PartCard] All questionGroups (${questionGroups.length}):`, questionGroups.map(g => ({
+    id: g.id?.substring(0, 8),
+    section_id: g.section_id?.substring(0, 8),
+    type: g.question_type,
+    range: `${g.question_range_start}-${g.question_range_end}`
+  })));
+
   const sectionGroups = questionGroups
     .filter(g => g.section_id === section.id)
     .sort((a, b) => a.group_order - b.group_order);
+  
+  console.log(`[PartCard] Filtered sectionGroups for Part ${partNumber}: ${sectionGroups.length}`);
 
   const colors = [
     { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
