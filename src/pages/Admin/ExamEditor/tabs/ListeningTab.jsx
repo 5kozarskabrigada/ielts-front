@@ -2828,12 +2828,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
         const globalNum = globalOffset + q.question_number;
         return (
           <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-            {/* Question text - styled bold text */}
+            {/* Question text - regular weight */}
             <p style={{
               color: 'rgb(40, 40, 40)',
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
               fontSize: '16px',
-              fontWeight: 700,
+              fontWeight: 400,
               lineHeight: '24px',
               marginTop: '10px',
               marginBottom: '10px'
