@@ -77,11 +77,6 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   const [sections, setSections] = useState(initialData?.sections || []);
   const [questions, setQuestions] = useState(initialData?.questions || []);
   const [questionGroups, setQuestionGroups] = useState(initialData?.questionGroups || []);
-  
-  // DEBUG: Log initial data
-  console.log('[ExamEditorContext] Initial sections:', initialData?.sections?.map(s => ({ id: s.id?.substring(0, 8), type: s.module_type, order: s.section_order })));
-  console.log('[ExamEditorContext] Initial questions:', initialData?.questions?.map(q => ({ id: q.id?.substring(0, 8), section_id: q.section_id?.substring(0, 8), qNum: q.question_number })));
-  console.log('[ExamEditorContext] Initial groups:', initialData?.questionGroups?.map(g => ({ id: g.id?.substring(0, 8), section_id: g.section_id?.substring(0, 8), type: g.question_type })));
 
   const [deletedQuestionIds, setDeletedQuestionIds] = useState([]); // Track deleted question IDs for soft delete
   const [deletedGroupIds, setDeletedGroupIds] = useState([]); // Track deleted group IDs

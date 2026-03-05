@@ -118,60 +118,47 @@ function ExamEditorContent() {
       });
 
       // FIX: Ensure each question has correct section_id from its parent group
-      // Question numbers are LOCAL per section (1-10), so we must match within the same section
+      // Use group_id if available, otherwise fall back to matching by question_type + range
       const listeningGroups = (questionGroups || []).filter(g => g.question_type);
-      const listeningSectionIds = sections
-        .filter(s => s.module_type === 'listening')
-        .map(s => s.id);
       
       const correctedQuestions = allQuestions.map(q => {
-        // If question already has a valid listening section_id, find its group within that section
-        const hasValidSection = listeningSectionIds.includes(q.section_id);
-        
-        if (hasValidSection) {
-          // Question has valid section - find matching group within SAME section
-          const parentGroup = listeningGroups.find(g => 
-            g.section_id === q.section_id &&
-            q.question_number >= g.question_range_start && 
-            q.question_number <= g.question_range_end
-          );
-          // If found, confirm section_id; otherwise keep current section_id
-          return parentGroup ? { ...q, section_id: parentGroup.section_id } : q;
-        } else {
-          // Question has invalid section - this is a fallback for orphaned questions
-          // Try to find ANY matching group by question_type (last resort)
-          const parentGroup = listeningGroups.find(g => 
-            q.question_number >= g.question_range_start && 
-            q.question_number <= g.question_range_end &&
-            q.question_type === g.question_type
-          );
+        // First try: use group_id to find parent group (most reliable)
+        if (q.group_id) {
+          const parentGroup = listeningGroups.find(g => g.id === q.group_id);
           if (parentGroup) {
-            console.log(`[SAVE] Correcting orphan question ${q.id} section_id from ${q.section_id} to ${parentGroup.section_id}`);
             return { ...q, section_id: parentGroup.section_id };
           }
-          return q;
         }
+        
+        // Second try: match by question_type and question_number range within groups
+        // that have the same question_type
+        const matchingGroups = listeningGroups.filter(g => 
+          g.question_type === q.question_type &&
+          q.question_number >= g.question_range_start && 
+          q.question_number <= g.question_range_end
+        );
+        
+        // If only one group matches, use it
+        if (matchingGroups.length === 1) {
+          return { ...q, section_id: matchingGroups[0].section_id };
+        }
+        
+        // If multiple groups match (same type, same range in different sections),
+        // prefer the one that matches current section_id
+        if (matchingGroups.length > 1) {
+          const sameSection = matchingGroups.find(g => g.section_id === q.section_id);
+          if (sameSection) {
+            return q; // Keep current section_id
+          }
+          // Otherwise just use the first match (last resort)
+          return { ...q, section_id: matchingGroups[0].section_id };
+        }
+        
+        return q;
       });
 
       // Update context with corrected questions
       setQuestions(correctedQuestions);
-
-      console.log('[SAVE] Sending payload:', {
-        exam: exam.title,
-        sectionsCount: sections.length,
-        sections: sections.map(s => ({ id: s.id, type: s.module_type, order: s.section_order })),
-        questionsCount: correctedQuestions.length,
-        questions: correctedQuestions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
-        questionGroupsCount: questionGroups?.length || 0,
-        questionGroups: questionGroups?.map(g => ({
-          id: g.id,
-          section_id: g.section_id,
-          type: g.question_type,
-          range: `${g.question_range_start}-${g.question_range_end}`,
-          table_title: g.table_title,
-          table_data: g.table_data ? 'present' : 'none'
-        }))
-      });
       
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
@@ -181,8 +168,6 @@ function ExamEditorContent() {
         deletedQuestionIds,
         deletedGroupIds
       });
-      
-      console.log('[SAVE] Response:', response);
       
       if (response.idMapping) {
         updateIds(response.idMapping);
@@ -661,11 +646,6 @@ export default function ExamEditor() {
       setLoading(true);
       apiGetExam(token, id)
         .then(data => {
-          console.log('[ExamEditor] Loaded exam data:', {
-            sections: data.sections?.map(s => ({ id: s.id?.substring(0, 8), type: s.module_type })),
-            questions: data.questions?.map(q => ({ id: q.id?.substring(0, 8), section_id: q.section_id?.substring(0, 8), qNum: q.question_number })),
-            groups: data.questionGroups?.map(g => ({ id: g.id?.substring(0, 8), section_id: g.section_id?.substring(0, 8) }))
-          });
           setInitialData(data);
           // Clear the temp code since we're loading an existing exam
           sessionStorage.removeItem('newExamCode');
