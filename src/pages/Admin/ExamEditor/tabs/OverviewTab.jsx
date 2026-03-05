@@ -14,13 +14,8 @@ export default function OverviewTab() {
   useEffect(() => {
     const fetchClassrooms = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/classrooms", {
-           headers: { Authorization: `Bearer ${token}` }
-        });
-        if(res.ok) {
-           const data = await res.json();
-           setClassrooms(data);
-        }
+        const data = await apiListClassrooms(token);
+        setClassrooms(data || []);
       } catch (err) {
         console.error("Failed to fetch classrooms", err);
       }
