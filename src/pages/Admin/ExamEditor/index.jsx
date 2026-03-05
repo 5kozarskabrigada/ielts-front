@@ -91,12 +91,15 @@ function ExamEditorContent() {
         exam: exam.title,
         sectionsCount: sections.length,
         questionsCount: questions.length,
+        questions: questions.map(q => ({ id: q.id, section_id: q.section_id, qNum: q.question_number, type: q.question_type })),
         questionGroupsCount: questionGroups?.length || 0,
         questionGroups: questionGroups?.map(g => ({
           id: g.id,
           section_id: g.section_id,
           type: g.question_type,
-          range: `${g.question_range_start}-${g.question_range_end}`
+          range: `${g.question_range_start}-${g.question_range_end}`,
+          table_title: g.table_title,
+          table_data: g.table_data ? 'present' : 'none'
         }))
       });
       

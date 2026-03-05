@@ -306,6 +306,343 @@ const AnswerConstraintFields = ({ group, updateGroup }) => (
 );
 
 // ============================================
+// TABLE BUILDER COMPONENT (for form_completion)
+// ============================================
+const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
+  const tableData = group.table_data || { rows: 2, cols: 2, headers: [], cells: [], answers: {} };
+  
+  const updateTableData = (updates) => {
+    updateGroup(group.id, { table_data: { ...tableData, ...updates } });
+  };
+
+  // Initialize cells if empty or size changed
+  const initializeCells = (rows, cols, existingCells = []) => {
+    const newCells = [];
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        // Try to preserve existing cell content
+        const existingCell = existingCells[r]?.[c];
+        row.push(existingCell || '');
+      }
+      newCells.push(row);
+    }
+    return newCells;
+  };
+
+  // Initialize headers if empty or size changed
+  const initializeHeaders = (cols, existingHeaders = []) => {
+    const newHeaders = [];
+    for (let c = 0; c < cols; c++) {
+      newHeaders.push(existingHeaders[c] || '');
+    }
+    return newHeaders;
+  };
+
+  // Ensure cells array matches current dimensions
+  const rows = tableData.rows || 2;
+  const cols = tableData.cols || 2;
+  const cells = tableData.cells?.length === rows && tableData.cells[0]?.length === cols 
+    ? tableData.cells 
+    : initializeCells(rows, cols, tableData.cells);
+  const headers = tableData.headers?.length === cols ? tableData.headers : initializeHeaders(cols, tableData.headers);
+  const hasHeaders = tableData.hasHeaders || false;
+  const answers = tableData.answers || {};
+
+  // Count blanks in all cells to determine question numbers
+  const countBlanksUpTo = (rowIdx, colIdx) => {
+    let count = 0;
+    for (let r = 0; r <= rowIdx; r++) {
+      const maxCol = r === rowIdx ? colIdx : (cells[r]?.length || 0);
+      for (let c = 0; c < maxCol; c++) {
+        const cell = cells[r]?.[c] || '';
+        count += (cell.match(/\[BLANK\]/g) || []).length;
+      }
+    }
+    return count;
+  };
+
+  const totalBlanks = () => {
+    let count = 0;
+    cells.forEach(row => {
+      row.forEach(cell => {
+        count += (cell.match(/\[BLANK\]/g) || []).length;
+      });
+    });
+    return count;
+  };
+
+  const handleRowsChange = (newRows) => {
+    const newCells = initializeCells(newRows, cols, cells);
+    updateTableData({ rows: newRows, cells: newCells });
+  };
+
+  const handleColsChange = (newCols) => {
+    const newCells = initializeCells(rows, newCols, cells);
+    const newHeaders = initializeHeaders(newCols, headers);
+    updateTableData({ cols: newCols, cells: newCells, headers: newHeaders });
+  };
+
+  const handleCellChange = (rowIdx, colIdx, value) => {
+    const newCells = cells.map((row, r) => 
+      row.map((cell, c) => r === rowIdx && c === colIdx ? value : cell)
+    );
+    updateTableData({ cells: newCells });
+  };
+
+  const handleHeaderChange = (colIdx, value) => {
+    const newHeaders = headers.map((h, c) => c === colIdx ? value : h);
+    updateTableData({ headers: newHeaders });
+  };
+
+  const handleAnswerChange = (blankNum, value) => {
+    updateTableData({ answers: { ...answers, [blankNum]: value } });
+  };
+
+  const insertBlank = (rowIdx, colIdx) => {
+    const currentValue = cells[rowIdx][colIdx] || '';
+    handleCellChange(rowIdx, colIdx, currentValue + '[BLANK]');
+  };
+
+  // Render cell content with question numbers for blanks
+  const renderCellPreview = (cellContent, startBlankNum) => {
+    if (!cellContent) return <span className="text-gray-400">Empty</span>;
+    
+    const parts = cellContent.split(/(\[BLANK\])/);
+    let blankCount = 0;
+    
+    return parts.map((part, idx) => {
+      if (part === '[BLANK]') {
+        const qNum = baseQuestionNumber + startBlankNum + blankCount;
+        blankCount++;
+        return (
+          <span key={idx} className="inline-flex items-center gap-1 mx-0.5">
+            <span 
+              className="w-5 h-5 flex items-center justify-center rounded-full text-white text-xs font-bold"
+              style={{ backgroundColor: 'rgb(50, 180, 200)' }}
+            >
+              {qNum}
+            </span>
+            <span className="w-16 h-6 border border-dashed border-amber-400 rounded bg-amber-50"></span>
+          </span>
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+      <h5 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+        <FileText size={16} className="text-amber-500" />
+        Table Builder
+      </h5>
+
+      {/* Table dimensions */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500">Rows:</label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={rows}
+            onChange={(e) => handleRowsChange(parseInt(e.target.value) || 2)}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500">Columns:</label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            value={cols}
+            onChange={(e) => handleColsChange(parseInt(e.target.value) || 2)}
+            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasHeaders}
+            onChange={(e) => updateTableData({ hasHeaders: e.target.checked })}
+            className="w-4 h-4 text-amber-500"
+          />
+          <span className="text-sm text-gray-700">Include header row</span>
+        </label>
+        <span className="ml-auto text-xs text-gray-500">
+          Questions: {totalBlanks()} blanks = Q{baseQuestionNumber}–{baseQuestionNumber + totalBlanks() - 1 || baseQuestionNumber}
+        </span>
+      </div>
+
+      {/* Table Editor */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border border-gray-300">
+          {/* Header row (optional) */}
+          {hasHeaders && (
+            <thead>
+              <tr>
+                {headers.map((header, colIdx) => (
+                  <th key={colIdx} className="border border-gray-300 p-0">
+                    <input
+                      type="text"
+                      value={header}
+                      onChange={(e) => handleHeaderChange(colIdx, e.target.value)}
+                      placeholder={`Header ${colIdx + 1}`}
+                      className="w-full px-2 py-2 text-center font-semibold text-sm bg-gray-100 outline-none"
+                    />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
+          <tbody>
+            {cells.map((row, rowIdx) => (
+              <tr key={rowIdx}>
+                {row.map((cell, colIdx) => {
+                  const blanksBeforeThis = countBlanksUpTo(rowIdx, colIdx);
+                  return (
+                    <td key={colIdx} className="border border-gray-300 p-0 align-top">
+                      <div className="flex flex-col">
+                        <textarea
+                          value={cell}
+                          onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
+                          placeholder="Cell content. Use [BLANK] for student input"
+                          className="w-full px-2 py-1.5 text-sm outline-none resize-none min-h-[60px]"
+                          rows={2}
+                        />
+                        <div className="flex items-center justify-between px-2 py-1 bg-gray-50 border-t border-gray-200">
+                          <button
+                            type="button"
+                            onClick={() => insertBlank(rowIdx, colIdx)}
+                            className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                          >
+                            + Add [BLANK]
+                          </button>
+                          {cell.includes('[BLANK]') && (
+                            <span className="text-xs text-gray-400">
+                              {(cell.match(/\[BLANK\]/g) || []).length} blank(s)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Answers section - one for each blank */}
+      {totalBlanks() > 0 && (
+        <div className="border-t border-gray-200 pt-4">
+          <h6 className="text-xs font-semibold text-gray-600 mb-2">Correct Answers</h6>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: totalBlanks() }, (_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span 
+                  className="w-6 h-6 flex items-center justify-center rounded-full text-white text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: 'rgb(50, 180, 200)' }}
+                >
+                  {baseQuestionNumber + i}
+                </span>
+                <input
+                  type="text"
+                  value={answers[i] || ''}
+                  onChange={(e) => handleAnswerChange(i, e.target.value)}
+                  placeholder="Answer..."
+                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      <div className="border-t border-gray-200 pt-4">
+        <h6 className="text-xs font-semibold text-gray-600 mb-2">Preview</h6>
+        <div style={{ border: '1px solid rgb(221, 221, 221)', borderRadius: '10px', padding: '16px' }}>
+          {group.table_title && (
+            <div 
+              style={{
+                color: 'rgb(41, 69, 99)',
+                fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                fontSize: '20px',
+                fontWeight: 700,
+                marginBottom: '16px'
+              }}
+              dangerouslySetInnerHTML={{ __html: group.table_title }}
+            />
+          )}
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)' }}>
+            {hasHeaders && headers.some(h => h) && (
+              <thead>
+                <tr>
+                  {headers.map((header, idx) => (
+                    <th 
+                      key={idx}
+                      style={{
+                        backgroundColor: 'rgb(221, 221, 221)',
+                        border: '1px solid rgb(221, 221, 221)',
+                        padding: '8px',
+                        textAlign: 'center',
+                        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                        fontSize: '14px',
+                        fontWeight: 600
+                      }}
+                    >
+                      {header || `Col ${idx + 1}`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {cells.map((row, rowIdx) => {
+                let blanksSoFar = 0;
+                for (let r = 0; r < rowIdx; r++) {
+                  cells[r].forEach(c => {
+                    blanksSoFar += (c.match(/\[BLANK\]/g) || []).length;
+                  });
+                }
+                return (
+                  <tr key={rowIdx}>
+                    {row.map((cell, colIdx) => {
+                      const startBlank = blanksSoFar;
+                      for (let c = 0; c < colIdx; c++) {
+                        blanksSoFar += (row[c].match(/\[BLANK\]/g) || []).length;
+                      }
+                      return (
+                        <td 
+                          key={colIdx}
+                          style={{
+                            border: '1px solid rgb(221, 221, 221)',
+                            padding: '10px 12px',
+                            verticalAlign: 'middle',
+                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                            fontSize: '14px'
+                          }}
+                        >
+                          {renderCellPreview(cell, startBlank)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // EXAMPLE BLOCK COMPONENT
 // ============================================
 const ExampleBlock = ({ group, updateGroup }) => {
@@ -1093,64 +1430,52 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
             </div>
           </div>
 
-          {/* Questions List */}
-          <div className="pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h5 className="text-sm font-semibold text-gray-700">Rows in this Group</h5>
-              <button
-                type="button"
-                onClick={addQuestionToGroup}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition"
-              >
-                <Plus size={14} /> Add Row
-              </button>
-            </div>
-            
-            {groupRows.length > 0 ? (
-              <div className="space-y-2">
-                {groupRows.map((q, idx) => (
-                  <div key={q.id} className="flex items-start gap-2">
-                    {/* Move buttons for form/table completion */}
-                    {group.question_type === 'form_completion' && (
-                      <div className="flex flex-col gap-0.5 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => moveRow(q.id, 'up')}
-                          disabled={idx === 0}
-                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Move up"
-                        >
-                          <ChevronUp size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveRow(q.id, 'down')}
-                          disabled={idx === groupRows.length - 1}
-                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                          title="Move down"
-                        >
-                          <ChevronDown size={14} />
-                        </button>
+          {/* Table Builder for form_completion - replaces individual question editing */}
+          {group.question_type === 'form_completion' && (
+            <TableBuilder 
+              group={group} 
+              updateGroup={updateQuestionGroup}
+              baseQuestionNumber={globalQuestionNumber + group.question_range_start}
+            />
+          )}
+
+          {/* Questions List - for non-form_completion types */}
+          {group.question_type !== 'form_completion' && (
+            <div className="pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-sm font-semibold text-gray-700">Questions in this Group</h5>
+                <button
+                  type="button"
+                  onClick={addQuestionToGroup}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition"
+                >
+                  <Plus size={14} /> Add Question
+                </button>
+              </div>
+              
+              {groupRows.length > 0 ? (
+                <div className="space-y-2">
+                  {groupRows.map((q, idx) => (
+                    <div key={q.id} className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <QuestionEditor
+                          question={q}
+                          questionNumber={q.is_info_row ? null : (globalQuestionNumber + q.question_number)}
+                          groupType={group.question_type}
+                          updateQuestion={updateQuestion}
+                          deleteQuestion={deleteQuestion}
+                        />
                       </div>
-                    )}
-                    <div className="flex-1">
-                      <QuestionEditor
-                        question={q}
-                        questionNumber={q.is_info_row ? null : (globalQuestionNumber + q.question_number)}
-                        groupType={group.question_type}
-                        updateQuestion={updateQuestion}
-                        deleteQuestion={deleteQuestion}
-                      />
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-6 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                <p className="text-sm text-gray-500">No questions yet. Click "Add Question" to start.</p>
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                  <p className="text-sm text-gray-500">No questions yet. Click "Add Question" to start.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1617,7 +1942,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
       });
     }
 
-    // Form/Table Completion: Two-column table format (supports info rows)
+    // Form/Table Completion: Render table from table_data or fallback to old format
     if (type === 'form_completion') {
       const tableStyles = {
         outer: {
@@ -1646,21 +1971,92 @@ const PreviewMode = ({ isOpen, onClose }) => {
           verticalAlign: 'middle',
           fontSize: '14px',
           lineHeight: '20px'
+        },
+        headerCell: {
+          backgroundColor: 'rgb(221, 221, 221)',
+          border: '1px solid rgb(221, 221, 221)',
+          padding: '8px',
+          textAlign: 'center',
+          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+          fontSize: '14px',
+          fontWeight: 600,
+          verticalAlign: 'top'
         }
       };
 
+      // Use new table_data format if available
+      const tableData = group.table_data;
+      if (tableData && tableData.cells && tableData.cells.length > 0) {
+        const { cells, headers, hasHeaders } = tableData;
+        
+        // Count blanks to calculate question numbers
+        let blankCounter = 0;
+        
+        const renderCellContent = (cellContent) => {
+          if (!cellContent) return null;
+          
+          const parts = cellContent.split(/(\[BLANK\])/);
+          return parts.map((part, idx) => {
+            if (part === '[BLANK]') {
+              const qNum = globalOffset + group.question_range_start + blankCounter;
+              blankCounter++;
+              return <StudentBlankInput key={idx} num={qNum} />;
+            }
+            return <span key={idx}>{part}</span>;
+          });
+        };
+
+        return (
+          <div className="mb-4">
+            <div style={tableStyles.outer}>
+              {group.table_title && (
+                <div 
+                  style={tableStyles.header}
+                  dangerouslySetInnerHTML={{ __html: group.table_title }}
+                />
+              )}
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)' }}>
+                {hasHeaders && headers && headers.some(h => h) && (
+                  <thead>
+                    <tr>
+                      {headers.map((header, idx) => (
+                        <th key={idx} style={tableStyles.headerCell}>
+                          {header || ''}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
+                <tbody>
+                  {cells.map((row, rowIdx) => {
+                    // Reset blank counter for proper counting per render
+                    return (
+                      <tr key={rowIdx}>
+                        {row.map((cell, colIdx) => (
+                          <td key={colIdx} style={tableStyles.cell}>
+                            {renderCellContent(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
+
+      // Fallback to old row-based format for backward compatibility
       return (
         <div className="mb-4">
-          {/* Outer box with rounded border - title inside */}
           <div style={tableStyles.outer}>
-            {/* Title - inside the container */}
             {group.table_title && (
               <div 
                 style={tableStyles.header}
                 dangerouslySetInnerHTML={{ __html: group.table_title }}
               />
             )}
-            {/* Two-column table with proper borders */}
             <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)' }}>
               <tbody>
                 {groupQuestions.map(q => {
@@ -1670,7 +2066,6 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   const hasBlank = template.includes('[BLANK]');
                 
                   if (isInfoRow) {
-                    // Info row - no blank, no question number
                     return (
                       <tr key={q.id}>
                         <td style={{ ...tableStyles.cell, width: '33%' }}>
@@ -1683,7 +2078,6 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     );
                   }
                 
-                  // Question row - with blank to fill
                   return (
                     <tr key={q.id}>
                       <td style={{ ...tableStyles.cell, width: '33%' }}>
