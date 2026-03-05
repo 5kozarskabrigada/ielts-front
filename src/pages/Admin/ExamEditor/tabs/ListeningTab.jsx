@@ -576,7 +576,13 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
           </span>
         );
       }
-      return <span key={idx}>{part}</span>;
+      // Handle newlines in text
+      return part.split('\n').map((line, lineIdx, arr) => (
+        <span key={`${idx}-${lineIdx}`}>
+          {line}
+          {lineIdx < arr.length - 1 && <br />}
+        </span>
+      ));
     });
   };
 
@@ -2480,7 +2486,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
               blankCounter++;
               return <StudentBlankInput key={idx} num={qNum} />;
             }
-            return <span key={idx}>{part}</span>;
+            // Handle newlines in text
+            return part.split('\n').map((line, lineIdx, arr) => (
+              <span key={`${idx}-${lineIdx}`}>
+                {line}
+                {lineIdx < arr.length - 1 && <br />}
+              </span>
+            ));
           });
         };
 
