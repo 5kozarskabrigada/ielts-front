@@ -627,6 +627,11 @@ export default function ExamEditor() {
       setLoading(true);
       apiGetExam(token, id)
         .then(data => {
+          console.log('[ExamEditor] Loaded exam data:', {
+            sections: data.sections?.map(s => ({ id: s.id?.substring(0, 8), type: s.module_type })),
+            questions: data.questions?.map(q => ({ id: q.id?.substring(0, 8), section_id: q.section_id?.substring(0, 8), qNum: q.question_number })),
+            groups: data.questionGroups?.map(g => ({ id: g.id?.substring(0, 8), section_id: g.section_id?.substring(0, 8) }))
+          });
           setInitialData(data);
           // Clear the temp code since we're loading an existing exam
           sessionStorage.removeItem('newExamCode');
