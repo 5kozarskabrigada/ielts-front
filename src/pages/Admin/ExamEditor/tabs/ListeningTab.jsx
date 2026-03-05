@@ -2503,10 +2503,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
         },
         cell: {
           border: '1px solid rgb(221, 221, 221)',
-          padding: '10px 12px',
-          verticalAlign: 'middle',
+          borderCollapse: 'collapse',
+          color: 'rgb(40, 40, 40)',
+          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
           fontSize: '14px',
-          lineHeight: '20px'
+          lineHeight: '20px',
+          padding: '8px',
+          verticalAlign: 'top'
         },
         headerCell: {
           backgroundColor: 'rgb(221, 221, 221)',
@@ -2934,9 +2937,34 @@ const PreviewMode = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto p-6">
           {currentSection ? (
             <div>
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                {currentSection.title || `Part ${selectedPart}`}
-              </h3>
+              {/* Part header - styled container */}
+              <div style={{
+                boxShadow: 'rgba(41, 69, 99, 0.08) 0px 4px 50px 0px',
+                color: 'rgb(40, 40, 40)',
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                fontSize: '16px',
+                lineHeight: '24px',
+                marginBottom: '0px',
+                marginLeft: '-30px',
+                marginRight: '-15px',
+                marginTop: '-20px',
+                paddingBottom: '10px',
+                paddingLeft: '30px',
+                paddingRight: '30px',
+                paddingTop: '10px'
+              }}>
+                <h3 style={{
+                  color: 'rgb(41, 69, 99)',
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  lineHeight: '28.8px',
+                  marginBottom: '5px',
+                  marginTop: '0px'
+                }}>
+                  Part {selectedPart}
+                </h3>
+              </div>
 
               {currentGroups.length > 0 ? (
                 currentGroups.map(group => {
@@ -2961,10 +2989,15 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     exampleOptions.push(...exampleData.options);
                   }
 
+                  // Calculate question range display
+                  const qStart = globalOffset + group.question_range_start;
+                  const qEnd = globalOffset + group.question_range_end;
+                  const questionRangeText = qStart === qEnd ? `Question ${qStart}` : `Questions ${qStart}–${qEnd}`;
+
                   return (
                     <div 
                       key={group.id} 
-                      className="mb-8 pb-6 border-b border-gray-100 last:border-0"
+                      className="mb-8 pb-6"
                       style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
                     >
                       {/* Questions header - accent color, Montserrat font */}
@@ -2977,14 +3010,20 @@ const PreviewMode = ({ isOpen, onClose }) => {
                         marginTop: '10px',
                         marginBottom: '10px'
                       }}>
-                        Questions {globalOffset + group.question_range_start}–{globalOffset + group.question_range_end}
+                        {questionRangeText}
                       </p>
                       
-                      {/* Instruction text - render as HTML, no container */}
+                      {/* Instruction text - italic styling */}
                       {group.instruction_text && (
                         <div 
                           className="mb-4 [&>*]:m-0"
-                          style={{ color: 'rgb(40, 40, 40)', fontSize: '14px', lineHeight: '21px' }}
+                          style={{ 
+                            color: 'rgb(40, 40, 40)', 
+                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                            fontSize: '14px', 
+                            fontStyle: 'italic',
+                            lineHeight: '21px' 
+                          }}
                           dangerouslySetInnerHTML={{ __html: group.instruction_text }}
                         />
                       )}

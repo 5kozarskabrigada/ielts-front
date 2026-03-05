@@ -144,6 +144,23 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
         class: `prose prose-sm max-w-none focus:outline-none p-4`,
         style: `min-height: ${minHeight}`,
       },
+      // Strip formatting when pasting - paste as plain text
+      handlePaste: (view, event, slice) => {
+        const text = event.clipboardData?.getData('text/plain');
+        if (text) {
+          // Insert plain text without formatting
+          const { state, dispatch } = view;
+          const { tr } = state;
+          const selection = state.selection;
+          
+          // Replace selection with plain text
+          tr.insertText(text, selection.from, selection.to);
+          dispatch(tr);
+          
+          return true; // Prevent default paste
+        }
+        return false;
+      },
     },
   });
 
