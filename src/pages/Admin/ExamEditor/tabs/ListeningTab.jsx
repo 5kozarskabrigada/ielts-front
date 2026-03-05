@@ -408,12 +408,12 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
       return !overlaps;
     });
     
-    // Combine cell content from all merged cells into the top-left cell
+    // Combine cell content from all merged cells into the top-left cell (newline separated)
     let combinedContent = '';
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         if (cells[r]?.[c]) {
-          combinedContent += (combinedContent ? ' ' : '') + cells[r][c];
+          combinedContent += (combinedContent ? '\n' : '') + cells[r][c];
         }
       }
     }
@@ -728,12 +728,12 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                         colSpan={merge?.colSpan || 1}
                         className={`border border-gray-200 p-0 align-top transition-colors ${
                           isSelected ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : 'bg-white'
-                        } ${merge ? 'bg-purple-50' : ''}`}
+                        }`}
                         onClick={(e) => handleCellSelect(rowIdx, colIdx, e)}
                       >
                         <div className="flex flex-col">
                           {merge && (
-                            <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium border-b border-purple-200 flex items-center gap-1">
+                            <div className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium border-b border-gray-200 flex items-center gap-1">
                               <Maximize2 size={12} />
                               Merged ({merge.rowSpan}×{merge.colSpan})
                             </div>
@@ -744,7 +744,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                             onClick={(e) => e.stopPropagation()}
                             placeholder="Type cell content here...&#10;Click + Add [BLANK] below to add answer fields"
                             className={`w-full px-3 py-2 text-sm outline-none resize-none min-h-[80px] placeholder-gray-400 ${
-                              isSelected ? 'bg-blue-50' : merge ? 'bg-purple-50' : ''
+                              isSelected ? 'bg-blue-50' : ''
                             }`}
                             rows={3}
                           />
@@ -869,8 +869,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                             padding: '10px 12px',
                             verticalAlign: 'middle',
                             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                            fontSize: '14px',
-                            backgroundColor: merge ? 'rgb(250, 245, 255)' : undefined
+                            fontSize: '14px'
                           }}
                         >
                           {renderCellPreview(cell, startBlank)}
@@ -2316,10 +2315,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                               key={colIdx} 
                               rowSpan={merge?.rowSpan || 1}
                               colSpan={merge?.colSpan || 1}
-                              style={{
-                                ...tableStyles.cell,
-                                backgroundColor: merge ? 'rgb(250, 245, 255)' : undefined
-                              }}
+                              style={tableStyles.cell}
                             >
                               {renderCellContent(cell)}
                             </td>
