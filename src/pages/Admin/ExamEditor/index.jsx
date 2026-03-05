@@ -87,9 +87,6 @@ function ExamEditorContent() {
     }
 
     try {
-      console.log('[Save] Starting save. Questions from context:', questions.length, questions.map(q => ({ id: q.id, section_id: q.section_id, qnum: q.question_number, group_id: q.group_id })));
-      console.log('[Save] Question groups:', questionGroups.length, questionGroups.map(g => ({ id: g.id, section_id: g.section_id, range: `${g.question_range_start}-${g.question_range_end}` })));
-      
       // Generate questions from table_data groups (TableBuilder format)
       const allQuestions = [...questions];
       let questionsAdded = false;
@@ -163,13 +160,6 @@ function ExamEditorContent() {
       // Update context with corrected questions
       setQuestions(correctedQuestions);
       
-      console.log('[Save] Sending to API:', {
-        examId,
-        questionsCount: correctedQuestions.length,
-        questions: correctedQuestions.map(q => ({ id: q.id, section_id: q.section_id, qnum: q.question_number, group_id: q.group_id })),
-        groupsCount: questionGroups.length
-      });
-      
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
@@ -178,8 +168,6 @@ function ExamEditorContent() {
         deletedQuestionIds,
         deletedGroupIds
       });
-      
-      console.log('[Save] API response:', response);
       
       if (response.idMapping) {
         updateIds(response.idMapping);

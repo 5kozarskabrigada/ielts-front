@@ -3,7 +3,8 @@ import { useExamEditor } from "../ExamEditorContext";
 import { 
   ChevronDown, ChevronUp, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
   HelpCircle, ListChecks, ArrowRightLeft, MapPin, FileText, 
-  StickyNote, Type, MessageSquare, Settings, Eye, EyeOff
+  StickyNote, Type, MessageSquare, Settings, Eye, EyeOff,
+  Maximize2, Minimize2
 } from "lucide-react";
 
 // ============================================
@@ -309,11 +310,147 @@ const AnswerConstraintFields = ({ group, updateGroup }) => (
 // TABLE BUILDER COMPONENT (for form_completion)
 // ============================================
 const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
-  const tableData = group.table_data || { rows: 2, cols: 2, headers: [], cells: [], answers: {} };
+  const tableData = group.table_data || { rows: 2, cols: 2, headers: [], cells: [], answers: {}, merges: [] };
+  const [selectedCells, setSelectedCells] = useState([]); // Array of {row, col}
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null);
   
   const updateTableData = (updates) => {
     updateGroup(group.id, { table_data: { ...tableData, ...updates } });
   };
+
+  const merges = tableData.merges || [];
+
+  // Check if a cell is the start of a merge
+  const getMergeAt = (rowIdx, colIdx) => {
+    return merges.find(m => m.startRow === rowIdx && m.startCol === colIdx);
+  };
+
+  // Check if a cell is hidden (part of a merge but not the start)
+  const isCellHidden = (rowIdx, colIdx) => {
+    return merges.some(m => {
+      if (m.startRow === rowIdx && m.startCol === colIdx) return false; // Start cell is not hidden
+      return rowIdx >= m.startRow && 
+             rowIdx < m.startRow + (m.rowSpan || 1) &&
+             colIdx >= m.startCol && 
+             colIdx < m.startCol + (m.colSpan || 1);
+    });
+  };
+
+  // Check if cell is selected
+  const isCellSelected = (rowIdx, colIdx) => {
+    return selectedCells.some(c => c.row === rowIdx && c.col === colIdx);
+  };
+
+  // Handle cell click for selection
+  const handleCellSelect = (rowIdx, colIdx, e) => {
+    if (e.ctrlKey || e.metaKey) {
+      // Toggle selection
+      if (isCellSelected(rowIdx, colIdx)) {
+        setSelectedCells(prev => prev.filter(c => !(c.row === rowIdx && c.col === colIdx)));
+      } else {
+        setSelectedCells(prev => [...prev, { row: rowIdx, col: colIdx }]);
+      }
+    } else if (e.shiftKey && selectedCells.length > 0) {
+      // Range selection from last selected to current
+      const last = selectedCells[selectedCells.length - 1];
+      const minRow = Math.min(last.row, rowIdx);
+      const maxRow = Math.max(last.row, rowIdx);
+      const minCol = Math.min(last.col, colIdx);
+      const maxCol = Math.max(last.col, colIdx);
+      const newSelection = [];
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          if (!isCellHidden(r, c)) {
+            newSelection.push({ row: r, col: c });
+          }
+        }
+      }
+      setSelectedCells(newSelection);
+    } else {
+      // Single selection
+      setSelectedCells([{ row: rowIdx, col: colIdx }]);
+    }
+  };
+
+  // Merge selected cells
+  const mergeSelectedCells = () => {
+    if (selectedCells.length < 2) return;
+    
+    // Find bounding box of selection
+    const minRow = Math.min(...selectedCells.map(c => c.row));
+    const maxRow = Math.max(...selectedCells.map(c => c.row));
+    const minCol = Math.min(...selectedCells.map(c => c.col));
+    const maxCol = Math.max(...selectedCells.map(c => c.col));
+    
+    // Check if selection forms a rectangle
+    const expectedCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+    const visibleCellsInRange = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (!isCellHidden(r, c)) {
+          visibleCellsInRange.push({ row: r, col: c });
+        }
+      }
+    }
+    
+    if (visibleCellsInRange.length !== selectedCells.length) {
+      alert('Please select a rectangular area of cells to merge');
+      return;
+    }
+    
+    // Remove any existing merges that overlap with new merge
+    const newMerges = merges.filter(m => {
+      const mEndRow = m.startRow + (m.rowSpan || 1) - 1;
+      const mEndCol = m.startCol + (m.colSpan || 1) - 1;
+      // Check if this merge overlaps with new selection
+      const overlaps = !(mEndRow < minRow || m.startRow > maxRow || mEndCol < minCol || m.startCol > maxCol);
+      return !overlaps;
+    });
+    
+    // Combine cell content from all merged cells into the top-left cell
+    let combinedContent = '';
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        if (cells[r]?.[c]) {
+          combinedContent += (combinedContent ? ' ' : '') + cells[r][c];
+        }
+      }
+    }
+    
+    // Update cells - put combined content in top-left, clear others
+    const newCells = cells.map((row, r) => 
+      row.map((cell, c) => {
+        if (r === minRow && c === minCol) return combinedContent;
+        if (r >= minRow && r <= maxRow && c >= minCol && c <= maxCol) return '';
+        return cell;
+      })
+    );
+    
+    // Add new merge
+    newMerges.push({
+      startRow: minRow,
+      startCol: minCol,
+      rowSpan: maxRow - minRow + 1,
+      colSpan: maxCol - minCol + 1
+    });
+    
+    updateTableData({ merges: newMerges, cells: newCells });
+    setSelectedCells([]);
+  };
+
+  // Unmerge a cell
+  const unmergeCell = (rowIdx, colIdx) => {
+    const newMerges = merges.filter(m => !(m.startRow === rowIdx && m.startCol === colIdx));
+    updateTableData({ merges: newMerges });
+    setSelectedCells([]);
+  };
+
+  // Check if selection can be merged
+  const canMerge = selectedCells.length >= 2;
+  
+  // Check if any selected cell is a merge start
+  const selectedMerge = selectedCells.length === 1 ? getMergeAt(selectedCells[0].row, selectedCells[0].col) : null;
 
   // Initialize cells if empty or size changed
   const initializeCells = (rows, cols, existingCells = []) => {
@@ -374,13 +511,19 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
 
   const handleRowsChange = (newRows) => {
     const newCells = initializeCells(newRows, cols, cells);
-    updateTableData({ rows: newRows, cells: newCells });
+    // Remove merges that would go out of bounds
+    const newMerges = merges.filter(m => m.startRow + (m.rowSpan || 1) <= newRows);
+    updateTableData({ rows: newRows, cells: newCells, merges: newMerges });
+    setSelectedCells([]);
   };
 
   const handleColsChange = (newCols) => {
     const newCells = initializeCells(rows, newCols, cells);
     const newHeaders = initializeHeaders(newCols, headers);
-    updateTableData({ cols: newCols, cells: newCells, headers: newHeaders });
+    // Remove merges that would go out of bounds
+    const newMerges = merges.filter(m => m.startCol + (m.colSpan || 1) <= newCols);
+    updateTableData({ cols: newCols, cells: newCells, headers: newHeaders, merges: newMerges });
+    setSelectedCells([]);
   };
 
   const handleCellChange = (rowIdx, colIdx, value) => {
@@ -503,9 +646,48 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
         </span>
       </div>
 
+      {/* Merge Controls */}
+      {selectedCells.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <span className="text-sm text-blue-700 font-medium">
+            {selectedCells.length} cell{selectedCells.length > 1 ? 's' : ''} selected
+          </span>
+          {canMerge && (
+            <button
+              type="button"
+              onClick={mergeSelectedCells}
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 font-medium transition flex items-center gap-1"
+            >
+              <Maximize2 size={14} />
+              Merge Cells
+            </button>
+          )}
+          {selectedMerge && (
+            <button
+              type="button"
+              onClick={() => unmergeCell(selectedCells[0].row, selectedCells[0].col)}
+              className="px-3 py-1.5 bg-orange-500 text-white text-xs rounded-lg hover:bg-orange-600 font-medium transition flex items-center gap-1"
+            >
+              <Minimize2 size={14} />
+              Unmerge
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setSelectedCells([])}
+            className="px-3 py-1.5 bg-gray-400 text-white text-xs rounded-lg hover:bg-gray-500 font-medium transition"
+          >
+            Clear Selection
+          </button>
+          <span className="text-xs text-blue-600 ml-auto">
+            Tip: Ctrl+click to select multiple, Shift+click for range
+          </span>
+        </div>
+      )}
+
       {/* Table Editor */}
       <div>
-        <h6 className="text-sm font-semibold text-gray-700 mb-2">Edit Table Content:</h6>
+        <h6 className="text-sm font-semibold text-gray-700 mb-2">Edit Table Content: <span className="font-normal text-gray-500">(Click cells to select, then merge)</span></h6>
         <div className="overflow-x-auto rounded-lg border-2 border-gray-300 bg-white">
           <table className="w-full border-collapse">
             {/* Header row (optional) */}
@@ -530,21 +712,46 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
               {cells.map((row, rowIdx) => (
                 <tr key={rowIdx}>
                   {row.map((cell, colIdx) => {
+                    // Check if this cell is hidden (part of a merge)
+                    if (isCellHidden(rowIdx, colIdx)) {
+                      return null;
+                    }
+                    
+                    const merge = getMergeAt(rowIdx, colIdx);
                     const blanksBeforeThis = countBlanksUpTo(rowIdx, colIdx);
+                    const isSelected = isCellSelected(rowIdx, colIdx);
+                    
                     return (
-                      <td key={colIdx} className="border border-gray-200 p-0 align-top bg-white">
+                      <td 
+                        key={colIdx} 
+                        rowSpan={merge?.rowSpan || 1}
+                        colSpan={merge?.colSpan || 1}
+                        className={`border border-gray-200 p-0 align-top transition-colors ${
+                          isSelected ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : 'bg-white'
+                        } ${merge ? 'bg-purple-50' : ''}`}
+                        onClick={(e) => handleCellSelect(rowIdx, colIdx, e)}
+                      >
                         <div className="flex flex-col">
+                          {merge && (
+                            <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium border-b border-purple-200 flex items-center gap-1">
+                              <Maximize2 size={12} />
+                              Merged ({merge.rowSpan}×{merge.colSpan})
+                            </div>
+                          )}
                           <textarea
                             value={cell}
                             onChange={(e) => handleCellChange(rowIdx, colIdx, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
                             placeholder="Type cell content here...&#10;Click + Add [BLANK] below to add answer fields"
-                            className="w-full px-3 py-2 text-sm outline-none resize-none min-h-[80px] placeholder-gray-400"
+                            className={`w-full px-3 py-2 text-sm outline-none resize-none min-h-[80px] placeholder-gray-400 ${
+                              isSelected ? 'bg-blue-50' : merge ? 'bg-purple-50' : ''
+                            }`}
                             rows={3}
                           />
                           <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200">
                             <button
                               type="button"
-                              onClick={() => insertBlank(rowIdx, colIdx)}
+                              onClick={(e) => { e.stopPropagation(); insertBlank(rowIdx, colIdx); }}
                               className="px-3 py-1 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 font-medium transition"
                             >
                               + Add [BLANK]
@@ -642,6 +849,12 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                 return (
                   <tr key={rowIdx}>
                     {row.map((cell, colIdx) => {
+                      // Check if this cell is hidden (part of a merge)
+                      if (isCellHidden(rowIdx, colIdx)) {
+                        return null;
+                      }
+                      
+                      const merge = getMergeAt(rowIdx, colIdx);
                       const startBlank = blanksSoFar;
                       for (let c = 0; c < colIdx; c++) {
                         blanksSoFar += (row[c].match(/\[BLANK\]/g) || []).length;
@@ -649,12 +862,15 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                       return (
                         <td 
                           key={colIdx}
+                          rowSpan={merge?.rowSpan || 1}
+                          colSpan={merge?.colSpan || 1}
                           style={{
                             border: '1px solid rgb(221, 221, 221)',
                             padding: '10px 12px',
                             verticalAlign: 'middle',
                             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                            fontSize: '14px'
+                            fontSize: '14px',
+                            backgroundColor: merge ? 'rgb(250, 245, 255)' : undefined
                           }}
                         >
                           {renderCellPreview(cell, startBlank)}
@@ -2027,7 +2243,23 @@ const PreviewMode = ({ isOpen, onClose }) => {
       // Use new table_data format if available
       const tableData = group.table_data;
       if (tableData && tableData.cells && tableData.cells.length > 0) {
-        const { cells, headers, hasHeaders } = tableData;
+        const { cells, headers, hasHeaders, merges = [] } = tableData;
+        
+        // Helper to check if cell is hidden (part of a merge)
+        const isCellHiddenInPreview = (rowIdx, colIdx) => {
+          return merges.some(m => {
+            if (m.startRow === rowIdx && m.startCol === colIdx) return false;
+            return rowIdx >= m.startRow && 
+                   rowIdx < m.startRow + (m.rowSpan || 1) &&
+                   colIdx >= m.startCol && 
+                   colIdx < m.startCol + (m.colSpan || 1);
+          });
+        };
+
+        // Helper to get merge info
+        const getMergeAtInPreview = (rowIdx, colIdx) => {
+          return merges.find(m => m.startRow === rowIdx && m.startCol === colIdx);
+        };
         
         // Count blanks to calculate question numbers
         let blankCounter = 0;
@@ -2069,14 +2301,30 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 )}
                 <tbody>
                   {cells.map((row, rowIdx) => {
-                    // Reset blank counter for proper counting per render
                     return (
                       <tr key={rowIdx}>
-                        {row.map((cell, colIdx) => (
-                          <td key={colIdx} style={tableStyles.cell}>
-                            {renderCellContent(cell)}
-                          </td>
-                        ))}
+                        {row.map((cell, colIdx) => {
+                          // Skip hidden cells (part of a merge)
+                          if (isCellHiddenInPreview(rowIdx, colIdx)) {
+                            return null;
+                          }
+                          
+                          const merge = getMergeAtInPreview(rowIdx, colIdx);
+                          
+                          return (
+                            <td 
+                              key={colIdx} 
+                              rowSpan={merge?.rowSpan || 1}
+                              colSpan={merge?.colSpan || 1}
+                              style={{
+                                ...tableStyles.cell,
+                                backgroundColor: merge ? 'rgb(250, 245, 255)' : undefined
+                              }}
+                            >
+                              {renderCellContent(cell)}
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}
