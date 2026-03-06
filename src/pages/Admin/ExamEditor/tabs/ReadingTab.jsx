@@ -5,6 +5,8 @@ import {
   HelpCircle, Target, List, ArrowRightLeft, FileText, 
   Type, Table2, MapPin, MessageSquare, Info
 } from "lucide-react";
+
+import PassageImageUploader from "./PassageImageUploader";
 import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 
 // Question types with icons and detailed hints

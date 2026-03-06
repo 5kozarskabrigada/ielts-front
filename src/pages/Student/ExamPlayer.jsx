@@ -914,12 +914,103 @@ export default function ExamPlayer() {
           <div className="flex w-full h-full">
             {/* Left: Passage */}
             <div className="w-1/2 h-full overflow-auto border-r border-gray-200 bg-white p-8">
-              {currentSections.map((section) => (
-                <div key={section.id} className="mb-12">
-                  <h3 className="text-2xl font-bold mb-4 text-gray-800">{section.title}</h3>
-                  <div className="prose max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {section.content || "Passage content will appear here..."}
+              {currentSections.map((section, idx) => (
+                <div key={section.id} className="mb-12 max-w-[480px] mx-auto">
+                  {/* Section Title */}
+                  <div
+                    style={{
+                      boxSizing: 'border-box',
+                      color: 'rgb(41, 69, 99)',
+                      display: 'block',
+                      fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      lineHeight: '21.6px',
+                      marginBottom: '10px',
+                      textAlign: 'left',
+                      textTransform: 'uppercase',
+                      width: '459px',
+                      padding: 0,
+                    }}
+                  >
+                    Reading Section {idx + 1}
                   </div>
+
+                  {/* Instructions */}
+                  <div
+                    style={{
+                      boxSizing: 'border-box',
+                      color: 'rgb(40, 40, 40)',
+                      display: 'inline',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      fontSize: '16px',
+                      fontStyle: 'italic',
+                      lineHeight: '24px',
+                      width: 'auto',
+                      textAlign: 'left',
+                      padding: 0,
+                    }}
+                  >
+                    You should spend about 20 minutes on Questions {idx * 13 + 1} - {idx * 13 + 13}, which are based on Reading Passage {idx + 1} below.
+                  </div>
+
+                  {/* Passage Image */}
+                  {section.image_url && (
+                    <div style={{ margin: '20px 0' }}>
+                      <img
+                        src={section.image_url}
+                        alt={section.image_description || 'Passage image'}
+                        style={{
+                          aspectRatio: '647 / 338',
+                          maxWidth: '100%',
+                          width: '459px',
+                          height: 'auto',
+                          display: 'block',
+                          margin: 0,
+                          border: 0,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Passage Title */}
+                  {section.title && (
+                    <div
+                      style={{
+                        boxSizing: 'border-box',
+                        color: 'rgb(41, 69, 99)',
+                        display: 'block',
+                        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                        fontSize: '26px',
+                        fontWeight: 700,
+                        lineHeight: '31.2px',
+                        textAlign: 'center',
+                        width: '459px',
+                        margin: '20px 0 10px 0',
+                        padding: 0,
+                      }}
+                    >
+                      {section.title}
+                    </div>
+                  )}
+
+                  {/* Passage Content */}
+                  <div
+                    style={{
+                      boxSizing: 'border-box',
+                      color: 'rgb(40, 40, 40)',
+                      display: 'block',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      fontSize: '16px',
+                      lineHeight: '24px',
+                      marginBottom: '20px',
+                      width: '459px',
+                      padding: 0,
+                    }}
+                    className="whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: section.content || 'Passage content will appear here...' }}
+                  />
                 </div>
               ))}
               {currentSections.length === 0 && (
