@@ -127,17 +127,6 @@ const Input = ({ label, hint, ...props }) => (
   </div>
 );
 
-// Styled input (from ListeningTab)
-const InputWithClass = ({ label, hint, className = "", ...props }) => (
-  <div className={className}>
-    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <input
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
-      {...props}
-    />
-    {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-  </div>
-
 const TextArea = ({ label, hint, className = "", ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
