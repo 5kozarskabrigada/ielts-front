@@ -127,29 +127,43 @@ const Input = ({ label, hint, ...props }) => (
   </div>
 );
 
-// Styled textarea
-const TextArea = ({ label, hint, ...props }) => (
-  <div>
-    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
-    <textarea
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition resize-none"
+// Styled input (from ListeningTab)
+const Input = ({ label, hint, className = "", ...props }) => (
+  <div className={className}>
+    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+    <input
+      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
       {...props}
     />
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
 
-// Question type specific fields
-function QuestionFields({ question, updateQuestion, passageLetters }) {
-  const type = question.type || 'short_answer';
+const TextArea = ({ label, hint, className = "", ...props }) => (
+  <div className={className}>
+    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+    <textarea
+      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
+      {...props}
+    />
+    {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+  </div>
+);
 
-  // MULTIPLE CHOICE (SINGLE)
-  if (type === 'multiple_choice_single') {
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Multiple Choice (Single Answer)"
-          description="A question with 4 options (A-D) where only ONE is correct. Tests comprehension of specific information, main ideas, or writer's purpose."
+const Select = ({ label, hint, options, className = "", ...props }) => (
+  <div className={className}>
+    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+    <select
+      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
+      {...props}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+    {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+  </div>
+);
           example="Q: What is the main purpose of paragraph 3? A) To explain... B) To compare... C) To argue... D) To describe..."
           tips="Ensure wrong options are plausible but clearly distinguishable. Reference specific paragraphs if asking about detailed information."
         />
