@@ -154,65 +154,6 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
 );
 
 
-  // MATCHING HEADINGS
-  if (type === 'matching_headings') {
-    const count = parseInt(question.heading_count) || 4;
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Matching Headings"
-          description="Students match Roman numeral headings (i, ii, iii, iv...) to paragraphs. There are more headings than paragraphs (some are distractors). Each question asks which heading fits ONE paragraph."
-          example="Paragraph C → Heading: iv 'The unexpected benefits of the study'"
-          tips="Use lowercase Roman numerals (i, ii, iii, iv, v). Headings should summarize paragraph main ideas. Include 2-3 extra distractor headings."
-        />
-        
-        <Input
-          label="Paragraph Being Matched"
-          placeholder="e.g., Paragraph C / Section 2"
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-
-        <div className="bg-indigo-50/50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-indigo-700 uppercase tracking-wide">List of Headings</label>
-            <select
-              className="text-xs px-2 py-1 border border-indigo-200 rounded bg-white"
-              value={count}
-              onChange={(e) => updateQuestion(question.id, { heading_count: e.target.value })}
-            >
-              {[3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-          <p className="text-xs text-indigo-600 mb-2">Enter the heading options students will choose from (include distractors)</p>
-          <div className="space-y-2">
-            {[...Array(count)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-6 text-center text-xs font-medium text-indigo-600">{['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii'][i]}</span>
-                <input
-                  className="flex-1 px-2.5 py-1.5 bg-white border border-indigo-200 rounded text-sm focus:border-indigo-400 outline-none"
-                  placeholder={i === 0 ? 'e.g., The origins of the problem' : i === 1 ? 'e.g., A surprising solution' : `Heading ${['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii'][i]}`}
-                  value={question[`heading_${i + 1}`] || ""}
-                  onChange={(e) => updateQuestion(question.id, { [`heading_${i + 1}`]: e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Heading Number</label>
-          <input
-            className="w-full px-3 py-2 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., iv"
-            value={question.answer || ""}
-            onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-          />
-          <p className="text-xs text-green-600 mt-1">Enter the Roman numeral of the correct heading (lowercase)</p>
-        </div>
-      </div>
-    );
-  }
 
   // MATCHING INFORMATION / FEATURES
   if (type === 'matching_information' || type === 'matching_features') {
