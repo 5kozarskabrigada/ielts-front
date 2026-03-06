@@ -5,11 +5,7 @@ import {
   HelpCircle, Target, List, ArrowRightLeft, FileText, 
   Type, Table2, MapPin, MessageSquare, Info
 } from "lucide-react";
-
 import PassageImageUploader from "./PassageImageUploader";
-import GroupImageUploader from "./GroupImageUploader";
-import { useExamEditor } from "../ExamEditorContext";
-import { Plus, Trash2, ChevronDown } from "lucide-react";
 import GroupImageUploader from "./GroupImageUploader";
 import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 
