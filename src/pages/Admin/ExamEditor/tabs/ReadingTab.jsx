@@ -818,6 +818,8 @@ function QuestionCard({ question, updateQuestion, deleteQuestion, index, passage
 }
 
 // Passage Card
+import PassageImageUploader from "./PassageImageUploader";
+
 function PassageCard({ section, passageNumber }) {
   const { updateSection, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
   const [isOpen, setIsOpen] = useState(true);
@@ -879,7 +881,15 @@ function PassageCard({ section, passageNumber }) {
               />
             </div>
 
-            <div>
+            {/* Passage Image Uploader - after part 1 */}
+            <PassageImageUploader
+              imageUrl={section.image_url || ""}
+              onChange={url => updateSection(section.id, { image_url: url })}
+              description={section.image_description || ""}
+              onDescriptionChange={desc => updateSection(section.id, { image_description: desc })}
+            />
+
+            <div className="mt-4">
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
                 Passage Content
                 <span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span>
