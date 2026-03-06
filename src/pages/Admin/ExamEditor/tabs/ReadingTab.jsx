@@ -150,91 +150,8 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
       ))}
     </select>
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-// Styled input (from ListeningTab)
-const Input = ({ label, hint, className = "", ...props }) => (
-  <div className={className}>
-    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <input
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
-      {...props}
-    />
-    {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
-        />
-        
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Answer Options (A-D)</label>
-          <p className="text-xs text-gray-400 mb-3">Write each option as a complete statement or phrase</p>
-          <div className="space-y-2">
-            {['A', 'B', 'C', 'D'].map((letter) => (
-              <div key={letter} className="flex items-center gap-2">
-                <div className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold transition ${
-                  question.answer === letter ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {letter}
-                </div>
-                <input
-                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-                  placeholder={letter === 'A' ? 'e.g., To explain a new scientific theory' : letter === 'B' ? 'e.g., To compare two different approaches' : letter === 'C' ? 'e.g., To criticize existing methods' : 'e.g., To describe historical events'}
-                  value={question[`option_${letter.toLowerCase()}`] || ""}
-                  onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Select Correct Answer</label>
-          <div className="flex gap-2">
-            {['A', 'B', 'C', 'D'].map((letter) => (
-              <button
-                key={letter}
-                type="button"
-                onClick={() => updateQuestion(question.id, { answer: letter })}
-                className={`w-12 h-10 rounded-lg font-semibold text-sm transition ${
-                  question.answer === letter 
-                    ? 'bg-green-500 text-white shadow-sm' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-          // Styled textarea (from ListeningTab)
-          const TextArea = ({ label, hint, className = "", ...props }) => (
-            <div className={className}>
-              {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-              <textarea
-                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
-                {...props}
-              />
-              {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-            </div>
-          );
-  if (type === 'multiple_choice_multiple') {
-    const selected = (question.answer || '').split(',').map(s => s.trim()).filter(Boolean);
-    const toggleOption = (letter) => {
-      const newSelected = selected.includes(letter) 
-        ? selected.filter(l => l !== letter)
-        : [...selected, letter].sort();
-      updateQuestion(question.id, { answer: newSelected.join(', ') });
-    };
-
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Multiple Choice (Multiple Answers)"
-          description="A question where students must select TWO or more correct answers from 5 options. Usually phrased as 'Which TWO...' or 'Which THREE...'"
-          example="Q: Which TWO of the following are mentioned as benefits? → A, D (both correct)"
-          tips="Specify how many answers are needed in your question. Click each correct option to select/deselect it."
-        />
-        
-                {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-                <textarea
-                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
-                  {...props}
-                />
-                {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-              </div>
-  if (type === 'true_false_not_given') {
     return (
       <div className="space-y-5">
         <TypeInfoBox
@@ -276,7 +193,7 @@ const Input = ({ label, hint, className = "", ...props }) => (
         </div>
       </div>
     );
-  }
+  
 
   // YES/NO/NOT GIVEN
   if (type === 'yes_no_not_given') {
@@ -701,7 +618,7 @@ const Input = ({ label, hint, className = "", ...props }) => (
       </div>
     </div>
   );
-}
+
 
 // Question Card
 function QuestionCard({ question, updateQuestion, deleteQuestion, index, passageNumber, passageLetters }) {
