@@ -128,7 +128,7 @@ const Input = ({ label, hint, ...props }) => (
 );
 
 // Styled input (from ListeningTab)
-const Input = ({ label, hint, className = "", ...props }) => (
+const InputWithClass = ({ label, hint, className = "", ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
     <input
@@ -137,7 +137,6 @@ const Input = ({ label, hint, className = "", ...props }) => (
     />
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
-);
 
 const TextArea = ({ label, hint, className = "", ...props }) => (
   <div className={className}>
@@ -239,48 +238,13 @@ const Input = ({ label, hint, className = "", ...props }) => (
           tips="Specify how many answers are needed in your question. Click each correct option to select/deselect it."
         />
         
-        <Input
-          label="Question"
-          placeholder="e.g., Which TWO features does the author describe as innovative?"
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-        
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Options (click to select correct answers)</label>
-          <p className="text-xs text-gray-400 mb-3">Toggle each option that is CORRECT. Selected options will highlight green.</p>
-          <div className="space-y-2">
-            {['A', 'B', 'C', 'D', 'E'].map((letter) => (
-              <div key={letter} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleOption(letter)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold transition ${
-                    selected.includes(letter) ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {letter}
-                </button>
-                <input
-                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-                  placeholder={letter === 'A' ? 'e.g., Its low environmental impact' : `Option ${letter}`}
-                  value={question[`option_${letter.toLowerCase()}`] || ""}
-                  onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
+                {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+                <textarea
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
+                  {...props}
                 />
+                {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1">Selected Correct Answers</label>
-          <p className="text-sm text-green-800 font-medium">{question.answer || 'None selected - click options above'}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // TRUE/FALSE/NOT GIVEN
   if (type === 'true_false_not_given') {
     return (
       <div className="space-y-5">
