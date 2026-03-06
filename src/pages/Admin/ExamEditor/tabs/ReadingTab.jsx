@@ -821,7 +821,7 @@ function QuestionCard({ question, updateQuestion, deleteQuestion, index, passage
 
 
 
-function PassageCard({ section, passageNumber }) {
+function PassageCard({ section, passageNumber, passageLetters }) {
   const { updateSection, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
   const [isOpen, setIsOpen] = useState(true);
 
