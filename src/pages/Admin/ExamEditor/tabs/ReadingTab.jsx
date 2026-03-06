@@ -819,8 +819,7 @@ function QuestionCard({ question, updateQuestion, deleteQuestion, index, passage
   );
 }
 
-// Passage Card
-import PassageImageUploader from "./PassageImageUploader";
+
 
 function PassageCard({ section, passageNumber }) {
   const { updateSection, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
