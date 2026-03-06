@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import { apiUploadPassageImage } from "../../../../src/api";
+import { apiUploadPassageImage } from "../../../api";
 
 export default function GroupImageUploader({ imageUrl, onChange, description, onDescriptionChange }) {
   const fileInputRef = useRef();
