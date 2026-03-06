@@ -1,5 +1,5 @@
 
-import { apiUploadPassageImage } from "../../../api";
+import { apiUploadPassageImage } from "../../../../api";
 
 // For use in ReadingTab.jsx
 export default function PassageImageUploader({ imageUrl, onChange, description, onDescriptionChange }) {
