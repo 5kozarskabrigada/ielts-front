@@ -91,34 +91,10 @@ const QUESTION_TYPES = [
   },
 ];
 
-// Info box component for question type guidance
-const TypeInfoBox = ({ title, description, example, tips }) => (
-  <div className="mb-5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4">
-    <div className="flex items-start gap-3">
-      <div className="w-8 h-8 flex items-center justify-center bg-emerald-100 rounded-lg flex-shrink-0">
-        <Info size={16} className="text-emerald-600" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-emerald-900 text-sm">{title}</h4>
-        <p className="text-xs text-emerald-700 mt-1">{description}</p>
-        {example && (
-          <div className="mt-2 bg-white/60 rounded-lg px-3 py-2 border border-emerald-100">
-            <span className="text-xs font-medium text-emerald-600">Example: </span>
-            <span className="text-xs text-emerald-800">{example}</span>
-          </div>
-        )}
-        {tips && (
-          <p className="text-xs text-emerald-600 mt-2 italic">💡 {tips}</p>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-// Styled input
-const Input = ({ label, hint, ...props }) => (
-  <div>
-    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>
+// Styled input components
+const Input = ({ label, hint, className = "", ...props }) => (
+  <div className={className}>
+    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
     <input
       className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition"
       {...props}
@@ -153,255 +129,136 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
   </div>
 );
 
-
-
-  // MATCHING SENTENCE ENDINGS
-  if (type === 'matching_sentence_endings') {
-    const count = parseInt(question.ending_count) || 4;
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Matching Sentence Endings"
-          description="Students complete sentence beginnings by choosing the correct ending from a list (A-G). There are more endings than beginnings (distractors). Tests understanding of how ideas connect."
-          example="Beginning: 'The scientists concluded that...' + Ending C: '...further research was needed.' → Answer: C"
-          tips="Sentence beginnings and endings should be grammatically compatible. Include plausible distractor endings that don't complete the meaning correctly."
-        />
-        
-        <Input
-          label="Sentence Beginning"
-          placeholder="e.g., According to the passage, the main problem was that..."
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-
-        <div className="bg-teal-50/50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-teal-700 uppercase tracking-wide">Possible Endings (A-G)</label>
-            <select
-              className="text-xs px-2 py-1 border border-teal-200 rounded bg-white"
-              value={count}
-              onChange={(e) => updateQuestion(question.id, { ending_count: e.target.value })}
-            >
-              {[3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-          <p className="text-xs text-teal-600 mb-2">Enter all possible endings. Include extra distractors. Start each with lowercase.</p>
-          <div className="space-y-2">
-            {[...Array(count)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-6 h-6 flex items-center justify-center bg-teal-100 rounded text-xs font-medium text-teal-700">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <input
-                  className="flex-1 px-2.5 py-1.5 bg-white border border-teal-200 rounded text-sm focus:border-teal-400 outline-none"
-                  placeholder={i === 0 ? 'e.g., ...the project was abandoned.' : i === 1 ? 'e.g., ...funding was increased.' : `Ending ${String.fromCharCode(65 + i)}`}
-                  value={question[`ending_${String.fromCharCode(97 + i)}`] || ""}
-                  onChange={(e) => updateQuestion(question.id, { [`ending_${String.fromCharCode(97 + i)}`]: e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Ending</label>
-          <input
-            className="w-full px-3 py-2 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., C"
-            value={question.answer || ""}
-            onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // SUMMARY/TABLE COMPLETION
-  if (type === 'summary_completion' || type === 'table_completion') {
-    const gapCount = parseInt(question.gap_count) || 4;
-    const isSummary = type === 'summary_completion';
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title={isSummary ? "Summary Completion" : "Table Completion"}
-          description={isSummary 
-            ? "Students complete a summary of the passage by filling in numbered gaps with words. Words may come directly from the passage or from a provided word bank."
-            : "Students fill in missing cells in a table that organizes information from the passage. Tests ability to locate and understand specific details."
-          }
-          example={isSummary 
-            ? "'The study found that (1) _____ was the main factor...' → Answer: 'pollution' (from passage)"
-            : "| Type | Advantage | → Fill in: (1) _____ in the Advantage column"
-          }
-          tips={isSummary 
-            ? "Ensure answers are exact words from the passage. Specify word limit (e.g., 'NO MORE THAN TWO WORDS')."
-            : "Use clear table structure. Answers should be findable in the passage."
-          }
-        />
-        
-        <Input
-          label={isSummary ? "Summary Title/Topic" : "Table Title/Topic"}
-          placeholder={isSummary ? "e.g., Summary: The Effects of Climate Change" : "e.g., Comparison of Research Methods"}
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-
-        <TextArea
-          label={isSummary ? "Summary Content" : "Table Content"}
-          hint="Use (1) ___, (2) ___ to mark blanks"
-          placeholder={type === 'summary_completion' 
-            ? "The study found that (1) ___ was the main factor affecting (2) ___..."
-            : "| Category | Value |\n| A | (1) ___ |\n| B | (2) ___ |"}
-          rows={5}
-          value={question.content || ""}
-          onChange={(e) => updateQuestion(question.id, { content: e.target.value })}
-        />
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-green-700 uppercase tracking-wide">Answers</label>
-            <select
-              className="text-xs px-2 py-1 border border-green-200 rounded bg-white"
-              value={gapCount}
-              onChange={(e) => updateQuestion(question.id, { gap_count: e.target.value })}
-            >
-              {[2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[...Array(gapCount)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-5 h-5 flex items-center justify-center bg-green-100 rounded text-xs font-medium text-green-700">{i + 1}</span>
-                <input
-                  className="flex-1 px-2 py-1.5 bg-white border border-green-200 rounded text-sm focus:border-green-400 outline-none"
-                  placeholder={`Answer ${i + 1}`}
-                  value={question[`gap_${i + 1}`] || ""}
-                  onChange={(e) => updateQuestion(question.id, { [`gap_${i + 1}`]: e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // SENTENCE COMPLETION
-  if (type === 'sentence_completion') {
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Sentence Completion"
-          description="Students complete a sentence using words taken directly from the passage. Tests locating and understanding specific information. Answers are usually 1-3 words."
-          example="'The main cause of the decline was _____.' → Answer: 'overfishing' (found in passage)"
-          tips="The sentence should paraphrase passage content. Answer must be word(s) that appear in the passage. Specify word limit in instructions."
-        />
-        
-        <TextArea
-          label="Sentence with Blank"
-          hint="Use _____ to mark where the answer goes"
-          placeholder="e.g., According to the passage, the primary reason for the failure was _____."
-          rows={3}
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Answer</label>
-          <p className="text-xs text-green-600 mb-2">Enter the exact word(s) from the passage that complete the sentence</p>
-          <input
-            className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., insufficient funding"
-            value={question.answer || ""}
-            onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-          />
-          <p className="text-xs text-green-600 mt-1.5">Word(s) from the passage, usually 1-3 words</p>
-        </div>
-      </div>
-    );
-  }
-
-  // DIAGRAM LABELING
-  if (type === 'diagram_labeling') {
-    const labelCount = parseInt(question.label_count) || 4;
-    return (
-      <div className="space-y-5">
-        <TypeInfoBox
-          title="Diagram/Flow-chart Labeling"
-          description="Students label parts of a diagram, process, or flow-chart with words from the passage. Tests understanding of processes, systems, or relationships described in the text."
-          example="Label 3 on the process diagram → Answer: 'fermentation' (the step described in the passage)"
-          tips="Diagrams should match processes described in the passage. Labels are usually nouns or short noun phrases taken directly from the text."
-        />
-        
-        <Input
-          label="Label Number/Reference"
-          placeholder="e.g., Label 3 / Part A / Step 2"
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-        />
-
-        <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Diagram/Process Image URL</label>
-          <p className="text-xs text-gray-400 mb-2">Upload your diagram image and paste the URL. Image should have clearly numbered parts.</p>
-          <input
-            className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-            placeholder="https://example.com/process-diagram.png"
-            value={question.image_url || ""}
-            onChange={(e) => updateQuestion(question.id, { image_url: e.target.value })}
-          />
-          {question.image_url && (
-            <div className="mt-2 p-2 bg-gray-50 rounded-lg border">
-              <img src={question.image_url} alt="Diagram preview" className="max-h-40 mx-auto rounded" />
-            </div>
-          )}
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-3">
-          <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Label Answer</label>
-          <p className="text-xs text-green-600 mb-2">Enter the word(s) from the passage that should label this part</p>
-          <input
-            className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-            placeholder="e.g., extraction process / heating element"
-            value={question.answer || ""}
-            onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // SHORT ANSWER (default)
+// QuestionFields component - renders question input fields based on type
+function QuestionFields({ question, updateQuestion, passageLetters }) {
   return (
-    <div className="space-y-5">
-      <TypeInfoBox
-        title="Short Answer Question"
-        description="Students answer a question using words taken directly from the passage. Tests ability to locate specific information. Answers are usually factual: names, numbers, places, dates."
-        example="Q: 'In which year was the museum founded?' → Answer: '1892' (from passage)"
-        tips="Questions should be answerable with specific words from the text. Specify word limit (e.g., 'NO MORE THAN THREE WORDS')."
-      />
-      
+    <div className="space-y-3">
       <Input
-        label="Question"
-        placeholder="e.g., How many participants were involved in the study?"
+        label="Question Text"
+        placeholder="Enter question text..."
         value={question.text || ""}
         onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
       />
-
-      <div className="bg-green-50 rounded-lg p-3">
-        <label className="block text-xs font-medium text-green-700 uppercase tracking-wide mb-1.5">Correct Answer</label>
-        <p className="text-xs text-green-600 mb-2">Enter the exact word(s)/number from the passage</p>
-        <input
-          className="w-full px-3 py-2.5 bg-white border border-green-200 rounded-lg text-sm focus:border-green-400 outline-none"
-          placeholder="e.g., 250 / three years / Dr. Williams"
-          value={question.answer || ""}
-          onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-        />
-        <p className="text-xs text-green-500 mt-2 italic">💡 Best practice: specify word limit in your question (e.g., 'Answer with NO MORE THAN TWO WORDS')</p>
-      </div>
+      <Input
+        label="Answer"
+        placeholder="Enter correct answer..."
+        value={question.answer || ""}
+        onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
+      />
     </div>
   );
+}
 
+// Reading Group Card (modeled after ListeningTab)
+function ReadingGroupCard({ group, sectionId, passageNumber, passageLetters }) {
+  const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
+  const [isExpanded, setIsExpanded] = React.useState(true);
+  const groupQuestions = questions.filter(q => q.group_id === group.id);
+  const addQuestionToGroup = () => {
+    const nextNum = groupQuestions.length > 0
+      ? Math.max(...groupQuestions.map(q => q.question_number || 0)) + 1
+      : group.question_range_start || 1;
+    addQuestion(sectionId, {
+      question_number: nextNum,
+      type: group.question_type,
+      text: '',
+      answer: '',
+      group_id: group.id
+    });
+  };
+  return (
+    <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
+      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
+            <span className="text-blue-600 font-bold text-lg">{group.question_type?.[0]?.toUpperCase() || '?'}</span>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-800">
+              {group.instruction_text?.slice(0, 40) || 'Reading Group'}
+            </h4>
+            <p className="text-xs text-gray-500">Questions {group.question_range_start}–{group.question_range_end}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+            {groupQuestions.length} questions
+          </span>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); deleteQuestionGroup(group.id); }}
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+          >
+            <Trash2 size={16} />
+          </button>
+          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+      {isExpanded && (
+        <div className="p-4 border-t border-blue-100 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
+              placeholder="Instruction text..."
+              value={group.instruction_text || ''}
+              onChange={e => updateQuestionGroup(group.id, { instruction_text: e.target.value })}
+            />
+            <select
+              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
+              value={group.question_type || ''}
+              onChange={e => updateQuestionGroup(group.id, { question_type: e.target.value })}
+            >
+              <option value="">Select type…</option>
+              <option value="paragraph_matching">Paragraph Matching</option>
+              <option value="sentence_completion">Sentence Completion</option>
+              <option value="true_false_not_given">True/False/Not Given</option>
+              <option value="heading_matching">Heading Matching</option>
+              <option value="multiple_choice">Multiple Choice</option>
+              <option value="short_answer">Short Answer</option>
+            </select>
+          </div>
+          <GroupImageUploader
+            imageUrl={group.image_url || ''}
+            onChange={url => updateQuestionGroup(group.id, { image_url: url })}
+            description={group.image_description || ''}
+            onDescriptionChange={desc => updateQuestionGroup(group.id, { image_description: desc })}
+          />
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="font-medium text-gray-700">Questions</h5>
+            <button
+              onClick={addQuestionToGroup}
+              className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition"
+            >
+              <Plus size={14} /> Add Question
+            </button>
+          </div>
+          {groupQuestions.length > 0 ? (
+            <div className="space-y-2">
+              {groupQuestions.map((q, idx) => (
+                <div key={q.id} className="border rounded p-2 bg-blue-50">
+                  <QuestionFields
+                    question={q}
+                    updateQuestion={updateQuestion}
+                    passageLetters={passageLetters}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => deleteQuestion(q.id)}
+                    className="text-xs text-red-500 hover:underline mt-1"
+                  >Delete</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No questions yet</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-// Question Card
+// Question Card (for backwards compatibility if needed)
 function QuestionCard({ question, updateQuestion, deleteQuestion, index, passageNumber, passageLetters }) {
   const [isOpen, setIsOpen] = useState(false);
   const qNum = (passageNumber - 1) * 13 + index + 1;
@@ -615,115 +472,6 @@ function PassageCard({ section, passageNumber, passageLetters }) {
             )}
           </div>
         </>
-      )}
-    </div>
-  );
-}
-
-// Reading Group Card (modeled after ListeningTab)
-function ReadingGroupCard({ group, sectionId, passageNumber, passageLetters }) {
-  const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
-  const [isExpanded, setIsExpanded] = React.useState(true);
-  const groupQuestions = questions.filter(q => q.group_id === group.id);
-  const addQuestionToGroup = () => {
-    const nextNum = groupQuestions.length > 0
-      ? Math.max(...groupQuestions.map(q => q.question_number || 0)) + 1
-      : group.question_range_start || 1;
-    addQuestion(sectionId, {
-      question_number: nextNum,
-      type: group.question_type,
-      text: '',
-      answer: '',
-      group_id: group.id
-    });
-  };
-  return (
-    <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
-      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
-            <span className="text-blue-600 font-bold text-lg">{group.question_type?.[0]?.toUpperCase() || '?'}</span>
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-800">
-              {group.instruction_text?.slice(0, 40) || 'Reading Group'}
-            </h4>
-            <p className="text-xs text-gray-500">Questions {group.question_range_start}–{group.question_range_end}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-            {groupQuestions.length} questions
-          </span>
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); deleteQuestionGroup(group.id); }}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-          >
-            <Trash2 size={16} />
-          </button>
-          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-        </div>
-      </div>
-      {isExpanded && (
-        <div className="p-4 border-t border-blue-100 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
-              placeholder="Instruction text..."
-              value={group.instruction_text || ''}
-              onChange={e => updateQuestionGroup(group.id, { instruction_text: e.target.value })}
-            />
-            <select
-              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
-              value={group.question_type || ''}
-              onChange={e => updateQuestionGroup(group.id, { question_type: e.target.value })}
-            >
-              <option value="">Select type…</option>
-              <option value="paragraph_matching">Paragraph Matching</option>
-              <option value="sentence_completion">Sentence Completion</option>
-              <option value="true_false_not_given">True/False/Not Given</option>
-              <option value="heading_matching">Heading Matching</option>
-              <option value="multiple_choice">Multiple Choice</option>
-              <option value="short_answer">Short Answer</option>
-            </select>
-          </div>
-          <GroupImageUploader
-            imageUrl={group.image_url || ''}
-            onChange={url => updateQuestionGroup(group.id, { image_url: url })}
-            description={group.image_description || ''}
-            onDescriptionChange={desc => updateQuestionGroup(group.id, { image_description: desc })}
-          />
-          <div className="flex items-center justify-between mb-2">
-            <h5 className="font-medium text-gray-700">Questions</h5>
-            <button
-              onClick={addQuestionToGroup}
-              className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition"
-            >
-              <Plus size={14} /> Add Question
-            </button>
-          </div>
-          {groupQuestions.length > 0 ? (
-            <div className="space-y-2">
-              {groupQuestions.map((q, idx) => (
-                <div key={q.id} className="border rounded p-2 bg-blue-50">
-                  <QuestionFields
-                    question={q}
-                    updateQuestion={updateQuestion}
-                    passageLetters={passageLetters}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => deleteQuestion(q.id)}
-                    className="text-xs text-red-500 hover:underline mt-1"
-                  >Delete</button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No questions yet</div>
-          )}
-        </div>
       )}
     </div>
   );
