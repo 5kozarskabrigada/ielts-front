@@ -144,7 +144,7 @@ const TextArea = ({ label, hint, ...props }) => (
 );
 
 // Question type specific fields
-function QuestionFields({ question, updateQuestion }) {
+function QuestionFields({ question, updateQuestion, passageLetters }) {
   const type = question.type || 'short_answer';
 
   // MULTIPLE CHOICE (SINGLE)
@@ -166,7 +166,7 @@ function QuestionFields({ question, updateQuestion }) {
         />
         
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Answer Options (A-D)</label>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Answer Options (A-D)</label>
           <p className="text-xs text-gray-400 mb-3">Write each option as a complete statement or phrase</p>
           <div className="space-y-2">
             {['A', 'B', 'C', 'D'].map((letter) => (
@@ -816,7 +816,7 @@ function QuestionCard({ question, updateQuestion, deleteQuestion, index, passage
               <span>{typeInfo.hint}</span>
             </div>
           </div>
-          <QuestionFields question={question} updateQuestion={updateQuestion} />
+          <QuestionFields question={question} updateQuestion={updateQuestion} passageLetters={passageLetters} />
         </div>
       )}
     </div>
@@ -959,14 +959,10 @@ function PassageCard({ section, passageNumber }) {
 }
 
 // Reading Group Card (modeled after ListeningTab)
-function ReadingGroupCard({ group, sectionId, passageNumber }) {
+function ReadingGroupCard({ group, sectionId, passageNumber, passageLetters }) {
   const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
   const [isExpanded, setIsExpanded] = React.useState(true);
-
-  // Get all questions for this group
   const groupQuestions = questions.filter(q => q.group_id === group.id);
-
-  // Add question to group
   const addQuestionToGroup = () => {
     const nextNum = groupQuestions.length > 0
       ? Math.max(...groupQuestions.map(q => q.question_number || 0)) + 1
@@ -979,13 +975,11 @@ function ReadingGroupCard({ group, sectionId, passageNumber }) {
       group_id: group.id
     });
   };
-
   return (
     <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
       <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
-            {/* Icon by type could go here */}
             <span className="text-blue-600 font-bold text-lg">{group.question_type?.[0]?.toUpperCase() || '?'}</span>
           </div>
           <div>
@@ -1011,7 +1005,6 @@ function ReadingGroupCard({ group, sectionId, passageNumber }) {
       </div>
       {isExpanded && (
         <div className="p-4 border-t border-blue-100 space-y-4">
-          {/* Group fields: type, instruction, image, etc. */}
           <div className="grid grid-cols-2 gap-4">
             <input
               className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
@@ -1039,7 +1032,6 @@ function ReadingGroupCard({ group, sectionId, passageNumber }) {
             description={group.image_description || ''}
             onDescriptionChange={desc => updateQuestionGroup(group.id, { image_description: desc })}
           />
-          {/* Questions in group */}
           <div className="flex items-center justify-between mb-2">
             <h5 className="font-medium text-gray-700">Questions</h5>
             <button
@@ -1053,17 +1045,10 @@ function ReadingGroupCard({ group, sectionId, passageNumber }) {
             <div className="space-y-2">
               {groupQuestions.map((q, idx) => (
                 <div key={q.id} className="border rounded p-2 bg-blue-50">
-                  <input
-                    className="w-full px-2 py-1 mb-1 border border-blue-200 rounded text-sm"
-                    placeholder="Question text..."
-                    value={q.text || ''}
-                    onChange={e => updateQuestion(q.id, { text: e.target.value })}
-                  />
-                  <input
-                    className="w-full px-2 py-1 mb-1 border border-blue-200 rounded text-sm"
-                    placeholder="Answer..."
-                    value={q.answer || ''}
-                    onChange={e => updateQuestion(q.id, { answer: e.target.value })}
+                  <QuestionFields
+                    question={q}
+                    updateQuestion={updateQuestion}
+                    passageLetters={passageLetters}
                   />
                   <button
                     type="button"
