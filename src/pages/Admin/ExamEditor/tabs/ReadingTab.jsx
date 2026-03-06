@@ -162,17 +162,17 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
       ))}
     </select>
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+// Styled input (from ListeningTab)
+const Input = ({ label, hint, className = "", ...props }) => (
+  <div className={className}>
+    {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+    <input
+      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
+      {...props}
+    />
+    {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
-          example="Q: What is the main purpose of paragraph 3? A) To explain... B) To compare... C) To argue... D) To describe..."
-          tips="Ensure wrong options are plausible but clearly distinguishable. Reference specific paragraphs if asking about detailed information."
-        />
-        
-        <Input
-          label="Question"
-          placeholder="e.g., What is the writer's main argument in the passage?"
-          value={question.text || ""}
-          onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
         />
         
         <div>
@@ -210,17 +210,17 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
                     ? 'bg-green-500 text-white shadow-sm' 
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
-              >
-                {letter}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // MULTIPLE CHOICE (MULTIPLE)
+          // Styled textarea (from ListeningTab)
+          const TextArea = ({ label, hint, className = "", ...props }) => (
+            <div className={className}>
+              {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
+              <textarea
+                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
+                {...props}
+              />
+              {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+            </div>
+          );
   if (type === 'multiple_choice_multiple') {
     const selected = (question.answer || '').split(',').map(s => s.trim()).filter(Boolean);
     const toggleOption = (letter) => {
