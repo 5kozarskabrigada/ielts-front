@@ -621,3 +621,16 @@ export async function apiExportResultsCSV(token, examId) {
   }
   return res.blob();
 }
+
+// Add this API helper for group image upload
+export async function apiUploadPassageImage(formData) {
+  const res = await fetch(`${API_URL}/upload/passage-image`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Image upload failed");
+  }
+  return res.json(); // { url }
+}

@@ -7,6 +7,10 @@ import {
 } from "lucide-react";
 
 import PassageImageUploader from "./PassageImageUploader";
+import GroupImageUploader from "./GroupImageUploader";
+import { useExamEditor } from "../ExamEditorContext";
+import { Plus, Trash2, ChevronDown } from "lucide-react";
+import GroupImageUploader from "./GroupImageUploader";
 import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 
 // Question types with icons and detailed hints
@@ -564,8 +568,8 @@ function QuestionFields({ question, updateQuestion }) {
             : "Students fill in missing cells in a table that organizes information from the passage. Tests ability to locate and understand specific details."
           }
           example={isSummary 
-            ? "'The study found that (1)_____ was the main factor...' → Answer: 'pollution' (from passage)"
-            : "| Type | Advantage | → Fill in: (1)_____ in the Advantage column"
+            ? "'The study found that (1) _____ was the main factor...' → Answer: 'pollution' (from passage)"
+            : "| Type | Advantage | → Fill in: (1) _____ in the Advantage column"
           }
           tips={isSummary 
             ? "Ensure answers are exact words from the passage. Specify word limit (e.g., 'NO MORE THAN TWO WORDS')."
@@ -954,9 +958,133 @@ function PassageCard({ section, passageNumber }) {
   );
 }
 
+// Reading Group Card (modeled after ListeningTab)
+function ReadingGroupCard({ group, sectionId, passageNumber }) {
+  const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
+  // Get all questions for this group
+  const groupQuestions = questions.filter(q => q.group_id === group.id);
+
+  // Add question to group
+  const addQuestionToGroup = () => {
+    const nextNum = groupQuestions.length > 0
+      ? Math.max(...groupQuestions.map(q => q.question_number || 0)) + 1
+      : group.question_range_start || 1;
+    addQuestion(sectionId, {
+      question_number: nextNum,
+      type: group.question_type,
+      text: '',
+      answer: '',
+      group_id: group.id
+    });
+  };
+
+  return (
+    <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
+      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
+            {/* Icon by type could go here */}
+            <span className="text-blue-600 font-bold text-lg">{group.question_type?.[0]?.toUpperCase() || '?'}</span>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-800">
+              {group.instruction_text?.slice(0, 40) || 'Reading Group'}
+            </h4>
+            <p className="text-xs text-gray-500">Questions {group.question_range_start}–{group.question_range_end}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+            {groupQuestions.length} questions
+          </span>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); deleteQuestionGroup(group.id); }}
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+          >
+            <Trash2 size={16} />
+          </button>
+          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+      {isExpanded && (
+        <div className="p-4 border-t border-blue-100 space-y-4">
+          {/* Group fields: type, instruction, image, etc. */}
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
+              placeholder="Instruction text..."
+              value={group.instruction_text || ''}
+              onChange={e => updateQuestionGroup(group.id, { instruction_text: e.target.value })}
+            />
+            <select
+              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
+              value={group.question_type || ''}
+              onChange={e => updateQuestionGroup(group.id, { question_type: e.target.value })}
+            >
+              <option value="">Select type…</option>
+              <option value="paragraph_matching">Paragraph Matching</option>
+              <option value="sentence_completion">Sentence Completion</option>
+              <option value="true_false_not_given">True/False/Not Given</option>
+              <option value="heading_matching">Heading Matching</option>
+              <option value="multiple_choice">Multiple Choice</option>
+              <option value="short_answer">Short Answer</option>
+            </select>
+          </div>
+          <GroupImageUploader
+            imageUrl={group.image_url || ''}
+            onChange={url => updateQuestionGroup(group.id, { image_url: url })}
+            description={group.image_description || ''}
+            onDescriptionChange={desc => updateQuestionGroup(group.id, { image_description: desc })}
+          />
+          {/* Questions in group */}
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="font-medium text-gray-700">Questions</h5>
+            <button
+              onClick={addQuestionToGroup}
+              className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition"
+            >
+              <Plus size={14} /> Add Question
+            </button>
+          </div>
+          {groupQuestions.length > 0 ? (
+            <div className="space-y-2">
+              {groupQuestions.map((q, idx) => (
+                <div key={q.id} className="border rounded p-2 bg-blue-50">
+                  <input
+                    className="w-full px-2 py-1 mb-1 border border-blue-200 rounded text-sm"
+                    placeholder="Question text..."
+                    value={q.text || ''}
+                    onChange={e => updateQuestion(q.id, { text: e.target.value })}
+                  />
+                  <input
+                    className="w-full px-2 py-1 mb-1 border border-blue-200 rounded text-sm"
+                    placeholder="Answer..."
+                    value={q.answer || ''}
+                    onChange={e => updateQuestion(q.id, { answer: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => deleteQuestion(q.id)}
+                    className="text-xs text-red-500 hover:underline mt-1"
+                  >Delete</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No questions yet</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Main Component
 export default function ReadingTab() {
-  const { sections } = useExamEditor();
+  const { sections, questionGroups, addQuestionGroup } = useExamEditor();
   const readingSections = sections
     .filter(s => s.module_type === 'reading')
     .sort((a, b) => a.section_order - b.section_order);
@@ -978,8 +1106,7 @@ export default function ReadingTab() {
       <div className="flex items-start gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
         <HelpCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-emerald-800">
-          Each passage should be 700-900 words. Click a question to expand it and select the appropriate type.
-          Different question types have specialized input fields.
+          Each passage should be 700-900 words. Click a group to expand and add questions. Different group types have specialized input fields.
         </p>
       </div>
 
@@ -987,7 +1114,56 @@ export default function ReadingTab() {
       <div className="space-y-5">
         {readingSections.length > 0 ? (
           readingSections.map((section, idx) => (
-            <PassageCard key={section.id} section={section} passageNumber={idx + 1} />
+            <div key={section.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-500 text-white font-bold text-lg`}>
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-lg">{section.title || `Passage ${idx + 1}`}</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => addQuestionGroup(section.id, { question_type: '', instruction_text: '', question_range_start: 1, question_range_end: 1 })}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition"
+                >
+                  <Plus size={16} /> Add Group
+                </button>
+              </div>
+              <div className="px-5 pb-4">
+                <PassageImageUploader
+                  imageUrl={section.image_url || ""}
+                  onChange={url => {}}
+                  description={section.image_description || ""}
+                  onDescriptionChange={desc => {}}
+                />
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                    Passage Content
+                    <span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span>
+                  </label>
+                  <RichTextEditor
+                    content={section.content || ""}
+                    onChange={(html) => {}}
+                    placeholder="Paste or type the reading passage here..."
+                    minHeight="300px"
+                  />
+                </div>
+                {/* Groups for this section */}
+                <div className="mt-6 space-y-4">
+                  {questionGroups.filter(g => g.section_id === section.id).length > 0 ? (
+                    questionGroups.filter(g => g.section_id === section.id)
+                      .sort((a, b) => (a.group_order || 0) - (b.group_order || 0))
+                      .map((group, gidx) => (
+                        <ReadingGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={idx + 1} />
+                      ))
+                  ) : (
+                    <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No groups yet</div>
+                  )}
+                </div>
+              </div>
+            </div>
           ))
         ) : (
           <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
