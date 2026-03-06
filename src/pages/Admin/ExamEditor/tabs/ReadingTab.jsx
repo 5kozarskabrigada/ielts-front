@@ -737,7 +737,7 @@ function QuestionFields({ question, updateQuestion, passageLetters }) {
 }
 
 // Question Card
-function QuestionCard({ question, updateQuestion, deleteQuestion, index, passageNumber }) {
+function QuestionCard({ question, updateQuestion, deleteQuestion, index, passageNumber, passageLetters }) {
   const [isOpen, setIsOpen] = useState(false);
   const qNum = (passageNumber - 1) * 13 + index + 1;
   const hasContent = question.text && question.answer;
@@ -932,6 +932,7 @@ function PassageCard({ section, passageNumber }) {
                     passageNumber={passageNumber}
                     updateQuestion={updateQuestion}
                     deleteQuestion={deleteQuestion}
+                    passageLetters={passageLetters}
                   />
                 ))}
               </div>
