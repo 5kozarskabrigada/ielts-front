@@ -1070,6 +1070,9 @@ export default function ReadingTab() {
     .filter(s => s.module_type === 'reading')
     .sort((a, b) => a.section_order - b.section_order);
 
+  // Generate passage letters (A, B, C, ...) for the number of reading sections
+  const passageLetters = Array.from({ length: readingSections.length }, (_, i) => String.fromCharCode(65 + i));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1103,6 +1106,7 @@ export default function ReadingTab() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-800 text-lg">{section.title || `Passage ${idx + 1}`}</h3>
+                    <span className="text-xs text-gray-500">Letter: {passageLetters[idx]}</span>
                   </div>
                 </div>
                 <button
@@ -1137,7 +1141,7 @@ export default function ReadingTab() {
                     questionGroups.filter(g => g.section_id === section.id)
                       .sort((a, b) => (a.group_order || 0) - (b.group_order || 0))
                       .map((group, gidx) => (
-                        <ReadingGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={idx + 1} />
+                        <ReadingGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={idx + 1} passageLetters={passageLetters} />
                       ))
                   ) : (
                     <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No groups yet</div>
