@@ -837,6 +837,47 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
               showBlankButton={false}
             />
             <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
+            
+            {/* Text Alignment */}
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Text Alignment</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => updateSection(section.id, { text_align: 'left' })}
+                  className={`px-4 py-2 text-sm rounded-lg border transition ${
+                    (!section.text_align || section.text_align === 'left')
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  Left
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSection(section.id, { text_align: 'center' })}
+                  className={`px-4 py-2 text-sm rounded-lg border transition ${
+                    section.text_align === 'center'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  Center
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSection(section.id, { text_align: 'right' })}
+                  className={`px-4 py-2 text-sm rounded-lg border transition ${
+                    section.text_align === 'right'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  Right
+                </button>
+              </div>
+            </div>
+            
             <RichTextArea
               label="Passage Content"
               hint="700-900 words recommended. Format each paragraph as a separate block."
@@ -1012,18 +1053,33 @@ const PreviewMode = ({ isOpen, onClose }) => {
             
             return (
               <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-                {/* Question number and text */}
-                <p style={{
-                  color: 'rgb(40, 40, 40)',
-                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  lineHeight: '24px',
-                  marginTop: '10px',
-                  marginBottom: '10px'
-                }}>
-                  {qNum}. <RenderHtml html={q.question_text || ''} />
-                </p>
+                {/* Question number and text - hide number for multiple choice multiple */}
+                {!isMultiple && (
+                  <p style={{
+                    color: 'rgb(40, 40, 40)',
+                    fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    lineHeight: '24px',
+                    marginTop: '10px',
+                    marginBottom: '10px'
+                  }}>
+                    {qNum}. <RenderHtml html={q.question_text || ''} />
+                  </p>
+                )}
+                {isMultiple && (
+                  <p style={{
+                    color: 'rgb(40, 40, 40)',
+                    fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                    fontSize: '16px',
+                    fontWeight: 400,
+                    lineHeight: '24px',
+                    marginTop: '10px',
+                    marginBottom: '10px'
+                  }}>
+                    <RenderHtml html={q.question_text || ''} />
+                  </p>
+                )}
                 {/* Options */}
                 <div className="ml-4 space-y-2">
                   {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
@@ -1186,11 +1242,17 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     style={{ maxWidth: '100%', display: 'block', verticalAlign: 'middle', marginBottom: '16px' }} 
                   />
                 )}
-                <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(41, 69, 99)', marginBottom: '16px', lineHeight: '24px' }}>
+                <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(41, 69, 99)', marginBottom: '16px', lineHeight: '24px', textAlign: 'center' }}>
                   {currentSection.title || `Passage ${selectedPassage}`}
                 </h3>
                 <div 
-                  style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', lineHeight: '1.6' }}
+                  style={{ 
+                    fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+                    fontSize: '16px', 
+                    color: 'rgb(40, 40, 40)', 
+                    lineHeight: '1.6',
+                    textAlign: currentSection.text_align || 'left'
+                  }}
                   dangerouslySetInnerHTML={{ __html: (currentSection.content || 'No content yet').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
                 />
               </div>
