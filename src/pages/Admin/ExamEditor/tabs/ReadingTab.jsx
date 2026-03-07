@@ -773,6 +773,7 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
 const PreviewMode = ({ isOpen, onClose }) => {
   const { sections, questions, questionGroups } = useExamEditor();
   const [selectedPassage, setSelectedPassage] = useState(1);
+  const [selectedOptions, setSelectedOptions] = useState({});
 
   const readingSections = sections.filter(s => s.module_type === 'reading').sort((a, b) => a.section_order - b.section_order);
   const passageLetters = Array.from({ length: readingSections.length }, (_, i) => String.fromCharCode(65 + i));
@@ -871,7 +872,6 @@ const PreviewMode = ({ isOpen, onClose }) => {
           // Multiple Choice
           if (groupType === 'multiple_choice_single' || groupType === 'multiple_choice_multiple') {
             const isMultiple = groupType === 'multiple_choice_multiple';
-            const [selectedOptions, setSelectedOptions] = React.useState({});
             
             // Only show question text for the first question in the group
             if (idx === 0) {
