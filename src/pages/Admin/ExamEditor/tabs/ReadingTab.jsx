@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
+import { API_URL } from "../../../api";
 import { 
   ChevronDown, ChevronUp, Plus, Trash2, BookOpen, CheckCircle, 
   HelpCircle, Target, List, ArrowRightLeft, FileText, 
@@ -260,7 +261,7 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append("image", file);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/upload/passage-image`, {
+      const response = await fetch(`${API_URL}/upload/passage-image`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`
@@ -382,12 +383,25 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               <RichTextArea label="Question Text" placeholder="What is the main idea?" rows={3} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase">Options</label>
-                {['A', 'B', 'C', 'D'].map(letter => (
-                  <div key={letter} className="flex items-center gap-2">
-                    <button type="button" onClick={() => updateQuestion(question.id, { correct_answer: letter })} className={`w-8 h-8 flex-shrink-0 font-bold rounded transition ${question.correct_answer === letter ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{letter}</button>
-                    <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={question[`option_${letter.toLowerCase()}`] || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
-                  </div>
-                ))}
+                {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
+                  const optionValue = question[`option_${letter.toLowerCase()}`];
+                  // Always show A-D, show E-H only if they have content or if previous letter has content
+                  const prevLetter = String.fromCharCode(letter.charCodeAt(0) - 1);
+                  const showOption = ['A', 'B', 'C', 'D'].includes(letter) || 
+                                    optionValue || 
+                                    (prevLetter >= 'A' && question[`option_${prevLetter.toLowerCase()}`]);
+                  if (!showOption) return null;
+                  
+                  return (
+                    <div key={letter} className="flex items-center gap-2">
+                      <button type="button" onClick={() => updateQuestion(question.id, { correct_answer: letter })} className={`w-8 h-8 flex-shrink-0 font-bold rounded transition ${question.correct_answer === letter ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{letter}</button>
+                      <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={optionValue || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
+                      {!['A', 'B', 'C', 'D'].includes(letter) && optionValue && (
+                        <button type="button" onClick={() => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: '' })} className="p-2 text-red-500 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -399,12 +413,25 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               <Input label="Correct Answers (comma-separated, e.g., A,C)" placeholder="A,C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase">Options</label>
-                {['A', 'B', 'C', 'D', 'E'].map(letter => (
-                  <div key={letter} className="flex items-center gap-2">
-                    <span className="w-8 h-8 flex-shrink-0 font-bold rounded bg-gray-100 text-gray-600 flex items-center justify-center">{letter}</span>
-                    <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={question[`option_${letter.toLowerCase()}`] || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
-                  </div>
-                ))}
+                {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
+                  const optionValue = question[`option_${letter.toLowerCase()}`];
+                  // Always show A-D, show E-H only if they have content or if previous letter has content
+                  const prevLetter = String.fromCharCode(letter.charCodeAt(0) - 1);
+                  const showOption = ['A', 'B', 'C', 'D'].includes(letter) || 
+                                    optionValue || 
+                                    (prevLetter >= 'A' && question[`option_${prevLetter.toLowerCase()}`]);
+                  if (!showOption) return null;
+                  
+                  return (
+                    <div key={letter} className="flex items-center gap-2">
+                      <span className="w-8 h-8 flex-shrink-0 font-bold rounded bg-gray-100 text-gray-600 flex items-center justify-center">{letter}</span>
+                      <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={optionValue || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
+                      {!['A', 'B', 'C', 'D'].includes(letter) && optionValue && (
+                        <button type="button" onClick={() => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: '' })} className="p-2 text-red-500 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -698,13 +725,18 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
               showBlankButton={false}
             />
             <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
-            <div className="mt-4">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Passage Content<span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span></label>
-              <textarea className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none resize-none" rows={12} placeholder="Paste or type the reading passage here..." value={section.content || ""} onChange={(e) => updateSection(section.id, { content: e.target.value })} />
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-xs text-gray-400">Format each paragraph as a separate block</p>
-                <span className={`text-xs font-medium ${wordCount >= 700 && wordCount <= 900 ? 'text-green-600' : wordCount >= 400 ? 'text-amber-600' : 'text-gray-400'}`}>{wordCount} words</span>
-              </div>
+            <RichTextArea
+              label="Passage Content"
+              hint="700-900 words recommended. Format each paragraph as a separate block."
+              placeholder="Paste or type the reading passage here..."
+              rows={12}
+              value={section.content || ""}
+              onChange={(e) => updateSection(section.id, { content: e.target.value })}
+              className="mt-4"
+              showBlankButton={false}
+            />
+            <div className="flex justify-end items-center mt-2">
+              <span className={`text-xs font-medium ${wordCount >= 700 && wordCount <= 900 ? 'text-green-600' : wordCount >= 400 ? 'text-amber-600' : 'text-gray-400'}`}>{wordCount} words</span>
             </div>
             <ParagraphLetteringInfo content={section.content} />
           </div>
@@ -837,14 +869,75 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
           // Multiple Choice
           if (groupType === 'multiple_choice_single' || groupType === 'multiple_choice_multiple') {
+            const isMultiple = groupType === 'multiple_choice_multiple';
             return (
-              <div key={q.id} className="space-y-2">
+              <div key={q.id} className="space-y-3">
                 <p className="font-medium text-gray-800">{qNum}. <RenderHtml html={q.question_text || ''} /></p>
-                <div className="ml-6 space-y-1.5">
-                  {['A', 'B', 'C', 'D'].map(letter => {
+                <div className="ml-6 space-y-3">
+                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
                     const optText = q[`option_${letter.toLowerCase()}`];
                     if (!optText) return null;
-                    return (<div key={letter} className="flex items-start gap-2"><span className="font-bold text-gray-700">{letter}.</span><span>{optText}</span></div>);
+                    return (
+                      <label key={letter} className="flex items-start gap-2 cursor-pointer" style={{ position: 'relative', paddingLeft: '32px', minHeight: '24px' }}>
+                        {/* Checkbox/Radio */}
+                        <span 
+                          className="checkmark"
+                          style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            transform: 'translateY(0)',
+                            width: '18px',
+                            height: '18px',
+                            backgroundColor: 'rgb(255, 255, 255)',
+                            border: '1px solid rgb(55, 133, 77)',
+                            borderRadius: '2px',
+                            display: 'block',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        />
+                        {/* Option Letter Badge */}
+                        <span 
+                          className="test-panel__answer-option"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '24px',
+                            height: '24px',
+                            minWidth: '24px',
+                            backgroundColor: 'rgb(223, 223, 223)',
+                            color: 'rgb(41, 69, 99)',
+                            borderRadius: '50%',
+                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            marginRight: '8px',
+                            flexShrink: 0
+                          }}
+                        >
+                          {letter}
+                        </span>
+                        {/* Option Text */}
+                        <span 
+                          className="cb-label"
+                          style={{
+                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                            fontSize: '16px',
+                            fontWeight: 400,
+                            lineHeight: '24px',
+                            color: 'rgb(40, 40, 40)',
+                            letterSpacing: '0.3px',
+                            cursor: 'pointer',
+                            flex: 1
+                          }}
+                        >
+                          {optText}
+                        </span>
+                      </label>
+                    );
                   })}
                 </div>
               </div>
