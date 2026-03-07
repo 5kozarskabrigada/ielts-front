@@ -794,9 +794,25 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const detectParagraphLetters = (content) => {
     if (!content) return [];
     // Strip HTML tags first, then look for paragraphs that start with a letter followed by period/parenthesis
-    const textOnly = content.replace(/<[^>]*>/g, '');
-    const matches = textOnly.match(/(?:^|\n|\r)\s*([A-Z])[\.\)]\s/g) || [];
-    return [...new Set(matches.map(m => m.match(/([A-Z])/)[1]))];
+    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+    // More flexible regex: match A. or A) with optional space, or just standalone paragraph letters
+    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.\)]\s*/g) || [];
+    const letters = matches.map(m => {
+      const match = m.match(/([A-Z])/);
+      return match ? match[1] : null;
+    }).filter(Boolean);
+    
+    // Remove duplicates and sort
+    const uniqueLetters = [...new Set(letters)].sort();
+    
+    console.log('Paragraph detection debug:', {
+      contentLength: content?.length,
+      textOnlyPreview: textOnly.substring(0, 200),
+      matchesFound: matches,
+      lettersDetected: uniqueLetters
+    });
+    
+    return uniqueLetters;
   };
 
   const paragraphLetters = detectParagraphLetters(currentSection?.content);
