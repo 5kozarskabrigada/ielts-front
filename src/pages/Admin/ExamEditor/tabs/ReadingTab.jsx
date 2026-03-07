@@ -181,21 +181,40 @@ const RenderHtml = ({ html }) => <span dangerouslySetInnerHTML={{ __html: html |
 // BLANK INPUT COMPONENT - Circle number + rounded rectangular input
 // ============================================
 const BlankInput = ({ questionNumber }) => (
-  <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '2px 4px' }}>
     {/* Circle with question number */}
-    <span 
-      className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
-      style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(34, 197, 94)' }}
-    >
+    <span style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      flexDirection: 'column', 
+      width: '28px', 
+      height: '28px', 
+      minWidth: '28px', 
+      minHeight: '28px', 
+      backgroundColor: 'rgb(50, 180, 200)', 
+      borderRadius: '50%', 
+      color: 'rgb(255, 255, 255)', 
+      fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+      fontSize: '14px', 
+      fontWeight: 600, 
+      padding: '10px', 
+      margin: '2px 0px' 
+    }}>
       {questionNumber}
     </span>
     {/* Input field */}
-    <span 
-      className="inline-block px-4 py-1.5 border border-gray-300 rounded bg-white text-gray-400 text-sm min-w-[100px] text-center"
-      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
-    >
-      __________
-    </span>
+    <input 
+      className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none" 
+      placeholder="" 
+      title="Max 2 words + 1 number" 
+      type="text" 
+      style={{ 
+        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+        borderRadius: '12px', 
+        border: '1px solid rgb(209, 213, 219)' 
+      }} 
+    />
   </span>
 );
 
