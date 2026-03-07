@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { API_URL } from "../../../../api";
+import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 import { 
   ChevronDown, ChevronUp, Plus, Trash2, BookOpen, CheckCircle, 
   HelpCircle, Target, List, ArrowRightLeft, FileText, 
@@ -275,7 +276,7 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
     setUploading(true);
     setError("");
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('ielts_token');
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
@@ -868,56 +869,18 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
             />
             <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
             
-            {/* Text Alignment */}
             <div className="mt-4">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Text Alignment</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => updateSection(section.id, { text_align: 'left' })}
-                  className={`px-4 py-2 text-sm rounded-lg border transition ${
-                    (!section.text_align || section.text_align === 'left')
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  Left
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateSection(section.id, { text_align: 'center' })}
-                  className={`px-4 py-2 text-sm rounded-lg border transition ${
-                    section.text_align === 'center'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  Center
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateSection(section.id, { text_align: 'right' })}
-                  className={`px-4 py-2 text-sm rounded-lg border transition ${
-                    section.text_align === 'right'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  Right
-                </button>
-              </div>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Passage Content
+                <span className="text-gray-400 ml-2 normal-case text-[10px]">700-900 words recommended. Use alignment buttons to align specific paragraphs.</span>
+              </label>
+              <RichTextEditor
+                content={section.content || ""}
+                onChange={(html) => updateSection(section.id, { content: html })}
+                placeholder="Paste or type the reading passage here..."
+                minHeight="400px"
+              />
             </div>
-            
-            <RichTextArea
-              label="Passage Content"
-              hint="700-900 words recommended. Format each paragraph as a separate block."
-              placeholder="Paste or type the reading passage here..."
-              rows={12}
-              value={section.content || ""}
-              onChange={(e) => updateSection(section.id, { content: e.target.value })}
-              className="mt-4"
-              showBlankButton={false}
-            />
             <div className="flex justify-end items-center mt-2">
               <span className={`text-xs font-medium ${wordCount >= 700 && wordCount <= 900 ? 'text-green-600' : wordCount >= 400 ? 'text-amber-600' : 'text-gray-400'}`}>{wordCount} words</span>
             </div>
@@ -1258,10 +1221,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
           {currentSection ? (
             <div>
               {/* IELTS-style headers */}
-              <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', marginBottom: '5px', lineHeight: '28.8px' }}>
+              <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 5px 0', padding: 0, lineHeight: '28.8px', textAlign: 'left' }}>
                 PART {selectedPassage}
               </h1>
-              <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', marginBottom: '10px', lineHeight: '21.6px' }}>
+              <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 10px 0', padding: 0, lineHeight: '21.6px', textAlign: 'left' }}>
                 READING PASSAGE {selectedPassage}
               </h2>
               {currentSection.instruction && (
@@ -1273,7 +1236,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     fontStyle: 'italic',
                     color: 'rgb(40, 40, 40)', 
                     marginBottom: '5px', 
-                    lineHeight: '21px' 
+                    lineHeight: '21px',
+                    display: 'inline'
                   }}
                   dangerouslySetInnerHTML={{ __html: currentSection.instruction }}
                 />
@@ -1289,13 +1253,13 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 )}
                 <h3 style={{ 
                   fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-                  fontSize: '18px', 
+                  fontSize: '26px', 
                   fontWeight: 700, 
                   textTransform: 'uppercase',
                   color: 'rgb(41, 69, 99)', 
                   marginBottom: '10px', 
-                  lineHeight: '21.6px',
-                  textAlign: 'left'
+                  lineHeight: '31.2px',
+                  textAlign: 'center'
                 }}>
                   {currentSection.title || `Passage ${selectedPassage}`}
                 </h3>
