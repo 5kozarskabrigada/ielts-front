@@ -14,7 +14,7 @@ const QUESTION_TYPES = [
   { value: "multiple_choice_multiple", label: "Multiple Choice (Multiple)", icon: List, hint: "Student selects TWO or more correct answers" },
   { value: "true_false_not_given", label: "True/False/Not Given", icon: CheckCircle, hint: "Factual statements" },
   { value: "yes_no_not_given", label: "Yes/No/Not Given", icon: HelpCircle, hint: "Writer's views/claims" },
-  { value: "matching_headings", label: "Matching Headings", icon: Type, hint: "Match Roman numeral headings to paragraphs" },
+  { value: "matching_headings", label: "Matching Headings", icon: Type, hint: "Match paragraph letters to headings" },
   { value: "matching_information", label: "Matching Information", icon: ArrowRightLeft, hint: "Match statements to paragraphs" },
   { value: "matching_features", label: "Matching Features", icon: ArrowRightLeft, hint: "Match items to categories" },
   { value: "matching_sentence_endings", label: "Matching Sentence Endings", icon: ArrowRightLeft, hint: "Match sentence beginnings to endings" },
@@ -177,13 +177,29 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
 
 const RenderHtml = ({ html }) => <span dangerouslySetInnerHTML={{ __html: html || '' }} />;
 
+// ============================================
+// BLANK INPUT COMPONENT - Circle number + rounded rectangular input
+// ============================================
 const BlankInput = ({ questionNumber }) => (
   <span className="inline-flex items-center gap-2 mx-1 my-0.5">
-    <span className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0" style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(34, 197, 94)' }}>{questionNumber}</span>
-    <span className="inline-block px-4 py-1.5 border border-gray-300 rounded bg-white text-gray-400 text-sm min-w-[100px] text-center">__________</span>
+    {/* Circle with question number */}
+    <span 
+      className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
+      style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(34, 197, 94)' }}
+    >
+      {questionNumber}
+    </span>
+    {/* Input field */}
+    <span 
+      className="inline-block px-4 py-1.5 border border-gray-300 rounded bg-white text-gray-400 text-sm min-w-[100px] text-center"
+      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+    >
+      __________
+    </span>
   </span>
 );
 
+// Render template with proper blank inputs
 const renderTemplateWithBlanks = (template, questionNumber) => {
   if (!template) return null;
   const parts = template.split('[BLANK]');
@@ -382,7 +398,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
           {(groupType === 'matching_headings' || groupType === 'matching_information' || groupType === 'matching_features' || groupType === 'matching_sentence_endings') && (
             <>
               <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
-              <Input label={`Correct Answer (${groupType === 'matching_headings' ? 'Roman numeral' : 'Letter'})`} placeholder={groupType === 'matching_headings' ? 'iii' : 'C'} value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: groupType === 'matching_headings' ? e.target.value : e.target.value.toUpperCase() })} />
+              <Input label="Correct Answer (Letter)" placeholder="C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value.toUpperCase() })} />
             </>
           )}
 
@@ -682,35 +698,77 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Add paragraph letters before each paragraph
-  const addParagraphLetters = (content) => {
-    if (!content) return 'No content yet';
-    
-    // Split by double newlines for plain text or by paragraph tags
-    const paragraphs = content.includes('<p>') 
-      ? content.split(/<\/?p>/gi).filter(p => p.trim())
-      : content.split(/\n\n+/).filter(p => p.trim());
-    
-    if (paragraphs.length === 0) return content;
-    
-    return paragraphs.map((para, idx) => {
-      const letter = String.fromCharCode(65 + idx); // A, B, C, etc.
-      return (
-        <p key={idx} className="mb-4">
-          <span className="font-bold text-emerald-600 mr-2">{letter}</span>
-          <span>{para.trim()}</span>
-        </p>
-      );
-    });
+  // Detect paragraph letters from content
+  const detectParagraphLetters = (content) => {
+    if (!content) return [];
+    // Look for paragraphs that start with a letter followed by a period or parenthesis
+    const matches = content.match(/\b([A-Z])[\.\)]\s/g) || [];
+    return matches.map(m => m.charAt(0));
   };
+
+  const paragraphLetters = detectParagraphLetters(currentSection?.content);
 
   const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const groupType = group.question_type;
+    const qStart = globalOffset + group.question_range_start;
+    const qEnd = globalOffset + group.question_range_end;
+
+    // True/False/Not Given Table
+    if (groupType === 'true_false_not_given' || groupType === 'yes_no_not_given') {
+      const isYesNo = groupType === 'yes_no_not_given';
+      return (
+        <div>
+          <p className="text-sm mb-3 italic">In boxes {qStart}–{qEnd} on your answer sheet, write</p>
+          <table className="w-full mb-4 border-collapse border border-gray-300">
+            <tbody>
+              <tr>
+                <td className="border border-gray-300 p-3 align-top" style={{ width: '148.5px', whiteSpace: 'nowrap' }}>
+                  <strong>{isYesNo ? 'YES' : 'TRUE'}</strong>
+                </td>
+                <td className="border border-gray-300 p-3 align-top" style={{ width: '422.75px' }}>
+                  if the statement agrees with the information
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-gray-300 p-3 align-top" style={{ whiteSpace: 'nowrap' }}>
+                  <strong>{isYesNo ? 'NO' : 'FALSE'}</strong>
+                </td>
+                <td className="border border-gray-300 p-3 align-top">
+                  if the statement contradicts the information
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-gray-300 p-3 align-top" style={{ whiteSpace: 'nowrap' }}>
+                  <strong>NOT GIVEN</strong>
+                </td>
+                <td className="border border-gray-300 p-3 align-top">
+                  if there is no information on this
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="space-y-3">
+            {groupQuestions.map((q, idx) => {
+              const qNum = globalOffset + q.question_number;
+              return (
+                <div key={q.id} className="flex items-start gap-3">
+                  <span className="font-bold text-gray-700">{qNum}.</span>
+                  <p><RenderHtml html={q.question_text || ''} /></p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
         {groupQuestions.map((q, idx) => {
           const qNum = globalOffset + q.question_number;
-          if (groupType === 'multiple_choice_single') {
+
+          // Multiple Choice
+          if (groupType === 'multiple_choice_single' || groupType === 'multiple_choice_multiple') {
             return (
               <div key={q.id} className="space-y-2">
                 <p className="font-medium text-gray-800">{qNum}. <RenderHtml html={q.question_text || ''} /></p>
@@ -724,10 +782,61 @@ const PreviewMode = ({ isOpen, onClose }) => {
               </div>
             );
           }
-          if (groupType === 'true_false_not_given' || groupType === 'yes_no_not_given') {
-            return (<div key={q.id} className="flex items-start gap-3"><span className="font-bold text-gray-700">{qNum}.</span><p><RenderHtml html={q.question_text || ''} /></p></div>);
+
+          // Matching Headings with dropdown
+          if (groupType === 'matching_headings' || groupType === 'matching_information' || groupType === 'matching_features' || groupType === 'matching_sentence_endings') {
+            return (
+              <div key={q.id} className="flex items-start gap-3">
+                <span className="font-bold text-gray-700">{qNum}.</span>
+                <div className="flex-1 flex items-start gap-2">
+                  <select className="border border-gray-300 rounded px-2 py-1 text-sm">
+                    <option value="">Select...</option>
+                    {paragraphLetters.map(letter => (
+                      <option key={letter} value={letter}>{letter}</option>
+                    ))}
+                  </select>
+                  <p className="flex-1"><RenderHtml html={q.question_text || ''} /></p>
+                </div>
+              </div>
+            );
           }
-          return (<div key={q.id} className="flex items-start gap-3"><span className="font-bold text-gray-700">{qNum}.</span><p><RenderHtml html={q.question_text || q.question_template || ''} /></p></div>);
+
+          // Sentence Completion - NO NUMBER PREFIX, just template with blanks
+          if (groupType === 'sentence_completion') {
+            return (
+              <div key={q.id} className="mb-3">
+                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum)}</div>
+              </div>
+            );
+          }
+
+          // Other completion types with blanks
+          if (['summary_completion', 'table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(groupType)) {
+            return (
+              <div key={q.id} className="flex items-start gap-3">
+                <span className="font-bold text-gray-700">{qNum}.</span>
+                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum)}</div>
+              </div>
+            );
+          }
+
+          // Short answer
+          if (groupType === 'short_answer') {
+            return (
+              <div key={q.id} className="flex items-start gap-3">
+                <span className="font-bold text-gray-700">{qNum}.</span>
+                <p><RenderHtml html={q.question_text || ''} /></p>
+              </div>
+            );
+          }
+
+          // Default
+          return (
+            <div key={q.id} className="flex items-start gap-3">
+              <span className="font-bold text-gray-700">{qNum}.</span>
+              <p><RenderHtml html={q.question_text || q.question_template || ''} /></p>
+            </div>
+          );
         })}
       </div>
     );
@@ -753,8 +862,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">{currentSection.title || `Passage ${selectedPassage}`}</h3>
                 {currentSection.image_url && <img src={currentSection.image_url} alt={currentSection.image_description || 'Passage image'} className="max-h-64 mx-auto rounded-lg my-4" />}
-                <div className="text-gray-700 leading-relaxed">
-                  {addParagraphLetters(currentSection.content)}
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {currentSection.content || 'No content yet'}
                 </div>
               </div>
 
