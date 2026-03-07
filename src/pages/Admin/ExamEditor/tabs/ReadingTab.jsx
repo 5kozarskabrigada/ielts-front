@@ -225,10 +225,14 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
     setUploading(true);
     setError("");
     try {
+      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append("image", file);
       const response = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000/api"}/upload/passage-image`, {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       });
       if (!response.ok) throw new Error("Upload failed");
@@ -479,8 +483,8 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
   };
 
   return (
-    <div className="bg-white border-2 border-emerald-200 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 bg-emerald-50 flex items-center justify-between cursor-pointer hover:bg-emerald-100 transition" onClick={() => setIsExpanded(!isExpanded)}>
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="px-4 py-3 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center gap-3">
           <Icon size={20} className="text-emerald-600" />
           <div>
@@ -646,6 +650,15 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
         <>
           <div className={`px-5 py-4 ${colors.light} border-t ${colors.border}`}>
             <Input label="Passage Title" placeholder="e.g., The History of Coffee" value={section.title || ""} onChange={(e) => updateSection(section.id, { title: e.target.value })} />
+            <TextArea 
+              label="Instruction Text" 
+              hint="e.g., 'You should spend about 20 minutes on Questions 1–13, which are based on Reading Passage 1 below.'"
+              placeholder="Enter the instruction text that appears before the passage"
+              rows={2}
+              value={section.instruction || ""} 
+              onChange={(e) => updateSection(section.id, { instruction: e.target.value })} 
+              className="mt-4"
+            />
             <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
             <div className="mt-4">
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Passage Content<span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span></label>
@@ -719,7 +732,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
       return (
         <div>
           <p className="text-sm mb-3">In boxes {qStart}–{qEnd} on your answer sheet, write</p>
-          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)', marginBottom: '16px' }}>
+          <div style={{ border: '1px solid rgb(221, 221, 221)', borderRadius: '10px', padding: '10px', marginBottom: '20px', overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0' }}>
             <tbody>
               <tr style={{ backgroundColor: 'rgb(245, 245, 245)' }}>
                 <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', width: '148.5px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
@@ -747,6 +761,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
               </tr>
             </tbody>
           </table>
+          </div>
           <div className="space-y-3">
             {groupQuestions.map((q, idx) => {
               const qNum = globalOffset + q.question_number;
@@ -754,8 +769,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 <div key={q.id} className="flex items-start gap-3">
                   <span className="font-bold text-gray-700">{qNum}.</span>
                   <div className="flex items-start gap-2 flex-1">
-                    <select style={{ padding: '6px 12px', border: '1px solid rgb(209, 213, 219)', borderRadius: '0.5rem', fontSize: '14px', minWidth: '120px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-                      <option value="">Select...</option>
+                    <select style={{ width: '100px', height: '32px', padding: '0 20px 0 10px', border: '1px solid rgb(189, 197, 207)', borderRadius: '100px', fontSize: '14px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', appearance: 'none', backgroundImage: 'url(data:image/svg+xml,%3C%3Fxml version=\'1.0\' encoding=\'utf-8\'%3F%3E%3C!-- Generator: Adobe Illustrator 24.2.3, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version=\'1.1\' id=\'Layer_1\' xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' x=\'0px\' y=\'0px\' width=\'12px\' height=\'4px\' viewBox=\'0 0 17.5 9.5\' style=\'enable-background:new 0 0 17.5 9.5;\' xml:space=\'preserve\'%3E%3Cstyle type=\'text/css\'%3E .st0%7Bfill-rule:evenodd;clip-rule:evenodd;%7D%0A%3C/style%3E%3Cg id=\'Arrow_x2F_Chevrons\'%3E%3Cpath fill=\'%23294563\' id=\'Vector__x28_Stroke_x29_\' class=\'st0\' d=\'M0.2,0.2c0.3-0.3,0.8-0.3,1.1,0l7.5,7.5l7.5-7.5c0.3-0.3,0.8-0.3,1.1,0 s0.3,0.8,0,1.1l-8,8C9,9.6,8.5,9.6,8.2,9.3l-8-8C-0.1,1-0.1,0.5,0.2,0.2z\'/%3E%3C/g%3E%3C/svg%3E%0A)', backgroundPosition: 'calc(100% - 10px) 50%', backgroundRepeat: 'no-repeat', boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset', textOverflow: 'ellipsis', color: 'rgb(40, 40, 40)', lineHeight: '20px', cursor: 'default', margin: '5px 0', transition: 'border-color 0.15s ease-in-out' }}>
+                      <option value="" disabled selected></option>
                       <option value="true">{isYesNo ? 'YES' : 'TRUE'}</option>
                       <option value="false">{isYesNo ? 'NO' : 'FALSE'}</option>
                       <option value="not_given">NOT GIVEN</option>
@@ -797,8 +812,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
               <div key={q.id} className="flex items-start gap-3">
                 <span className="font-bold text-gray-700">{qNum}.</span>
                 <div className="flex-1 flex items-start gap-2">
-                  <select style={{ padding: '6px 12px', border: '1px solid rgb(209, 213, 219)', borderRadius: '0.5rem', fontSize: '14px', minWidth: '80px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-                    <option value="">Select...</option>
+                  <select style={{ width: '100px', height: '32px', padding: '0 20px 0 10px', border: '1px solid rgb(189, 197, 207)', borderRadius: '100px', fontSize: '14px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', appearance: 'none', backgroundImage: 'url(data:image/svg+xml,%3C%3Fxml version=\'1.0\' encoding=\'utf-8\'%3F%3E%3C!-- Generator: Adobe Illustrator 24.2.3, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version=\'1.1\' id=\'Layer_1\' xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' x=\'0px\' y=\'0px\' width=\'12px\' height=\'4px\' viewBox=\'0 0 17.5 9.5\' style=\'enable-background:new 0 0 17.5 9.5;\' xml:space=\'preserve\'%3E%3Cstyle type=\'text/css\'%3E .st0%7Bfill-rule:evenodd;clip-rule:evenodd;%7D%0A%3C/style%3E%3Cg id=\'Arrow_x2F_Chevrons\'%3E%3Cpath fill=\'%23294563\' id=\'Vector__x28_Stroke_x29_\' class=\'st0\' d=\'M0.2,0.2c0.3-0.3,0.8-0.3,1.1,0l7.5,7.5l7.5-7.5c0.3-0.3,0.8-0.3,1.1,0 s0.3,0.8,0,1.1l-8,8C9,9.6,8.5,9.6,8.2,9.3l-8-8C-0.1,1-0.1,0.5,0.2,0.2z\'/%3E%3C/g%3E%3C/svg%3E%0A)', backgroundPosition: 'calc(100% - 10px) 50%', backgroundRepeat: 'no-repeat', boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset', textOverflow: 'ellipsis', color: 'rgb(40, 40, 40)', lineHeight: '20px', cursor: 'default', margin: '5px 0', transition: 'border-color 0.15s ease-in-out' }}>
+                    <option value="" disabled selected></option>
                     {paragraphLetters.map(letter => (
                       <option key={letter} value={letter}>{letter}</option>
                     ))}
@@ -874,9 +889,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
               <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', marginBottom: '10px', lineHeight: '21.6px' }}>
                 READING PASSAGE {selectedPassage}
               </h2>
-              <p style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}>
-                You should spend about 20 minutes on Questions {(selectedPassage - 1) * 13 + 1}–{selectedPassage * 13}, which are based on Reading Passage {selectedPassage} below.
-              </p>
+              {currentSection.instruction && (
+                <p style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}>
+                  {currentSection.instruction}
+                </p>
+              )}
               
               <div className="mb-6">
                 {currentSection.image_url && (
