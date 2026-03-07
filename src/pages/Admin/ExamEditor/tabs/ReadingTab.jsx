@@ -792,9 +792,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
   // Detect paragraph letters from content
   const detectParagraphLetters = (content) => {
     if (!content) return [];
-    // Look for paragraphs that start with a letter followed by a period or parenthesis
-    const matches = content.match(/\b([A-Z])[\.\)]\s/g) || [];
-    return matches.map(m => m.charAt(0));
+    // Strip HTML tags first, then look for paragraphs that start with a letter followed by period/parenthesis
+    const textOnly = content.replace(/<[^>]*>/g, '');
+    const matches = textOnly.match(/(?:^|\n|\r)\s*([A-Z])[\.\)]\s/g) || [];
+    return [...new Set(matches.map(m => m.match(/([A-Z])/)[1]))];
   };
 
   const paragraphLetters = detectParagraphLetters(currentSection?.content);
@@ -870,78 +871,103 @@ const PreviewMode = ({ isOpen, onClose }) => {
           // Multiple Choice
           if (groupType === 'multiple_choice_single' || groupType === 'multiple_choice_multiple') {
             const isMultiple = groupType === 'multiple_choice_multiple';
-            return (
-              <div key={q.id} className="space-y-3">
-                <p className="font-medium text-gray-800">{qNum}. <RenderHtml html={q.question_text || ''} /></p>
-                <div className="ml-6 space-y-3">
-                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
-                    const optText = q[`option_${letter.toLowerCase()}`];
-                    if (!optText) return null;
-                    return (
-                      <label key={letter} className="flex items-start gap-2 cursor-pointer" style={{ position: 'relative', paddingLeft: '32px', minHeight: '24px' }}>
-                        {/* Checkbox/Radio */}
-                        <span 
-                          className="checkmark"
-                          style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            transform: 'translateY(0)',
-                            width: '18px',
-                            height: '18px',
-                            backgroundColor: 'rgb(255, 255, 255)',
-                            border: '1px solid rgb(55, 133, 77)',
-                            borderRadius: '2px',
-                            display: 'block',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                        />
-                        {/* Option Letter Badge */}
-                        <span 
-                          className="test-panel__answer-option"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '24px',
-                            height: '24px',
-                            minWidth: '24px',
-                            backgroundColor: 'rgb(223, 223, 223)',
-                            color: 'rgb(41, 69, 99)',
-                            borderRadius: '50%',
-                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            textAlign: 'center',
-                            marginRight: '8px',
-                            flexShrink: 0
-                          }}
-                        >
-                          {letter}
-                        </span>
-                        {/* Option Text */}
-                        <span 
-                          className="cb-label"
-                          style={{
-                            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                            fontSize: '16px',
-                            fontWeight: 400,
-                            lineHeight: '24px',
-                            color: 'rgb(40, 40, 40)',
-                            letterSpacing: '0.3px',
-                            cursor: 'pointer',
-                            flex: 1
-                          }}
-                        >
-                          {optText}
-                        </span>
-                      </label>
-                    );
-                  })}
+            const [selectedOptions, setSelectedOptions] = React.useState({});
+            
+            // Only show question text for the first question in the group
+            if (idx === 0) {
+              const groupTypeLabel = isMultiple ? 'Multiple Choice (Multiple)' : 'Multiple Choice (Single)';
+              return (
+                <div key={`group-${group.id}`} className="space-y-3">
+                  <p className="font-medium text-gray-800">
+                    Questions {qStart}–{qEnd} ({groupTypeLabel})<br/>
+                    <RenderHtml html={groupQuestions[0]?.question_text || ''} />
+                  </p>
+                  <div className="ml-6 space-y-3">
+                    {groupQuestions.flatMap(question => 
+                      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
+                        const optText = question[`option_${letter.toLowerCase()}`];
+                        if (!optText) return null;
+                        const optionKey = `${question.id}-${letter}`;
+                        const isSelected = selectedOptions[optionKey];
+                        
+                        return (
+                          <label 
+                            key={optionKey} 
+                            className="flex items-start gap-2 cursor-pointer" 
+                            style={{ position: 'relative', paddingLeft: '32px', minHeight: '24px' }}
+                            onClick={() => {
+                              setSelectedOptions(prev => ({
+                                ...prev,
+                                [optionKey]: !prev[optionKey]
+                              }));
+                            }}
+                          >
+                            {/* Checkbox/Radio */}
+                            <span 
+                              className="checkmark"
+                              style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                transform: 'translateY(0)',
+                                width: '18px',
+                                height: '18px',
+                                backgroundColor: isSelected ? 'rgb(55, 133, 77)' : 'rgb(255, 255, 255)',
+                                border: isSelected ? 'none' : '1px solid rgb(55, 133, 77)',
+                                borderRadius: '2px',
+                                display: 'block',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                            />
+                            {/* Option Letter Badge */}
+                            <span 
+                              className="test-panel__answer-option"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '24px',
+                                height: '24px',
+                                minWidth: '24px',
+                                backgroundColor: 'rgb(223, 223, 223)',
+                                color: 'rgb(41, 69, 99)',
+                                borderRadius: '50%',
+                                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                marginRight: '8px',
+                                flexShrink: 0
+                              }}
+                            >
+                              {letter}
+                            </span>
+                            {/* Option Text */}
+                            <span 
+                              className="cb-label"
+                              style={{
+                                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                                fontSize: '16px',
+                                fontWeight: 400,
+                                lineHeight: '24px',
+                                color: 'rgb(40, 40, 40)',
+                                letterSpacing: '0.3px',
+                                cursor: 'pointer',
+                                flex: 1
+                              }}
+                            >
+                              {optText}
+                            </span>
+                          </label>
+                        );
+                      }).filter(Boolean)
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            }
+            return null; // Don't render subsequent questions in the group
           }
 
           // Matching Headings with dropdown
@@ -1044,9 +1070,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(41, 69, 99)', marginBottom: '16px', lineHeight: '24px' }}>
                   {currentSection.title || `Passage ${selectedPassage}`}
                 </h3>
-                <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                  {currentSection.content || 'No content yet'}
-                </div>
+                <div 
+                  style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', lineHeight: '1.6' }}
+                  dangerouslySetInnerHTML={{ __html: currentSection.content || 'No content yet' }}
+                />
               </div>
 
               {currentGroups.length > 0 ? (
