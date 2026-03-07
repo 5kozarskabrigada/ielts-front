@@ -180,7 +180,7 @@ const RenderHtml = ({ html }) => <span dangerouslySetInnerHTML={{ __html: html |
 // ============================================
 // BLANK INPUT COMPONENT - Circle number + rounded rectangular input
 // ============================================
-const BlankInput = ({ questionNumber }) => (
+const BlankInput = ({ questionNumber, accentColor = 'rgb(50, 180, 200)' }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '2px 4px' }}>
     {/* Circle with question number */}
     <span style={{ 
@@ -192,7 +192,7 @@ const BlankInput = ({ questionNumber }) => (
       height: '28px', 
       minWidth: '28px', 
       minHeight: '28px', 
-      backgroundColor: 'rgb(50, 180, 200)', 
+      backgroundColor: accentColor, 
       borderRadius: '50%', 
       color: 'rgb(255, 255, 255)', 
       fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
@@ -205,27 +205,40 @@ const BlankInput = ({ questionNumber }) => (
     </span>
     {/* Input field */}
     <input 
-      className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none" 
       placeholder="" 
       title="Max 2 words + 1 number" 
       type="text" 
       style={{ 
-        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
-        borderRadius: '12px', 
-        border: '1px solid rgb(209, 213, 219)' 
+        width: '100px',
+        height: '32px',
+        padding: '0 20px 0 10px',
+        border: '1px solid rgb(189, 197, 207)',
+        borderRadius: '100px',
+        fontSize: '14px',
+        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+        boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
+        textOverflow: 'ellipsis',
+        color: 'rgb(40, 40, 40)',
+        lineHeight: '20px',
+        cursor: 'default',
+        margin: '5px 0',
+        transition: 'border-color 0.15s ease-in-out',
+        display: 'inline-block',
+        textAlign: 'start',
+        outline: 'none'
       }} 
     />
   </span>
 );
 
 // Render template with proper blank inputs
-const renderTemplateWithBlanks = (template, questionNumber) => {
+const renderTemplateWithBlanks = (template, questionNumber, accentColor) => {
   if (!template) return null;
   const parts = template.split('[BLANK]');
   return parts.map((part, idx, arr) => (
     <React.Fragment key={idx}>
       <RenderHtml html={part} />
-      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} />}
+      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} accentColor={accentColor} />}
     </React.Fragment>
   ));
 };
@@ -729,6 +742,14 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const currentSection = readingSections[selectedPassage - 1];
   const currentGroups = questionGroups.filter(g => g.section_id === currentSection?.id).sort((a, b) => a.group_order - b.group_order);
 
+  // Accent colors for each passage
+  const accentColors = [
+    'rgb(55, 133, 77)',   // Passage 1: Green
+    'rgb(50, 180, 200)',  // Passage 2: Cyan
+    'rgb(150, 100, 180)'  // Passage 3: Purple
+  ];
+  const accentColor = accentColors[selectedPassage - 1] || accentColors[0];
+
   if (!isOpen) return null;
 
   // Detect paragraph letters from content
@@ -741,7 +762,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
   const paragraphLetters = detectParagraphLetters(currentSection?.content);
 
-  const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
+  const renderQuestionGroup = (group, groupQuestions, globalOffset, accentColor) => {
     const groupType = group.question_type;
     const qStart = globalOffset + group.question_range_start;
     const qEnd = globalOffset + group.question_range_end;
@@ -751,7 +772,6 @@ const PreviewMode = ({ isOpen, onClose }) => {
       const isYesNo = groupType === 'yes_no_not_given';
       return (
         <div>
-          <p className="text-sm mb-3">In boxes {qStart}–{qEnd} on your answer sheet, write</p>
           <div style={{ border: '1px solid rgb(221, 221, 221)', borderRadius: '10px', padding: '10px', marginBottom: '20px', overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0' }}>
             <tbody>
@@ -787,7 +807,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
               const qNum = globalOffset + q.question_number;
               return (
                 <div key={q.id} className="flex items-center gap-3">
-                  <span className="font-bold text-gray-700">{qNum}.</span>
+                  <span className="font-bold text-gray-700" style={{ minWidth: '30px', display: 'inline-block' }}>{qNum}.</span>
                   <div className="flex items-center gap-2 flex-1">
                     <select style={{ width: '100px', height: '32px', padding: '0 20px 0 10px', border: '1px solid rgb(189, 197, 207)', borderRadius: '100px', fontSize: '14px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', appearance: 'none', backgroundImage: 'url(data:image/svg+xml,%3C%3Fxml version=\'1.0\' encoding=\'utf-8\'%3F%3E%3C!-- Generator: Adobe Illustrator 24.2.3, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version=\'1.1\' id=\'Layer_1\' xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' x=\'0px\' y=\'0px\' width=\'12px\' height=\'4px\' viewBox=\'0 0 17.5 9.5\' style=\'enable-background:new 0 0 17.5 9.5;\' xml:space=\'preserve\'%3E%3Cstyle type=\'text/css\'%3E .st0%7Bfill-rule:evenodd;clip-rule:evenodd;%7D%0A%3C/style%3E%3Cg id=\'Arrow_x2F_Chevrons\'%3E%3Cpath fill=\'%23294563\' id=\'Vector__x28_Stroke_x29_\' class=\'st0\' d=\'M0.2,0.2c0.3-0.3,0.8-0.3,1.1,0l7.5,7.5l7.5-7.5c0.3-0.3,0.8-0.3,1.1,0 s0.3,0.8,0,1.1l-8,8C9,9.6,8.5,9.6,8.2,9.3l-8-8C-0.1,1-0.1,0.5,0.2,0.2z\'/%3E%3C/g%3E%3C/svg%3E%0A)', backgroundPosition: 'calc(100% - 10px) 50%', backgroundRepeat: 'no-repeat', boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset', textOverflow: 'ellipsis', color: 'rgb(40, 40, 40)', lineHeight: '20px', cursor: 'default', margin: '5px 0', transition: 'border-color 0.15s ease-in-out', verticalAlign: 'middle', display: 'inline-block', textAlign: 'start' }}>
                       <option value="" style={{ display: 'none' }} disabled selected></option>
@@ -830,7 +850,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
           if (groupType === 'matching_headings' || groupType === 'matching_information' || groupType === 'matching_features' || groupType === 'matching_sentence_endings') {
             return (
               <div key={q.id} className="flex items-center gap-3">
-                <span className="font-bold text-gray-700">{qNum}.</span>
+                <span className="font-bold text-gray-700" style={{ minWidth: '30px', display: 'inline-block' }}>{qNum}.</span>
                 <div className="flex-1 flex items-center gap-2">
                   <select style={{ width: '100px', height: '32px', padding: '0 20px 0 10px', border: '1px solid rgb(189, 197, 207)', borderRadius: '100px', fontSize: '14px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', appearance: 'none', backgroundImage: 'url(data:image/svg+xml,%3C%3Fxml version=\'1.0\' encoding=\'utf-8\'%3F%3E%3C!-- Generator: Adobe Illustrator 24.2.3, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version=\'1.1\' id=\'Layer_1\' xmlns=\'http://www.w3.org/2000/svg\' xmlns:xlink=\'http://www.w3.org/1999/xlink\' x=\'0px\' y=\'0px\' width=\'12px\' height=\'4px\' viewBox=\'0 0 17.5 9.5\' style=\'enable-background:new 0 0 17.5 9.5;\' xml:space=\'preserve\'%3E%3Cstyle type=\'text/css\'%3E .st0%7Bfill-rule:evenodd;clip-rule:evenodd;%7D%0A%3C/style%3E%3Cg id=\'Arrow_x2F_Chevrons\'%3E%3Cpath fill=\'%23294563\' id=\'Vector__x28_Stroke_x29_\' class=\'st0\' d=\'M0.2,0.2c0.3-0.3,0.8-0.3,1.1,0l7.5,7.5l7.5-7.5c0.3-0.3,0.8-0.3,1.1,0 s0.3,0.8,0,1.1l-8,8C9,9.6,8.5,9.6,8.2,9.3l-8-8C-0.1,1-0.1,0.5,0.2,0.2z\'/%3E%3C/g%3E%3C/svg%3E%0A)', backgroundPosition: 'calc(100% - 10px) 50%', backgroundRepeat: 'no-repeat', boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset', textOverflow: 'ellipsis', color: 'rgb(40, 40, 40)', lineHeight: '20px', cursor: 'default', margin: '5px 0', transition: 'border-color 0.15s ease-in-out', verticalAlign: 'middle', display: 'inline-block', textAlign: 'start' }}>
                     <option value="" style={{ display: 'none' }} disabled selected></option>
@@ -848,7 +868,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
           if (groupType === 'sentence_completion') {
             return (
               <div key={q.id} className="mb-3">
-                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum)}</div>
+                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum, accentColor)}</div>
               </div>
             );
           }
@@ -858,7 +878,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
             return (
               <div key={q.id} className="flex items-start gap-3">
                 <span className="font-bold text-gray-700">{qNum}.</span>
-                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum)}</div>
+                <div>{renderTemplateWithBlanks(q.question_template || q.question_text, qNum, accentColor)}</div>
               </div>
             );
           }
@@ -940,8 +960,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   const questionRangeText = qStart === qEnd ? `Question ${qStart}` : `Questions ${qStart}–${qEnd}`;
 
                   return (
-                    <div key={group.id} className="mb-6 pb-6 border-b border-gray-200 last:border-0">
-                      <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(55, 133, 77)', marginTop: '10px', marginBottom: '10px', lineHeight: '24px' }}>
+                    <div key={group.id} className="mb-6">
+                      <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: accentColor, marginTop: '10px', marginBottom: '20px', lineHeight: '24px' }}>
                         {questionRangeText}
                       </h3>
                       {group.instruction_text && (
@@ -959,7 +979,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                           />
                         </div>
                       )}
-                      <div>{renderQuestionGroup(group, groupQuestions, globalOffset)}</div>
+                      <div>{renderQuestionGroup(group, groupQuestions, globalOffset, accentColor)}</div>
                     </div>
                   );
                 })

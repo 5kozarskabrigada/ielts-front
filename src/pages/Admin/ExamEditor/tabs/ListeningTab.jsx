@@ -2410,14 +2410,28 @@ const PreviewMode = ({ isOpen, onClose }) => {
             type="text" 
             value={value}
             onChange={handleChange}
-            className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none"
-            style={{ 
-              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-              borderRadius: '12px',
-              border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(209, 213, 219)'
-            }}
             placeholder=""
             title={limitText}
+            style={{ 
+              width: '100px',
+              height: '32px',
+              padding: '0 20px 0 10px',
+              border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(189, 197, 207)',
+              borderRadius: '100px',
+              fontSize: '14px',
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
+              textOverflow: 'ellipsis',
+              color: 'rgb(40, 40, 40)',
+              lineHeight: '20px',
+              cursor: 'default',
+              margin: '5px 0',
+              transition: 'border-color 0.15s ease-in-out',
+              display: 'inline-block',
+              textAlign: 'start',
+              outline: 'none',
+              backgroundColor: 'white'
+            }}
           />
         </span>
       );
@@ -2863,13 +2877,27 @@ const PreviewMode = ({ isOpen, onClose }) => {
               </span>
               <input 
                 type="text" 
-                className="w-36 px-4 py-1.5 text-sm text-center bg-white outline-none"
-                style={{ 
-                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                  borderRadius: '12px',
-                  border: '1px solid rgb(209, 213, 219)'
-                }}
                 placeholder=""
+                style={{ 
+                  width: '100px',
+                  height: '32px',
+                  padding: '0 20px 0 10px',
+                  border: '1px solid rgb(189, 197, 207)',
+                  borderRadius: '100px',
+                  fontSize: '14px',
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
+                  textOverflow: 'ellipsis',
+                  color: 'rgb(40, 40, 40)',
+                  lineHeight: '20px',
+                  cursor: 'default',
+                  margin: '5px 0',
+                  transition: 'border-color 0.15s ease-in-out',
+                  display: 'inline-block',
+                  textAlign: 'start',
+                  outline: 'none',
+                  backgroundColor: 'white'
+                }}
               />
             </div>
           </div>
@@ -2891,9 +2919,27 @@ const PreviewMode = ({ isOpen, onClose }) => {
           <span className="flex-1"><RenderHtml html={q.question_text || ''} /></span>
           <input 
             type="text" 
-            className="px-4 py-1.5 border border-gray-300 rounded w-32 outline-none"
-            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
             placeholder=""
+            style={{ 
+              width: '100px',
+              height: '32px',
+              padding: '0 20px 0 10px',
+              border: '1px solid rgb(189, 197, 207)',
+              borderRadius: '100px',
+              fontSize: '14px',
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
+              textOverflow: 'ellipsis',
+              color: 'rgb(40, 40, 40)',
+              lineHeight: '20px',
+              cursor: 'default',
+              margin: '5px 0',
+              transition: 'border-color 0.15s ease-in-out',
+              display: 'inline-block',
+              textAlign: 'start',
+              outline: 'none',
+              backgroundColor: 'white'
+            }}
           />
         </div>
       );
