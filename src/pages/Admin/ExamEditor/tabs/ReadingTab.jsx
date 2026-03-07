@@ -1254,7 +1254,21 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   <img 
                     src={currentSection.image_url} 
                     alt={currentSection.image_description || 'Passage image'} 
-                    style={{ maxWidth: '100%', display: 'block', verticalAlign: 'middle', marginBottom: '16px' }} 
+                    style={{ 
+                      maxWidth: '100%', 
+                      width: 'auto',
+                      height: 'auto',
+                      display: 'block', 
+                      verticalAlign: 'middle', 
+                      marginBottom: '16px',
+                      border: 'none',
+                      aspectRatio: 'auto',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      fontSize: '14px',
+                      lineHeight: '21px',
+                      color: 'rgb(40, 40, 40)',
+                      boxSizing: 'border-box'
+                    }} 
                   />
                 )}
                 <h3 style={{ 
@@ -1305,7 +1319,20 @@ const PreviewMode = ({ isOpen, onClose }) => {
                           <img 
                             src={group.image_url} 
                             alt={group.image_description || 'Diagram'} 
-                            style={{ maxWidth: '100%', display: 'block', border: '1px solid rgb(221, 221, 221)' }} 
+                            style={{ 
+                              maxWidth: '100%', 
+                              width: 'auto',
+                              height: 'auto',
+                              display: 'block', 
+                              verticalAlign: 'middle',
+                              border: '1px solid rgb(221, 221, 221)',
+                              aspectRatio: 'auto',
+                              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                              fontSize: '14px',
+                              lineHeight: '21px',
+                              color: 'rgb(40, 40, 40)',
+                              boxSizing: 'border-box'
+                            }} 
                           />
                         </div>
                       )}
