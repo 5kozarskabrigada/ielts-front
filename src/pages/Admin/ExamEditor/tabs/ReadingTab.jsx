@@ -617,9 +617,8 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
           <div>
             <h3 className="font-semibold text-gray-800 text-lg">{section.title || `Passage ${passageNumber}`}</h3>
             <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-sm text-gray-500">Letter: {passageLetters[passageNumber - 1]}</span>
-              <span className="text-sm text-gray-500">•</span>
               <span className="text-sm text-gray-500">{wordCount} words</span>
+              <span className="text-sm text-gray-500">•</span>
               <span className={`text-xs px-2 py-0.5 rounded ${colors.light} ${colors.text}`}>{sectionGroups.length} groups</span>
             </div>
           </div>
