@@ -718,30 +718,30 @@ const PreviewMode = ({ isOpen, onClose }) => {
       const isYesNo = groupType === 'yes_no_not_given';
       return (
         <div>
-          <p className="text-sm mb-3 italic">In boxes {qStart}–{qEnd} on your answer sheet, write</p>
-          <table className="w-full mb-4 border-collapse border border-gray-300">
+          <p className="text-sm mb-3">In boxes {qStart}–{qEnd} on your answer sheet, write</p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid rgb(221, 221, 221)', marginBottom: '16px' }}>
             <tbody>
-              <tr>
-                <td className="border border-gray-300 p-3 align-top" style={{ width: '148.5px', whiteSpace: 'nowrap' }}>
-                  <strong>{isYesNo ? 'YES' : 'TRUE'}</strong>
+              <tr style={{ backgroundColor: 'rgb(245, 245, 245)' }}>
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', width: '148.5px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                  <strong>{isYesNo ? 'YES.' : 'TRUE.'}</strong>
                 </td>
-                <td className="border border-gray-300 p-3 align-top" style={{ width: '422.75px' }}>
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', verticalAlign: 'top' }}>
                   if the statement agrees with the information
                 </td>
               </tr>
               <tr>
-                <td className="border border-gray-300 p-3 align-top" style={{ whiteSpace: 'nowrap' }}>
-                  <strong>{isYesNo ? 'NO' : 'FALSE'}</strong>
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                  <strong>{isYesNo ? 'NO.' : 'FALSE.'}</strong>
                 </td>
-                <td className="border border-gray-300 p-3 align-top">
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', verticalAlign: 'top' }}>
                   if the statement contradicts the information
                 </td>
               </tr>
-              <tr>
-                <td className="border border-gray-300 p-3 align-top" style={{ whiteSpace: 'nowrap' }}>
-                  <strong>NOT GIVEN</strong>
+              <tr style={{ backgroundColor: 'rgb(245, 245, 245)' }}>
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                  <strong>NOT GIVEN.</strong>
                 </td>
-                <td className="border border-gray-300 p-3 align-top">
+                <td style={{ padding: '12px 15px', borderTop: '1px solid rgb(221, 221, 221)', borderBottom: '1px solid rgb(221, 221, 221)', verticalAlign: 'top' }}>
                   if there is no information on this
                 </td>
               </tr>
@@ -753,7 +753,15 @@ const PreviewMode = ({ isOpen, onClose }) => {
               return (
                 <div key={q.id} className="flex items-start gap-3">
                   <span className="font-bold text-gray-700">{qNum}.</span>
-                  <p><RenderHtml html={q.question_text || ''} /></p>
+                  <div className="flex items-start gap-2 flex-1">
+                    <select style={{ padding: '6px 12px', border: '1px solid rgb(209, 213, 219)', borderRadius: '0.5rem', fontSize: '14px', minWidth: '120px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+                      <option value="">Select...</option>
+                      <option value="true">{isYesNo ? 'YES' : 'TRUE'}</option>
+                      <option value="false">{isYesNo ? 'NO' : 'FALSE'}</option>
+                      <option value="not_given">NOT GIVEN</option>
+                    </select>
+                    <p className="flex-1"><RenderHtml html={q.question_text || ''} /></p>
+                  </div>
                 </div>
               );
             })}
@@ -789,7 +797,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
               <div key={q.id} className="flex items-start gap-3">
                 <span className="font-bold text-gray-700">{qNum}.</span>
                 <div className="flex-1 flex items-start gap-2">
-                  <select className="border border-gray-300 rounded px-2 py-1 text-sm">
+                  <select style={{ padding: '6px 12px', border: '1px solid rgb(209, 213, 219)', borderRadius: '0.5rem', fontSize: '14px', minWidth: '80px', fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
                     <option value="">Select...</option>
                     {paragraphLetters.map(letter => (
                       <option key={letter} value={letter}>{letter}</option>
@@ -859,10 +867,29 @@ const PreviewMode = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto p-6">
           {currentSection ? (
             <div>
+              {/* IELTS-style headers */}
+              <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', marginBottom: '5px', lineHeight: '28.8px' }}>
+                PART {selectedPassage}
+              </h1>
+              <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', marginBottom: '10px', lineHeight: '21.6px' }}>
+                READING PASSAGE {selectedPassage}
+              </h2>
+              <p style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}>
+                You should spend about 20 minutes on Questions {(selectedPassage - 1) * 13 + 1}–{selectedPassage * 13}, which are based on Reading Passage {selectedPassage} below.
+              </p>
+              
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{currentSection.title || `Passage ${selectedPassage}`}</h3>
-                {currentSection.image_url && <img src={currentSection.image_url} alt={currentSection.image_description || 'Passage image'} className="max-h-64 mx-auto rounded-lg my-4" />}
-                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {currentSection.image_url && (
+                  <img 
+                    src={currentSection.image_url} 
+                    alt={currentSection.image_description || 'Passage image'} 
+                    style={{ maxWidth: '100%', display: 'block', verticalAlign: 'middle', marginBottom: '16px' }} 
+                  />
+                )}
+                <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(41, 69, 99)', marginBottom: '16px', lineHeight: '24px' }}>
+                  {currentSection.title || `Passage ${selectedPassage}`}
+                </h3>
+                <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
                   {currentSection.content || 'No content yet'}
                 </div>
               </div>
@@ -877,9 +904,24 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
                   return (
                     <div key={group.id} className="mb-6 pb-6 border-b border-gray-200 last:border-0">
-                      <p className="text-lg font-bold text-emerald-600 mb-3">{questionRangeText}</p>
-                      {group.instruction_text && <div className="mb-4 text-sm italic text-gray-600" dangerouslySetInnerHTML={{ __html: group.instruction_text }} />}
-                      {group.image_url && <div className="mb-4"><img src={group.image_url} alt={group.image_description || 'Diagram'} className="max-h-64 mx-auto rounded-lg border" /></div>}
+                      <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(55, 133, 77)', marginTop: '10px', marginBottom: '10px', lineHeight: '24px' }}>
+                        {questionRangeText}
+                      </h3>
+                      {group.instruction_text && (
+                        <div 
+                          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }} 
+                          dangerouslySetInnerHTML={{ __html: group.instruction_text }} 
+                        />
+                      )}
+                      {group.image_url && (
+                        <div className="mb-4">
+                          <img 
+                            src={group.image_url} 
+                            alt={group.image_description || 'Diagram'} 
+                            style={{ maxWidth: '100%', display: 'block', border: '1px solid rgb(221, 221, 221)' }} 
+                          />
+                        </div>
+                      )}
                       <div>{renderQuestionGroup(group, groupQuestions, globalOffset)}</div>
                     </div>
                   );
