@@ -675,7 +675,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
             {groupQuestions.length > 0 ? (
               <div className="space-y-3">
                 {groupQuestions.map((question, idx) => (
-                  <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={paragraphLettersForThisSection} />
+                  <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} />
                 ))}
               </div>
             ) : (
@@ -800,7 +800,7 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
             {sectionGroups.length > 0 ? (
               <div className="space-y-4">
                 {sectionGroups.map((group) => (
-                  <QuestionGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={passageNumber} passageLetters={passageLetters} />
+                  <QuestionGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={passageNumber} passageLetters={paragraphLettersForThisSection} />
                 ))}
               </div>
             ) : (
