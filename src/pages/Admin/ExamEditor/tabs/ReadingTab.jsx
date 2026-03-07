@@ -1204,6 +1204,12 @@ const PreviewMode = ({ isOpen, onClose }) => {
         .reading-instruction p {
           margin-bottom: 5px !important;
         }
+        .passage-content p {
+          margin-bottom: 16px !important;
+        }
+        .passage-content p:last-child {
+          margin-bottom: 0 !important;
+        }
       `}</style>
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
@@ -1264,6 +1270,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   {currentSection.title || `Passage ${selectedPassage}`}
                 </h3>
                 <div 
+                  className="passage-content"
                   style={{ 
                     fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
                     fontSize: '16px', 
