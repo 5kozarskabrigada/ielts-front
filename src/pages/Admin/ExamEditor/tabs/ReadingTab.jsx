@@ -1091,8 +1091,9 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     return (
                       <label 
                         key={letter} 
-                        className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg"
-                        onClick={() => {
+                        className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg"
+                        onClick={(e) => {
+                          e.preventDefault();
                           if (isMultiple) {
                             setSelectedOptions(prev => ({
                               ...prev,
@@ -1132,7 +1133,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                           type={isMultiple ? "checkbox" : "radio"} 
                           checked={isSelected || false}
                           onChange={() => {}}
-                          className="w-4 h-4" 
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 pointer-events-none" 
                         />
                         {/* Option text */}
                         <span style={{ marginLeft: '4px' }}><RenderHtml html={optText} /></span>
