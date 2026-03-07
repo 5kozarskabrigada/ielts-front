@@ -209,7 +209,7 @@ const BlankInput = ({ questionNumber, accentColor = 'rgb(50, 180, 200)' }) => (
       title="Max 2 words + 1 number" 
       type="text" 
       style={{ 
-        width: '100px',
+        width: '200px',
         height: '32px',
         padding: '0 20px 0 10px',
         border: '1px solid rgb(189, 197, 207)',
@@ -260,14 +260,18 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append("image", file);
-      const response = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000/api"}/upload/passage-image`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/upload/passage-image`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`
         },
         body: formData,
       });
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Upload error:', errorData);
+        throw new Error(errorData.message || "Upload failed");
+      }
       const { url } = await response.json();
       if (group) {
         updateGroup(group.id, { image_url: url });
@@ -275,7 +279,8 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
         onImageChange(url);
       }
     } catch (err) {
-      setError("Upload failed. Please try again.");
+      console.error('Image upload error:', err);
+      setError(err.message || "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -960,8 +965,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   const questionRangeText = qStart === qEnd ? `Question ${qStart}` : `Questions ${qStart}–${qEnd}`;
 
                   return (
-                    <div key={group.id} className="mb-6">
-                      <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: accentColor, marginTop: '10px', marginBottom: '20px', lineHeight: '24px' }}>
+                    <div key={group.id} className="mb-10">
+                      <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: accentColor, marginTop: '20px', marginBottom: '30px', lineHeight: '24px' }}>
                         {questionRangeText}
                       </h3>
                       {group.instruction_text && (

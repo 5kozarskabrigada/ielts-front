@@ -2413,7 +2413,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
             placeholder=""
             title={limitText}
             style={{ 
-              width: '100px',
+              width: '200px',
               height: '32px',
               padding: '0 20px 0 10px',
               border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(189, 197, 207)',
@@ -2879,7 +2879,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 type="text" 
                 placeholder=""
                 style={{ 
-                  width: '100px',
+                  width: '200px',
                   height: '32px',
                   padding: '0 20px 0 10px',
                   border: '1px solid rgb(189, 197, 207)',
@@ -2921,7 +2921,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
             type="text" 
             placeholder=""
             style={{ 
-              width: '100px',
+              width: '200px',
               height: '32px',
               padding: '0 20px 0 10px',
               border: '1px solid rgb(189, 197, 207)',
@@ -3043,7 +3043,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                   return (
                     <div 
                       key={group.id} 
-                      className="mb-4 pb-4"
+                      className="mb-10"
                       style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontWeight: 400 }}
                     >
                       {/* Questions header - accent color, Montserrat font */}
@@ -3053,8 +3053,8 @@ const PreviewMode = ({ isOpen, onClose }) => {
                         fontSize: '20px',
                         fontWeight: 700,
                         lineHeight: '24px',
-                        marginTop: '10px',
-                        marginBottom: '10px'
+                        marginTop: '20px',
+                        marginBottom: '30px'
                       }}>
                         {questionRangeText}
                       </p>
