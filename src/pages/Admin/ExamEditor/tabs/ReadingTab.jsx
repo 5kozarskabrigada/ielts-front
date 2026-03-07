@@ -55,6 +55,15 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
   </div>
 );
 
+const Toggle = ({ label, checked, onChange }) => (
+  <label className="flex items-center gap-2 cursor-pointer">
+    <div className={`w-9 h-5 rounded-full transition ${checked ? 'bg-emerald-500' : 'bg-gray-300'} relative`}>
+      <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+    </div>
+    <span className="text-sm text-gray-700">{label}</span>
+  </label>
+);
+
 // ============================================
 // RICH TEXT EDITOR
 // ============================================
@@ -378,6 +387,14 @@ const ParagraphLetteringInfo = ({ content }) => {
 // ============================================
 const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Strip HTML tags for display in collapsed view
+  const stripHtml = (html) => {
+    if (!html) return '';
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
 
   return (
     <div className="border rounded-lg overflow-hidden bg-white border-gray-200">
@@ -385,7 +402,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
         <div className="flex items-center gap-3">
           <span className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs bg-emerald-100 text-emerald-700">{questionNumber}</span>
           <div>
-            <p className="text-sm font-medium text-gray-700 truncate max-w-xs">{question.question_text || 'Question ' + questionNumber}</p>
+            <p className="text-sm font-medium text-gray-700 truncate max-w-xs">{stripHtml(question.question_text) || 'Question ' + questionNumber}</p>
             {question.correct_answer && <p className="text-xs text-green-600">Answer: {question.correct_answer}</p>}
           </div>
         </div>
@@ -599,7 +616,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
           <Icon size={20} className="text-emerald-600" />
           <div>
             <h4 className="font-semibold text-gray-800 text-sm">{selectedType?.label || 'Select Type'} · Q{baseQuestionNumber}–{baseQuestionNumber + (group.question_range_end - group.question_range_start)}</h4>
-            <p className="text-xs text-gray-500">{groupQuestions.length} question{groupQuestions.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-500">{groupQuestions.length}/{group.question_range_end - group.question_range_start + 1} questions</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -676,9 +693,34 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
             <ImageUploader group={group} updateGroup={updateQuestionGroup} />
           )}
 
+          {/* Scoring Settings */}
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-200">
+            <Input
+              label="Points per Question"
+              type="number"
+              min="1"
+              value={group.points_per_question || 1}
+              onChange={(e) => updateQuestionGroup(group.id, { points_per_question: parseInt(e.target.value) || 1 })}
+            />
+            <div className="flex items-end pb-1">
+              <Toggle
+                label="Case Sensitive"
+                checked={group.case_sensitive || false}
+                onChange={() => updateQuestionGroup(group.id, { case_sensitive: !group.case_sensitive })}
+              />
+            </div>
+            <div className="flex items-end pb-1">
+              <Toggle
+                label="Allow Spelling Variations"
+                checked={group.spelling_tolerance !== false}
+                onChange={() => updateQuestionGroup(group.id, { spelling_tolerance: !group.spelling_tolerance })}
+              />
+            </div>
+          </div>
+
           <div className="border-t border-gray-200 pt-4">
             <div className="flex items-center justify-between mb-3">
-              <h5 className="text-sm font-semibold text-gray-700">Questions</h5>
+              <h5 className="text-sm font-semibold text-gray-700">Questions in this Group</h5>
               <button type="button" onClick={addQuestion} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition"><Plus size={14} /> Add Question</button>
             </div>
 
@@ -964,105 +1006,86 @@ const PreviewMode = ({ isOpen, onClose }) => {
         {groupQuestions.map((q, idx) => {
           const qNum = globalOffset + q.question_number;
 
-          // Multiple Choice
+          // Multiple Choice - Show each question separately like listening
           if (groupType === 'multiple_choice_single' || groupType === 'multiple_choice_multiple') {
             const isMultiple = groupType === 'multiple_choice_multiple';
             
-            // Only show question text for the first question in the group
-            if (idx === 0) {
-              const groupTypeLabel = isMultiple ? 'Multiple Choice (Multiple)' : 'Multiple Choice (Single)';
-              return (
-                <div key={`group-${group.id}`} className="space-y-3">
-                  <p className="font-medium text-gray-800">
-                    Questions {qStart}–{qEnd} ({groupTypeLabel})<br/>
-                    <RenderHtml html={groupQuestions[0]?.question_text || ''} />
-                  </p>
-                  <div className="ml-6 space-y-3">
-                    {groupQuestions.flatMap(question => 
-                      ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
-                        const optText = question[`option_${letter.toLowerCase()}`];
-                        if (!optText) return null;
-                        const optionKey = `${question.id}-${letter}`;
-                        const isSelected = selectedOptions[optionKey];
-                        
-                        return (
-                          <label 
-                            key={optionKey} 
-                            className="flex items-start gap-2 cursor-pointer" 
-                            style={{ position: 'relative', paddingLeft: '32px', minHeight: '24px' }}
-                            onClick={() => {
-                              setSelectedOptions(prev => ({
-                                ...prev,
-                                [optionKey]: !prev[optionKey]
-                              }));
-                            }}
-                          >
-                            {/* Checkbox/Radio */}
-                            <span 
-                              className="checkmark"
-                              style={{
-                                position: 'absolute',
-                                left: 0,
-                                top: 0,
-                                transform: 'translateY(0)',
-                                width: '18px',
-                                height: '18px',
-                                backgroundColor: isSelected ? 'rgb(55, 133, 77)' : 'rgb(255, 255, 255)',
-                                border: isSelected ? 'none' : '1px solid rgb(55, 133, 77)',
-                                borderRadius: '2px',
-                                display: 'block',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                            />
-                            {/* Option Letter Badge */}
-                            <span 
-                              className="test-panel__answer-option"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '24px',
-                                height: '24px',
-                                minWidth: '24px',
-                                backgroundColor: 'rgb(223, 223, 223)',
-                                color: 'rgb(41, 69, 99)',
-                                borderRadius: '50%',
-                                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                                fontSize: '14px',
-                                fontWeight: 700,
-                                textAlign: 'center',
-                                marginRight: '8px',
-                                flexShrink: 0
-                              }}
-                            >
-                              {letter}
-                            </span>
-                            {/* Option Text */}
-                            <span 
-                              className="cb-label"
-                              style={{
-                                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                                fontSize: '16px',
-                                fontWeight: 400,
-                                lineHeight: '24px',
-                                color: 'rgb(40, 40, 40)',
-                                letterSpacing: '0.3px',
-                                cursor: 'pointer',
-                                flex: 1
-                              }}
-                            >
-                              {optText}
-                            </span>
-                          </label>
-                        );
-                      }).filter(Boolean)
-                    )}
-                  </div>
+            return (
+              <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+                {/* Question number and text */}
+                <p style={{
+                  color: 'rgb(40, 40, 40)',
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  lineHeight: '24px',
+                  marginTop: '10px',
+                  marginBottom: '10px'
+                }}>
+                  {qNum}. <RenderHtml html={q.question_text || ''} />
+                </p>
+                {/* Options */}
+                <div className="ml-4 space-y-2">
+                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
+                    const optText = q[`option_${letter.toLowerCase()}`];
+                    if (!optText) return null;
+                    const optionKey = `${q.id}-${letter}`;
+                    const isSelected = selectedOptions[optionKey];
+                    
+                    return (
+                      <label 
+                        key={letter} 
+                        className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg"
+                        onClick={() => {
+                          if (isMultiple) {
+                            setSelectedOptions(prev => ({
+                              ...prev,
+                              [optionKey]: !prev[optionKey]
+                            }));
+                          } else {
+                            // For single choice, clear others from this question
+                            const newOptions = { ...selectedOptions };
+                            ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(l => {
+                              delete newOptions[`${q.id}-${l}`];
+                            });
+                            newOptions[optionKey] = true;
+                            setSelectedOptions(newOptions);
+                          }
+                        }}
+                      >
+                        {/* Letter circle */}
+                        <span style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgb(223, 223, 223)',
+                          color: 'rgb(41, 69, 99)',
+                          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          marginRight: '8px'
+                        }}>
+                          {letter}
+                        </span>
+                        {/* Radio/Checkbox input */}
+                        <input 
+                          type={isMultiple ? "checkbox" : "radio"} 
+                          checked={isSelected || false}
+                          onChange={() => {}}
+                          className="w-4 h-4" 
+                        />
+                        {/* Option text */}
+                        <span style={{ marginLeft: '4px' }}><RenderHtml html={optText} /></span>
+                      </label>
+                    );
+                  })}
                 </div>
-              );
-            }
-            return null; // Don't render subsequent questions in the group
+              </div>
+            );
           }
 
           // Matching Headings with dropdown
@@ -1149,9 +1172,10 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 READING PASSAGE {selectedPassage}
               </h2>
               {currentSection.instruction && (
-                <p style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}>
-                  {currentSection.instruction}
-                </p>
+                <div 
+                  style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}
+                  dangerouslySetInnerHTML={{ __html: currentSection.instruction }}
+                />
               )}
               
               <div className="mb-6">
@@ -1167,7 +1191,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                 </h3>
                 <div 
                   style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', lineHeight: '1.6' }}
-                  dangerouslySetInnerHTML={{ __html: currentSection.content || 'No content yet' }}
+                  dangerouslySetInnerHTML={{ __html: (currentSection.content || 'No content yet').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
                 />
               </div>
 
@@ -1186,7 +1210,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                       </h3>
                       {group.instruction_text && (
                         <div 
-                          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }} 
+                          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }}
                           dangerouslySetInnerHTML={{ __html: group.instruction_text }} 
                         />
                       )}
