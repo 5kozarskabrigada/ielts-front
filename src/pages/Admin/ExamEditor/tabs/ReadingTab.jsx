@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
+import { useAuth } from "../../../../authContext";
 import { API_URL } from "../../../../api";
 import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 import { 
@@ -257,7 +258,7 @@ const renderTemplateWithBlanks = (template, questionNumber, accentColor) => {
 // ============================================
 // IMAGE UPLOADER
 // ============================================
-const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, description, onDescriptionChange }) => {
+const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, description, onDescriptionChange, token }) => {
   const fileInputRef = useRef();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -276,7 +277,6 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
     setUploading(true);
     setError("");
     try {
-      const token = localStorage.getItem('ielts_token');
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
@@ -598,7 +598,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
 // ============================================
 // QUESTION GROUP CARD
 // ============================================
-const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) => {
+const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, token }) => {
   const { questions, setQuestions, updateQuestionGroup, deleteQuestionGroup } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -721,7 +721,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
           />
 
           {(group.question_type === 'diagram_labeling' || group.question_type === 'table_completion') && (
-            <ImageUploader group={group} updateGroup={updateQuestionGroup} />
+            <ImageUploader group={group} updateGroup={updateQuestionGroup} token={token} />
           )}
 
           {/* Scoring Settings */}
@@ -776,7 +776,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
 // ============================================
 // PASSAGE (SECTION) CARD
 // ============================================
-const PassageCard = ({ section, passageNumber, passageLetters }) => {
+const PassageCard = ({ section, passageNumber, passageLetters, token }) => {
   const { updateSection, questionGroups, addQuestionGroup } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -867,7 +867,7 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
               className="mt-4"
               showBlankButton={false}
             />
-            <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
+            <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} token={token} />
             
             <div className="mt-4">
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
@@ -896,7 +896,7 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
             {sectionGroups.length > 0 ? (
               <div className="space-y-4">
                 {sectionGroups.map((group) => (
-                  <QuestionGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={passageNumber} passageLetters={paragraphLettersForThisSection} />
+                  <QuestionGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={passageNumber} passageLetters={paragraphLettersForThisSection} token={token} />
                 ))}
               </div>
             ) : (
@@ -1324,6 +1324,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
 // ============================================
 export default function ReadingTab() {
   const { sections } = useExamEditor();
+  const { token } = useAuth();
   const [showPreview, setShowPreview] = useState(false);
 
   const readingSections = sections.filter(s => s.module_type === 'reading').sort((a, b) => a.section_order - b.section_order);
@@ -1354,7 +1355,7 @@ export default function ReadingTab() {
 
       <div className="space-y-5">
         {readingSections.length > 0 ? (
-          readingSections.map((section, idx) => <PassageCard key={section.id} section={section} passageNumber={idx + 1} passageLetters={passageLetters} />)
+          readingSections.map((section, idx) => <PassageCard key={section.id} section={section} passageNumber={idx + 1} passageLetters={passageLetters} token={token} />)
         ) : (
           <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
             <BookOpen size={48} className="mx-auto text-gray-300 mb-3" />
