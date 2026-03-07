@@ -175,17 +175,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   const updateExam = (updates) => setExam(prev => ({ ...prev, ...updates }));
   
   const updateSection = (id, updates) => {
-    console.log('🔄 updateSection called:', { id, updates, currentSectionsCount: sections.length });
-    setSections(prev => {
-      const updated = prev.map(s => s.id === id ? { ...s, ...updates } : s);
-      console.log('✅ Sections after update:', updated.map(s => ({ 
-        id: s.id, 
-        module_type: s.module_type, 
-        title: s.title, 
-        content_length: s.content?.length || 0 
-      })));
-      return updated;
-    });
+    setSections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
   const addQuestion = (sectionId, questionData) => {

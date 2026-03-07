@@ -160,27 +160,14 @@ function ExamEditorContent() {
       // Update context with corrected questions
       setQuestions(correctedQuestions);
       
-      console.log('🔵 SAVING EXAM STRUCTURE');
-      console.log('📊 Sections being sent:', sections.map(s => ({ 
-        id: s.id, 
-        module_type: s.module_type, 
-        title: s.title,
-        content_length: s.content?.length || 0,
-        has_image: !!s.image_url
-      })));
-      
-      const payload = { 
+      const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
         questions: correctedQuestions,
         questionGroups,
         deletedQuestionIds,
         deletedGroupIds
-      };
-      
-      console.log('📦 Full payload:', payload);
-      
-      const response = await apiSaveExamStructure(token, examId, payload);
+      });
       
       if (response.idMapping) {
         updateIds(response.idMapping);
