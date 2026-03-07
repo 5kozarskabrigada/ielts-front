@@ -337,12 +337,22 @@ const ParagraphLetteringInfo = ({ content }) => {
   // Use same detection logic as preview
   const detectParagraphLetters = (content) => {
     if (!content) return [];
-    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
-    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.\)]\s*/g) || [];
-    const letters = matches.map(m => {
-      const match = m.match(/([A-Z])/);
-      return match ? match[1] : null;
-    }).filter(Boolean);
+    // Strip HTML tags and normalize whitespace
+    const textOnly = content.replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ').replace(/\r/g, '\n');
+    
+    // Split into lines and look for paragraph markers
+    const lines = textOnly.split('\n');
+    const letters = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match patterns like "A. text" or "A) text" at the start
+      const match = trimmed.match(/^([A-Z])[\.\)]\s+/);
+      if (match) {
+        letters.push(match[1]);
+      }
+    }
+    
     return [...new Set(letters)].sort();
   };
   
@@ -702,12 +712,22 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
   // Detect paragraph letters from this section's content
   const detectParagraphLetters = (content) => {
     if (!content) return [];
-    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
-    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.)\.]\s*/g) || [];
-    const letters = matches.map(m => {
-      const match = m.match(/([A-Z])/);
-      return match ? match[1] : null;
-    }).filter(Boolean);
+    // Strip HTML tags and normalize whitespace
+    const textOnly = content.replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ').replace(/\r/g, '\n');
+    
+    // Split into lines and look for paragraph markers
+    const lines = textOnly.split('\n');
+    const letters = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match patterns like "A. text" or "A) text" at the start
+      const match = trimmed.match(/^([A-Z])[\.\)]\s+/);
+      if (match) {
+        letters.push(match[1]);
+      }
+    }
+    
     return [...new Set(letters)].sort();
   };
   
@@ -843,22 +863,31 @@ const PreviewMode = ({ isOpen, onClose }) => {
   // Detect paragraph letters from content
   const detectParagraphLetters = (content) => {
     if (!content) return [];
-    // Strip HTML tags first, then look for paragraphs that start with a letter followed by period/parenthesis
-    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
-    // More flexible regex: match A. or A) with optional space, or just standalone paragraph letters
-    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.\)]\s*/g) || [];
-    const letters = matches.map(m => {
-      const match = m.match(/([A-Z])/);
-      return match ? match[1] : null;
-    }).filter(Boolean);
+    // Strip HTML tags and normalize whitespace
+    const textOnly = content.replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ').replace(/\r/g, '\n');
+    
+    // Split into lines and look for paragraph markers at the start of lines
+    // Pattern: optional whitespace, then capital letter, then . or ), then whitespace
+    const lines = textOnly.split('\n');
+    const letters = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match patterns like "A. text" or "A) text" at the start
+      const match = trimmed.match(/^([A-Z])[\.\)]\s+/);
+      if (match) {
+        letters.push(match[1]);
+      }
+    }
     
     // Remove duplicates and sort
     const uniqueLetters = [...new Set(letters)].sort();
     
     console.log('Paragraph detection debug:', {
       contentLength: content?.length,
-      textOnlyPreview: textOnly.substring(0, 200),
-      matchesFound: matches,
+      textOnlyPreview: textOnly.substring(0, 300),
+      totalLines: lines.length,
+      matchedLines: lines.filter(l => l.trim().match(/^([A-Z])[\.\)]\s+/)).map(l => l.trim().substring(0, 50)),
       lettersDetected: uniqueLetters
     });
     
