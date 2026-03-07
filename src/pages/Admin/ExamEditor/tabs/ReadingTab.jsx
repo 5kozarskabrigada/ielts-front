@@ -333,19 +333,32 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
 // ============================================
 const ParagraphLetteringInfo = ({ content }) => {
   if (!content) return null;
-  const paragraphCount = (content.match(/<p>/gi) || []).length || (content.split(/\n\n+/).length);
-  if (paragraphCount === 0) return null;
-  const letters = Array.from({ length: Math.min(paragraphCount, 26) }, (_, i) => String.fromCharCode(65 + i));
+  
+  // Use same detection logic as preview
+  const detectParagraphLetters = (content) => {
+    if (!content) return [];
+    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.\)]\s*/g) || [];
+    const letters = matches.map(m => {
+      const match = m.match(/([A-Z])/);
+      return match ? match[1] : null;
+    }).filter(Boolean);
+    return [...new Set(letters)].sort();
+  };
+  
+  const letters = detectParagraphLetters(content);
+  if (letters.length === 0) return null;
   
   return (
     <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-4">
       <h5 className="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-2"><Info size={14} />Paragraph Letters (Auto-detected)</h5>
-      <p className="text-xs text-purple-600 mb-2">{paragraphCount} paragraph{paragraphCount !== 1 ? 's' : ''} detected in this passage</p>
+      <p className="text-xs text-purple-600 mb-2">{letters.length} paragraph{letters.length !== 1 ? 's' : ''} detected in this passage</p>
       <div className="flex flex-wrap gap-2">
         {letters.map(letter => (
           <span key={letter} className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-mono text-xs font-bold">{letter}</span>
         ))}
       </div>
+      <p className="text-xs text-purple-600 mt-2">Format paragraphs as: <code className="bg-purple-100 px-1 rounded">A. text...</code> or <code className="bg-purple-100 px-1 rounded">A) text...</code></p>
     </div>
   );
 };
@@ -466,7 +479,30 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
           {(groupType === 'matching_headings' || groupType === 'matching_information' || groupType === 'matching_features' || groupType === 'matching_sentence_endings') && (
             <>
               <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
-              <Input label="Correct Answer (Letter)" placeholder="C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value.toUpperCase() })} />
+              <div>
+                <Input label="Correct Answer (Letter)" placeholder="C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value.toUpperCase() })} />
+                {passageLetters.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Detected paragraph letters:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {passageLetters.map(letter => (
+                        <button
+                          key={letter}
+                          type="button"
+                          onClick={() => updateQuestion(question.id, { correct_answer: letter })}
+                          className={`px-2 py-1 text-xs font-bold rounded transition ${
+                            question.correct_answer === letter
+                              ? 'bg-green-500 text-white'
+                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                          }`}
+                        >
+                          {letter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -639,7 +675,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
             {groupQuestions.length > 0 ? (
               <div className="space-y-3">
                 {groupQuestions.map((question, idx) => (
-                  <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} />
+                  <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={paragraphLettersForThisSection} />
                 ))}
               </div>
             ) : (
@@ -662,6 +698,20 @@ const PassageCard = ({ section, passageNumber, passageLetters }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const sectionGroups = questionGroups.filter(g => g.section_id === section.id).sort((a, b) => a.group_order - b.group_order);
+  
+  // Detect paragraph letters from this section's content
+  const detectParagraphLetters = (content) => {
+    if (!content) return [];
+    const textOnly = content.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+    const matches = textOnly.match(/(?:^|\n|\r|\.)\s*([A-Z])[\.)\.]\s*/g) || [];
+    const letters = matches.map(m => {
+      const match = m.match(/([A-Z])/);
+      return match ? match[1] : null;
+    }).filter(Boolean);
+    return [...new Set(letters)].sort();
+  };
+  
+  const paragraphLettersForThisSection = detectParagraphLetters(section.content);
 
   const colors = [
     { bg: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
