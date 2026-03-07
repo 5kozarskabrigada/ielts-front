@@ -1,104 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { 
-  ChevronDown, Plus, Trash2, BookOpen, CheckCircle, 
+  ChevronDown, ChevronUp, Plus, Trash2, BookOpen, CheckCircle, 
   HelpCircle, Target, List, ArrowRightLeft, FileText, 
-  Type, Table2, MapPin, MessageSquare, Info
+  Type, Table2, MapPin, MessageSquare, Info, Upload, Eye, EyeOff
 } from "lucide-react";
-import PassageImageUploader from "./PassageImageUploader";
-import GroupImageUploader from "./GroupImageUploader";
-import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 
-// Question types with icons and detailed hints
+// ============================================
+// QUESTION TYPE DEFINITIONS
+// ============================================
 const QUESTION_TYPES = [
-  { 
-    value: "multiple_choice_single", 
-    label: "Multiple Choice", 
-    icon: Target, 
-    hint: "Student selects ONE correct answer from A-D options"
-  },
-  { 
-    value: "multiple_choice_multiple", 
-    label: "Multi-Select", 
-    icon: List, 
-    hint: "Student selects TWO or more correct answers from A-E options"
-  },
-  { 
-    value: "true_false_not_given", 
-    label: "True/False/NG", 
-    icon: CheckCircle, 
-    hint: "Student decides if factual statements agree with, contradict, or go beyond the text"
-  },
-  { 
-    value: "yes_no_not_given", 
-    label: "Yes/No/NG", 
-    icon: HelpCircle, 
-    hint: "Student decides if writer's views/claims match statements (opinion-based)"
-  },
-  { 
-    value: "matching_headings", 
-    label: "Match Headings", 
-    icon: Type, 
-    hint: "Student matches Roman numeral headings (i, ii, iii...) to paragraphs"
-  },
-  { 
-    value: "matching_information", 
-    label: "Match Info", 
-    icon: ArrowRightLeft, 
-    hint: "Student matches statements to the paragraphs (A, B, C...) where info is found"
-  },
-  { 
-    value: "matching_features", 
-    label: "Match Features", 
-    icon: ArrowRightLeft, 
-    hint: "Student matches items/features to categories (e.g., researchers to findings)"
-  },
-  { 
-    value: "matching_sentence_endings", 
-    label: "Sentence Endings", 
-    icon: ArrowRightLeft, 
-    hint: "Student completes sentence beginnings by matching to correct endings (A-G)"
-  },
-  { 
-    value: "summary_completion", 
-    label: "Summary", 
-    icon: FileText, 
-    hint: "Student fills gaps in a summary with words from text or word bank"
-  },
-  { 
-    value: "sentence_completion", 
-    label: "Sentence", 
-    icon: Type, 
-    hint: "Student completes a sentence with 1-3 words from the passage"
-  },
-  { 
-    value: "table_completion", 
-    label: "Table", 
-    icon: Table2, 
-    hint: "Student fills missing cells in a table with information from text"
-  },
-  { 
-    value: "diagram_labeling", 
-    label: "Diagram", 
-    icon: MapPin, 
-    hint: "Student labels parts of a diagram/process with words from text"
-  },
-  { 
-    value: "short_answer", 
-    label: "Short Answer", 
-    icon: MessageSquare, 
-    hint: "Student answers a question with words taken directly from the passage"
-  },
+  { value: "multiple_choice_single", label: "Multiple Choice (Single)", icon: Target, hint: "Student selects ONE correct answer from A-D options" },
+  { value: "multiple_choice_multiple", label: "Multiple Choice (Multiple)", icon: List, hint: "Student selects TWO or more correct answers" },
+  { value: "true_false_not_given", label: "True/False/Not Given", icon: CheckCircle, hint: "Factual statements" },
+  { value: "yes_no_not_given", label: "Yes/No/Not Given", icon: HelpCircle, hint: "Writer's views/claims" },
+  { value: "matching_headings", label: "Matching Headings", icon: Type, hint: "Match Roman numeral headings to paragraphs" },
+  { value: "matching_information", label: "Matching Information", icon: ArrowRightLeft, hint: "Match statements to paragraphs" },
+  { value: "matching_features", label: "Matching Features", icon: ArrowRightLeft, hint: "Match items to categories" },
+  { value: "matching_sentence_endings", label: "Matching Sentence Endings", icon: ArrowRightLeft, hint: "Match sentence beginnings to endings" },
+  { value: "summary_completion", label: "Summary Completion", icon: FileText, hint: "Fill gaps in a summary" },
+  { value: "sentence_completion", label: "Sentence Completion", icon: Type, hint: "Complete sentences with words from passage" },
+  { value: "table_completion", label: "Table Completion", icon: Table2, hint: "Fill missing cells in a table" },
+  { value: "diagram_labeling", label: "Diagram Labeling", icon: MapPin, hint: "Label parts of a diagram" },
+  { value: "short_answer", label: "Short Answer", icon: MessageSquare, hint: "Answer questions with words from passage" },
 ];
 
-// Styled input components
+// ============================================
+// STYLED COMPONENTS
+// ============================================
 const Input = ({ label, hint, className = "", ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <input
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition"
-      {...props}
-    />
+    <input className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition" {...props} />
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
@@ -106,10 +39,7 @@ const Input = ({ label, hint, className = "", ...props }) => (
 const TextArea = ({ label, hint, className = "", ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <textarea
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition resize-none"
-      {...props}
-    />
+    <textarea className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition resize-none" {...props} />
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
@@ -117,357 +47,503 @@ const TextArea = ({ label, hint, className = "", ...props }) => (
 const Select = ({ label, hint, options, className = "", ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</label>}
-    <select
-      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-100 outline-none transition"
-      {...props}
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
+    <select className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition" {...props}>
+      {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
     {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
   </div>
 );
 
-// QuestionFields component - renders question input fields based on type
-function QuestionFields({ question, updateQuestion, passageLetters }) {
+// ============================================
+// RICH TEXT EDITOR
+// ============================================
+const RichTextArea = ({ label, hint, className = "", value = "", onChange, showBlankButton = false, ...props }) => {
+  const editorRef = useRef(null);
+  const [isFocused, setIsFocused] = useState(false);
+  
+  useEffect(() => {
+    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value, isFocused]);
+  
+  const handleInput = () => {
+    if (editorRef.current && onChange) {
+      onChange({ target: { value: editorRef.current.innerHTML } });
+    }
+  };
+  
+  const applyFormat = (command, val = null) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, val);
+    handleInput();
+  };
+  
+  const insertBlank = () => {
+    editorRef.current?.focus();
+    document.execCommand('insertText', false, '[BLANK]');
+    handleInput();
+  };
+
   return (
-    <div className="space-y-3">
-      <Input
-        label="Question Text"
-        placeholder="Enter question text..."
-        value={question.text || ""}
-        onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-      />
-      <Input
-        label="Answer"
-        placeholder="Enter correct answer..."
-        value={question.answer || ""}
-        onChange={(e) => updateQuestion(question.id, { answer: e.target.value })}
-      />
+    <div className={className}>
+      {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</label>}
+      <div className="flex items-center gap-0.5 p-1.5 bg-gray-100 rounded-t-lg border border-b-0 border-gray-200">
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition font-bold text-sm border border-transparent hover:border-gray-300" title="Bold">B</button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition italic text-sm border border-transparent hover:border-gray-300" title="Italic">I</button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition text-sm border border-transparent hover:border-gray-300" title="Underline"><span className="underline">U</span></button>
+        {showBlankButton && (
+          <>
+            <div className="h-5 w-px bg-gray-300 mx-0.5" />
+            <button type="button" onMouseDown={(e) => { e.preventDefault(); insertBlank(); }} className="px-2 py-1 rounded hover:bg-emerald-100 text-emerald-700 transition text-xs font-medium border border-emerald-300 bg-emerald-50" title="Insert Blank">+ Blank</button>
+          </>
+        )}
+      </div>
+      <div ref={editorRef} contentEditable onInput={handleInput} onFocus={() => setIsFocused(true)} onBlur={() => { setIsFocused(false); handleInput(); }} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition overflow-auto" style={{ minHeight: props.rows ? `${props.rows * 24}px` : '60px' }} suppressContentEditableWarning />
+      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
     </div>
   );
-}
+};
 
-// Reading Group Card (modeled after ListeningTab)
-function ReadingGroupCard({ group, sectionId, passageNumber, passageLetters }) {
-  const { updateQuestionGroup, deleteQuestionGroup, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
-  const [isExpanded, setIsExpanded] = React.useState(true);
-  const groupQuestions = questions.filter(q => q.group_id === group.id);
-  const addQuestionToGroup = () => {
-    const nextNum = groupQuestions.length > 0
-      ? Math.max(...groupQuestions.map(q => q.question_number || 0)) + 1
-      : group.question_range_start || 1;
-    addQuestion(sectionId, {
-      question_number: nextNum,
-      type: group.question_type,
-      text: '',
-      answer: '',
-      group_id: group.id
-    });
+const RenderHtml = ({ html }) => <span dangerouslySetInnerHTML={{ __html: html || '' }} />;
+
+const BlankInput = ({ questionNumber }) => (
+  <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+    <span className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0" style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(34, 197, 94)' }}>{questionNumber}</span>
+    <span className="inline-block px-4 py-1.5 border border-gray-300 rounded bg-white text-gray-400 text-sm min-w-[100px] text-center">__________</span>
+  </span>
+);
+
+const renderTemplateWithBlanks = (template, questionNumber) => {
+  if (!template) return null;
+  const parts = template.split('[BLANK]');
+  return parts.map((part, idx, arr) => (
+    <React.Fragment key={idx}>
+      <RenderHtml html={part} />
+      {idx < arr.length - 1 && <BlankInput questionNumber={questionNumber} />}
+    </React.Fragment>
+  ));
+};
+
+// ============================================
+// IMAGE UPLOADER
+// ============================================
+const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, description, onDescriptionChange }) => {
+  const fileInputRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000/api"}/upload/passage-image`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Upload failed");
+      const { url } = await response.json();
+      if (group) {
+        updateGroup(group.id, { image_url: url });
+      } else if (onImageChange) {
+        onImageChange(url);
+      }
+    } catch (err) {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const currentImageUrl = group ? group.image_url : imageUrl;
+  const currentDescription = group ? group.image_description : description;
+
+  const handleUrlChange = (url) => {
+    if (group) {
+      updateGroup(group.id, { image_url: url });
+    } else if (onImageChange) {
+      onImageChange(url);
+    }
+  };
+
+  const handleDescriptionChange = (desc) => {
+    if (group) {
+      updateGroup(group.id, { image_description: desc });
+    } else if (onDescriptionChange) {
+      onDescriptionChange(desc);
+    }
+  };
+
   return (
-    <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
-      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white flex items-center justify-between cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3 mt-4">
+      <h5 className="text-xs font-semibold text-blue-700 uppercase tracking-wide">{group ? 'Group Image' : 'Passage Image'}</h5>
+      <div className="flex gap-2">
+        <input className="flex-1 px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none" placeholder="https://example.com/image.png or click upload" value={currentImageUrl || ""} onChange={(e) => handleUrlChange(e.target.value)} />
+        <button type="button" className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          <Upload size={16} />
+          {uploading ? 'Uploading...' : 'Upload'}
+        </button>
+        <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+      </div>
+      <textarea className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none resize-none" placeholder="Image description (for accessibility)" rows={2} value={currentDescription || ""} onChange={(e) => handleDescriptionChange(e.target.value)} />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {currentImageUrl && (
+        <div className="bg-white rounded-lg border border-blue-200 p-2">
+          <img src={currentImageUrl} alt={currentDescription || "Preview"} className="max-h-48 mx-auto rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// PARAGRAPH LETTERING INFO
+// ============================================
+const ParagraphLetteringInfo = ({ content }) => {
+  if (!content) return null;
+  const paragraphCount = (content.match(/<p>/gi) || []).length || (content.split(/\n\n+/).length);
+  if (paragraphCount === 0) return null;
+  const letters = Array.from({ length: Math.min(paragraphCount, 26) }, (_, i) => String.fromCharCode(65 + i));
+  
+  return (
+    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-4">
+      <h5 className="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-2"><Info size={14} />Paragraph Letters (Auto-detected)</h5>
+      <p className="text-xs text-purple-600 mb-2">{paragraphCount} paragraph{paragraphCount !== 1 ? 's' : ''} detected in this passage</p>
+      <div className="flex flex-wrap gap-2">
+        {letters.map(letter => (
+          <span key={letter} className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-mono text-xs font-bold">{letter}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// QUESTION EDITOR BY TYPE
+// ============================================
+const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [] }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="border rounded-lg overflow-hidden bg-white border-gray-200">
+      <div className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
-            <span className="text-blue-600 font-bold text-lg">{group.question_type?.[0]?.toUpperCase() || '?'}</span>
-          </div>
+          <span className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-xs bg-emerald-100 text-emerald-700">{questionNumber}</span>
           <div>
-            <h4 className="font-semibold text-gray-800">
-              {group.instruction_text?.slice(0, 40) || 'Reading Group'}
-            </h4>
-            <p className="text-xs text-gray-500">Questions {group.question_range_start}–{group.question_range_end}</p>
+            <p className="text-sm font-medium text-gray-700 truncate max-w-xs">{question.question_text || 'Question ' + questionNumber}</p>
+            {question.correct_answer && <p className="text-xs text-green-600">Answer: {question.correct_answer}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-            {groupQuestions.length} questions
-          </span>
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); deleteQuestionGroup(group.id); }}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-          >
+          {question.correct_answer && <CheckCircle size={16} className="text-green-500" />}
+          <button type="button" onClick={(e) => { e.stopPropagation(); deleteQuestion(question.id); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition">
             <Trash2 size={16} />
           </button>
           <ChevronDown size={18} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
+
       {isExpanded && (
-        <div className="p-4 border-t border-blue-100 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
-              placeholder="Instruction text..."
-              value={group.instruction_text || ''}
-              onChange={e => updateQuestionGroup(group.id, { instruction_text: e.target.value })}
-            />
-            <select
-              className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:border-blue-400 outline-none"
-              value={group.question_type || ''}
-              onChange={e => updateQuestionGroup(group.id, { question_type: e.target.value })}
-            >
-              <option value="">Select type…</option>
-              <option value="paragraph_matching">Paragraph Matching</option>
-              <option value="sentence_completion">Sentence Completion</option>
-              <option value="true_false_not_given">True/False/Not Given</option>
-              <option value="heading_matching">Heading Matching</option>
-              <option value="multiple_choice">Multiple Choice</option>
-              <option value="short_answer">Short Answer</option>
-            </select>
-          </div>
-          <GroupImageUploader
-            imageUrl={group.image_url || ''}
-            onChange={url => updateQuestionGroup(group.id, { image_url: url })}
-            description={group.image_description || ''}
-            onDescriptionChange={desc => updateQuestionGroup(group.id, { image_description: desc })}
-          />
-          <div className="flex items-center justify-between mb-2">
-            <h5 className="font-medium text-gray-700">Questions</h5>
-            <button
-              onClick={addQuestionToGroup}
-              className="flex items-center gap-1.5 px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition"
-            >
-              <Plus size={14} /> Add Question
-            </button>
-          </div>
-          {groupQuestions.length > 0 ? (
-            <div className="space-y-2">
-              {groupQuestions.map((q, idx) => (
-                <div key={q.id} className="border rounded p-2 bg-blue-50">
-                  <QuestionFields
-                    question={q}
-                    updateQuestion={updateQuestion}
-                    passageLetters={passageLetters}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => deleteQuestion(q.id)}
-                    className="text-xs text-red-500 hover:underline mt-1"
-                  >Delete</button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No questions yet</div>
+        <div className="px-4 py-4 border-t border-gray-100 space-y-4 bg-gray-50">
+          {/* Multiple Choice Single */}
+          {groupType === 'multiple_choice_single' && (
+            <>
+              <RichTextArea label="Question Text" placeholder="What is the main idea?" rows={3} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase">Options</label>
+                {['A', 'B', 'C', 'D'].map(letter => (
+                  <div key={letter} className="flex items-center gap-2">
+                    <button type="button" onClick={() => updateQuestion(question.id, { correct_answer: letter })} className={`w-8 h-8 flex-shrink-0 font-bold rounded transition ${question.correct_answer === letter ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{letter}</button>
+                    <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={question[`option_${letter.toLowerCase()}`] || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Multiple Choice Multiple */}
+          {groupType === 'multiple_choice_multiple' && (
+            <>
+              <RichTextArea label="Question Text" placeholder="Which TWO of the following are mentioned?" rows={3} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              <Input label="Correct Answers (comma-separated, e.g., A,C)" placeholder="A,C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase">Options</label>
+                {['A', 'B', 'C', 'D', 'E'].map(letter => (
+                  <div key={letter} className="flex items-center gap-2">
+                    <span className="w-8 h-8 flex-shrink-0 font-bold rounded bg-gray-100 text-gray-600 flex items-center justify-center">{letter}</span>
+                    <input className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none" placeholder={`Option ${letter}`} value={question[`option_${letter.toLowerCase()}`] || ""} onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* True/False/Not Given */}
+          {groupType === 'true_false_not_given' && (
+            <>
+              <RichTextArea label="Statement" placeholder="The study was conducted in 2020." rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              <Select label="Correct Answer" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} options={[
+                { value: "", label: "Select answer..." },
+                { value: "TRUE", label: "TRUE" },
+                { value: "FALSE", label: "FALSE" },
+                { value: "NOT GIVEN", label: "NOT GIVEN" }
+              ]} />
+            </>
+          )}
+
+          {/* Yes/No/Not Given */}
+          {groupType === 'yes_no_not_given' && (
+            <>
+              <RichTextArea label="Statement (Writer's view/claim)" placeholder="The author believes technology improves education." rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              <Select label="Correct Answer" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} options={[
+                { value: "", label: "Select answer..." },
+                { value: "YES", label: "YES" },
+                { value: "NO", label: "NO" },
+                { value: "NOT GIVEN", label: "NOT GIVEN" }
+              ]} />
+            </>
+          )}
+
+          {/* Matching types */}
+          {(groupType === 'matching_headings' || groupType === 'matching_information' || groupType === 'matching_features' || groupType === 'matching_sentence_endings') && (
+            <>
+              <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              <Input label={`Correct Answer (${groupType === 'matching_headings' ? 'Roman numeral' : 'Letter'})`} placeholder={groupType === 'matching_headings' ? 'iii' : 'C'} value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: groupType === 'matching_headings' ? e.target.value : e.target.value.toUpperCase() })} />
+            </>
+          )}
+
+          {/* Summary/Sentence/Diagram/Short Answer */}
+          {(groupType === 'summary_completion' || groupType === 'sentence_completion' || groupType === 'diagram_labeling' || groupType === 'short_answer') && (
+            <>
+              {groupType === 'short_answer' ? (
+                <RichTextArea label="Question" placeholder="What is the name of the technique?" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
+              ) : (
+                <RichTextArea label={groupType === 'diagram_labeling' ? 'Label position/description' : 'Text with blank'} placeholder={groupType === 'diagram_labeling' ? 'Arrow pointing to [BLANK]' : 'The technique was developed in [BLANK].'} rows={2} value={question.question_template || question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_template: e.target.value, question_text: e.target.value })} showBlankButton={true} />
+              )}
+              <div className="bg-gray-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
+                <p className="text-sm text-gray-700">{question.question_template ? renderTemplateWithBlanks(question.question_template, questionNumber) : question.question_text || 'Enter question text'}</p>
+              </div>
+              <Input label="Correct Answer" placeholder="e.g., photosynthesis, 1990" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <Input label="Alternative Answers (comma-separated)" placeholder="e.g., photo-synthesis, Photosynthesis" value={(question.answer_alternatives || []).join(', ')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+            </>
+          )}
+
+          {/* Table Completion */}
+          {groupType === 'table_completion' && (
+            <>
+              <Input label="Table Row Label" placeholder="e.g., Year, Location" value={question.label_text || ""} onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })} />
+              <RichTextArea label="Cell content with blank" placeholder="Started in [BLANK]" rows={2} value={question.question_template || ""} onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })} showBlankButton={true} />
+              <Input label="Correct Answer" placeholder="e.g., 1990, London" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+            </>
           )}
         </div>
       )}
     </div>
   );
-}
+};
 
-// Question Card (for backwards compatibility if needed)
-function QuestionCard({ question, updateQuestion, deleteQuestion, index, passageNumber, passageLetters }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const qNum = (passageNumber - 1) * 13 + index + 1;
-  const hasContent = question.text && question.answer;
-  const typeInfo = QUESTION_TYPES.find(t => t.value === question.type) || QUESTION_TYPES[0];
-  const TypeIcon = typeInfo.icon;
+// ============================================
+// QUESTION GROUP CARD
+// ============================================
+const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) => {
+  const { questions, setQuestions, updateQuestionGroup, deleteQuestionGroup } = useExamEditor();
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const selectedType = QUESTION_TYPES.find(t => t.value === group.question_type);
+  const Icon = selectedType?.icon || HelpCircle;
+
+  const groupQuestions = questions
+    .filter(q => q.section_id === sectionId && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end)
+    .sort((a, b) => a.question_number - b.question_number);
+
+  const baseQuestionNumber = (passageNumber - 1) * 13 + group.question_range_start;
+
+  const addQuestion = () => {
+    const nextNumber = groupQuestions.length > 0 ? Math.max(...groupQuestions.map(q => q.question_number)) + 1 : group.question_range_start;
+    if (nextNumber > group.question_range_end) {
+      alert(`Cannot add more questions. Group range is ${group.question_range_start}-${group.question_range_end}`);
+      return;
+    }
+
+    const newQuestion = {
+      id: `temp_${Date.now()}`,
+      section_id: sectionId,
+      group_id: group.id,
+      question_type: group.question_type,
+      question_number: nextNumber,
+      question_text: '',
+      correct_answer: '',
+      points: group.points_per_question || 1
+    };
+
+    setQuestions(prev => [...prev, newQuestion]);
+  };
+
+  const deleteQuestion = (questionId) => {
+    setQuestions(prev => prev.filter(q => q.id !== questionId));
+  };
+
+  const updateQuestion = (questionId, updates) => {
+    setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, ...updates } : q));
+  };
 
   return (
-    <div className={`border rounded-xl overflow-hidden transition-all ${
-      isOpen ? 'border-emerald-300 shadow-sm' : 'border-gray-200'
-    }`}>
-      <div
-        className={`px-4 py-3 flex items-center justify-between cursor-pointer transition ${
-          isOpen ? 'bg-emerald-50' : 'bg-white hover:bg-gray-50'
-        }`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
+    <div className="bg-white border-2 border-emerald-200 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 bg-emerald-50 flex items-center justify-between cursor-pointer hover:bg-emerald-100 transition" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center gap-3">
-          <span className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold ${
-            hasContent ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
-            {qNum}
-          </span>
-          <div className="flex items-center gap-2">
-            <TypeIcon size={16} className="text-gray-400" />
-            <div>
-              <p className="text-sm font-medium text-gray-800">{typeInfo.label}</p>
-              {question.text && (
-                <p className="text-xs text-gray-400 truncate max-w-[180px] sm:max-w-xs">{question.text}</p>
-              )}
-            </div>
+          <Icon size={20} className="text-emerald-600" />
+          <div>
+            <h4 className="font-semibold text-gray-800 text-sm">{selectedType?.label || 'Select Type'} · Q{baseQuestionNumber}–{baseQuestionNumber + (group.question_range_end - group.question_range_start)}</h4>
+            <p className="text-xs text-gray-500">{groupQuestions.length} question{groupQuestions.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {hasContent && <CheckCircle size={16} className="text-green-500" />}
-          <button
-            onClick={(e) => { e.stopPropagation(); deleteQuestion(question.id); }}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-          >
-            <Trash2 size={16} />
-          </button>
-          <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <button type="button" onClick={(e) => { e.stopPropagation(); deleteQuestionGroup(group.id); }} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+          <ChevronDown size={20} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
-      {isOpen && (
-        <div className="p-4 bg-gray-50/70 border-t border-gray-100">
-          <div className="mb-5">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Question Type</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-              {QUESTION_TYPES.map(type => {
-                const Icon = type.icon;
-                const isSelected = question.type === type.value;
-                return (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => updateQuestion(question.id, { type: type.value })}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-left transition ${
-                      isSelected 
-                        ? 'border-emerald-400 bg-emerald-50 text-emerald-800' 
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    <Icon size={12} className={isSelected ? 'text-emerald-600' : 'text-gray-400'} />
-                    <span className="text-xs font-medium truncate">{type.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-start gap-1.5 mt-2 text-xs text-gray-400">
-              <Info size={12} className="mt-0.5 flex-shrink-0" />
-              <span>{typeInfo.hint}</span>
+      {isExpanded && (
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Select label="Question Type" value={group.question_type || ""} onChange={(e) => updateQuestionGroup(group.id, { question_type: e.target.value })} options={[{ value: "", label: "Select type..." }, ...QUESTION_TYPES]} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input label="Range Start" type="number" min="1" max="13" value={group.question_range_start || 1} onChange={(e) => updateQuestionGroup(group.id, { question_range_start: parseInt(e.target.value) || 1 })} />
+              <Input label="Range End" type="number" min="1" max="13" value={group.question_range_end || 1} onChange={(e) => updateQuestionGroup(group.id, { question_range_end: parseInt(e.target.value) || 1 })} />
             </div>
           </div>
-          <QuestionFields question={question} updateQuestion={updateQuestion} passageLetters={passageLetters} />
+
+          {selectedType && (
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-xs text-blue-700 flex items-center gap-2"><Info size={14} />{selectedType.hint}</p>
+            </div>
+          )}
+
+          <RichTextArea label="Instructions" placeholder="Read the text and answer questions..." rows={2} value={group.instruction_text || ""} onChange={(e) => updateQuestionGroup(group.id, { instruction_text: e.target.value })} />
+
+          {(group.question_type === 'diagram_labeling' || group.question_type === 'table_completion') && (
+            <ImageUploader group={group} updateGroup={updateQuestionGroup} />
+          )}
+
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-sm font-semibold text-gray-700">Questions</h5>
+              <button type="button" onClick={addQuestion} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition"><Plus size={14} /> Add Question</button>
+            </div>
+
+            {groupQuestions.length > 0 ? (
+              <div className="space-y-3">
+                {groupQuestions.map((question, idx) => (
+                  <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <p className="text-sm text-gray-500">No questions yet. Click "Add Question" to start.</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
-}
+};
 
+// ============================================
+// PASSAGE (SECTION) CARD
+// ============================================
+const PassageCard = ({ section, passageNumber, passageLetters }) => {
+  const { updateSection, questionGroups, addQuestionGroup } = useExamEditor();
+  const [isExpanded, setIsExpanded] = useState(true);
 
-
-function PassageCard({ section, passageNumber, passageLetters }) {
-  const { updateSection, questions, addQuestion, updateQuestion, deleteQuestion } = useExamEditor();
-  const [isOpen, setIsOpen] = useState(true);
-
-  const sectionQuestions = questions.filter(q => q.section_id === section.id);
-  const completedCount = sectionQuestions.filter(q => q.text && q.answer).length;
-  const wordCount = section.content ? section.content.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(w => w).length : 0;
+  const sectionGroups = questionGroups.filter(g => g.section_id === section.id).sort((a, b) => a.group_order - b.group_order);
 
   const colors = [
-    { bg: 'bg-emerald-500', light: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-    { bg: 'bg-cyan-500', light: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-    { bg: 'bg-violet-500', light: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-  ][passageNumber - 1] || { bg: 'bg-gray-500', light: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' };
+    { bg: 'bg-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+    { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+    { bg: 'bg-violet-500', light: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700' },
+  ][passageNumber - 1];
+
+  const addNewGroup = () => {
+    const existingRanges = sectionGroups.map(g => ({ start: g.question_range_start, end: g.question_range_end }));
+    let nextStart = 1;
+    for (const range of existingRanges.sort((a, b) => a.start - b.start)) {
+      if (range.start > nextStart) break;
+      nextStart = range.end + 1;
+    }
+    if (nextStart > 13) {
+      alert('All questions (1-13) in this passage are already assigned to groups.');
+      return;
+    }
+
+    addQuestionGroup(section.id, {
+      question_range_start: nextStart,
+      question_range_end: Math.min(nextStart + 2, 13),
+      question_type: 'multiple_choice_single',
+      instruction_text: '',
+      points_per_question: 1,
+      group_order: sectionGroups.length + 1
+    });
+  };
+
+  const wordCount = section.content ? section.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-      {/* Header */}
-      <div
-        className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition"
-        onClick={() => setIsOpen(!isOpen)}
-      >
+      <div className="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 flex items-center justify-center rounded-xl ${colors.bg} text-white font-bold text-lg`}>
-            {passageNumber}
-          </div>
+          <div className={`w-14 h-14 flex items-center justify-center rounded-xl ${colors.bg} text-white font-bold text-xl`}>{passageNumber}</div>
           <div>
             <h3 className="font-semibold text-gray-800 text-lg">{section.title || `Passage ${passageNumber}`}</h3>
             <div className="flex items-center gap-3 mt-0.5">
+              <span className="text-sm text-gray-500">Letter: {passageLetters[passageNumber - 1]}</span>
+              <span className="text-sm text-gray-500">•</span>
               <span className="text-sm text-gray-500">{wordCount} words</span>
-              <span className="text-sm text-gray-400">•</span>
-              <span className="text-sm text-gray-500">{sectionQuestions.length} questions</span>
-              {completedCount > 0 && (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${colors.light} ${colors.text}`}>
-                  {completedCount} ready
-                </span>
-              )}
+              <span className={`text-xs px-2 py-0.5 rounded ${colors.light} ${colors.text}`}>{sectionGroups.length} groups</span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {wordCount >= 700 && completedCount >= 10 && (
-            <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium">Complete</span>
-          )}
-          <ChevronDown size={22} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
+        <ChevronDown size={22} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </div>
 
-      {isOpen && (
+      {isExpanded && (
         <>
-          {/* Passage Settings */}
           <div className={`px-5 py-4 ${colors.light} border-t ${colors.border}`}>
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Passage Title</label>
-              <input
-                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none"
-                placeholder="e.g., The History of Coffee"
-                value={section.title || ""}
-                onChange={(e) => updateSection(section.id, { title: e.target.value })}
-              />
-            </div>
-
-            {/* Passage Image Uploader - after part 1 */}
-            <PassageImageUploader
-              imageUrl={section.image_url || ""}
-              onChange={url => updateSection(section.id, { image_url: url })}
-              description={section.image_description || ""}
-              onDescriptionChange={desc => updateSection(section.id, { image_description: desc })}
-            />
-
+            <Input label="Passage Title" placeholder="e.g., The History of Coffee" value={section.title || ""} onChange={(e) => updateSection(section.id, { title: e.target.value })} />
+            <ImageUploader imageUrl={section.image_url} onImageChange={(url) => updateSection(section.id, { image_url: url })} description={section.image_description} onDescriptionChange={(desc) => updateSection(section.id, { image_description: desc })} />
             <div className="mt-4">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-                Passage Content
-                <span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span>
-              </label>
-              <RichTextEditor
-                content={section.content || ""}
-                onChange={(html) => updateSection(section.id, { content: html })}
-                placeholder="Paste or type the reading passage here..."
-                minHeight="300px"
-              />
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Passage Content<span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span></label>
+              <textarea className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-emerald-400 outline-none resize-none" rows={12} placeholder="Paste or type the reading passage here..." value={section.content || ""} onChange={(e) => updateSection(section.id, { content: e.target.value })} />
               <div className="flex justify-between items-center mt-2">
-                <p className="text-xs text-gray-400">Use toolbar to bold key terms, italicize titles</p>
-                <span className={`text-xs font-medium ${wordCount >= 700 ? 'text-green-600' : wordCount >= 400 ? 'text-amber-600' : 'text-gray-400'}`}>
-                  {wordCount} words
-                </span>
+                <p className="text-xs text-gray-400">Format each paragraph as a separate block</p>
+                <span className={`text-xs font-medium ${wordCount >= 700 && wordCount <= 900 ? 'text-green-600' : wordCount >= 400 ? 'text-amber-600' : 'text-gray-400'}`}>{wordCount} words</span>
               </div>
             </div>
+            <ParagraphLetteringInfo content={section.content} />
           </div>
 
-          {/* Questions */}
           <div className="px-5 py-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-gray-700">Questions</h4>
-              <button
-                onClick={() => addQuestion(section.id, { type: 'multiple_choice_single', text: '', answer: '' })}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition"
-              >
-                <Plus size={16} /> Add Question
-              </button>
+              <h4 className="font-semibold text-gray-700">Question Groups</h4>
+              <button type="button" onClick={addNewGroup} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition"><Plus size={16} /> Add Group</button>
             </div>
 
-            {sectionQuestions.length > 0 ? (
-              <div className="space-y-3">
-                {sectionQuestions.map((q, idx) => (
-                  <QuestionCard
-                    key={q.id}
-                    question={q}
-                    index={idx}
-                    passageNumber={passageNumber}
-                    updateQuestion={updateQuestion}
-                    deleteQuestion={deleteQuestion}
-                    passageLetters={passageLetters}
-                  />
+            {sectionGroups.length > 0 ? (
+              <div className="space-y-4">
+                {sectionGroups.map((group) => (
+                  <QuestionGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={passageNumber} passageLetters={passageLetters} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-10 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                 <BookOpen size={28} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No questions yet</p>
-              </div>
-            )}
-
-            {sectionQuestions.length > 0 && sectionQuestions.length < 13 && (
-              <div className="mt-4 text-center text-xs text-emerald-600 bg-emerald-50 rounded-lg py-2">
-                Add more questions (typical: 13-14 per passage)
+                <p className="text-sm text-gray-500">No question groups yet</p>
+                <p className="text-xs text-gray-400 mt-1">Add groups to define question types and ranges</p>
               </div>
             )}
           </div>
@@ -475,102 +551,150 @@ function PassageCard({ section, passageNumber, passageLetters }) {
       )}
     </div>
   );
-}
+};
 
-// Main Component
+// ============================================
+// PREVIEW MODE
+// ============================================
+const PreviewMode = ({ isOpen, onClose }) => {
+  const { sections, questions, questionGroups } = useExamEditor();
+  const [selectedPassage, setSelectedPassage] = useState(1);
+
+  const readingSections = sections.filter(s => s.module_type === 'reading').sort((a, b) => a.section_order - b.section_order);
+  const passageLetters = Array.from({ length: readingSections.length }, (_, i) => String.fromCharCode(65 + i));
+  const currentSection = readingSections[selectedPassage - 1];
+  const currentGroups = questionGroups.filter(g => g.section_id === currentSection?.id).sort((a, b) => a.group_order - b.group_order);
+
+  if (!isOpen) return null;
+
+  const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
+    const groupType = group.question_type;
+    return (
+      <div className="space-y-3">
+        {groupQuestions.map((q, idx) => {
+          const qNum = globalOffset + q.question_number;
+          if (groupType === 'multiple_choice_single') {
+            return (
+              <div key={q.id} className="space-y-2">
+                <p className="font-medium text-gray-800">{qNum}. <RenderHtml html={q.question_text || ''} /></p>
+                <div className="ml-6 space-y-1.5">
+                  {['A', 'B', 'C', 'D'].map(letter => {
+                    const optText = q[`option_${letter.toLowerCase()}`];
+                    if (!optText) return null;
+                    return (<div key={letter} className="flex items-start gap-2"><span className="font-bold text-gray-700">{letter}.</span><span>{optText}</span></div>);
+                  })}
+                </div>
+              </div>
+            );
+          }
+          if (groupType === 'true_false_not_given' || groupType === 'yes_no_not_given') {
+            return (<div key={q.id} className="flex items-start gap-3"><span className="font-bold text-gray-700">{qNum}.</span><p><RenderHtml html={q.question_text || ''} /></p></div>);
+          }
+          return (<div key={q.id} className="flex items-start gap-3"><span className="font-bold text-gray-700">{qNum}.</span><p><RenderHtml html={q.question_text || q.question_template || ''} /></p></div>);
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div><h2 className="text-xl font-bold text-gray-800">Preview Mode</h2><p className="text-sm text-gray-500">Student view of the reading section</p></div>
+          <button type="button" onClick={onClose} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"><EyeOff size={20} /></button>
+        </div>
+
+        <div className="flex border-b border-gray-200">
+          {[1, 2, 3].map(num => (
+            <button key={num} type="button" onClick={() => setSelectedPassage(num)} className={`flex-1 py-3 text-sm font-medium transition ${selectedPassage === num ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500' : 'text-gray-500 hover:bg-gray-50'}`}>Passage {num}</button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {currentSection ? (
+            <div>
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{currentSection.title || `Passage ${selectedPassage}`}</h3>
+                {currentSection.image_url && <img src={currentSection.image_url} alt={currentSection.image_description || 'Passage image'} className="max-h-64 mx-auto rounded-lg my-4" />}
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">{currentSection.content || 'No content yet'}</div>
+              </div>
+
+              {currentGroups.length > 0 ? (
+                currentGroups.map(group => {
+                  const groupQuestions = questions.filter(q => q.section_id === currentSection.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end).sort((a, b) => a.question_number - b.question_number);
+                  const globalOffset = (selectedPassage - 1) * 13;
+                  const qStart = globalOffset + group.question_range_start;
+                  const qEnd = globalOffset + group.question_range_end;
+                  const questionRangeText = qStart === qEnd ? `Question ${qStart}` : `Questions ${qStart}–${qEnd}`;
+
+                  return (
+                    <div key={group.id} className="mb-6 pb-6 border-b border-gray-200 last:border-0">
+                      <p className="text-lg font-bold text-emerald-600 mb-3">{questionRangeText}</p>
+                      {group.instruction_text && <div className="mb-4 text-sm italic text-gray-600" dangerouslySetInnerHTML={{ __html: group.instruction_text }} />}
+                      {group.image_url && <div className="mb-4"><img src={group.image_url} alt={group.image_description || 'Diagram'} className="max-h-64 mx-auto rounded-lg border" /></div>}
+                      <div>{renderQuestionGroup(group, groupQuestions, globalOffset)}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-gray-500 text-center py-8">No question groups in this passage</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">Passage not found</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function ReadingTab() {
-  const { sections, questionGroups, addQuestionGroup } = useExamEditor();
-  const readingSections = sections
-    .filter(s => s.module_type === 'reading')
-    .sort((a, b) => a.section_order - b.section_order);
+  const { sections } = useExamEditor();
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Generate passage letters (A, B, C, ...) for the number of reading sections
+  const readingSections = sections.filter(s => s.module_type === 'reading').sort((a, b) => a.section_order - b.section_order);
   const passageLetters = Array.from({ length: readingSections.length }, (_, i) => String.fromCharCode(65 + i));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Reading</h2>
-          <p className="text-sm text-gray-500 mt-1">3 passages • 40 questions • 60 minutes</p>
-        </div>
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">
-          <BookOpen size={16} /> IELTS
+        <div><h2 className="text-2xl font-bold text-gray-800">Reading</h2><p className="text-sm text-gray-500 mt-1">3 passages • 40 questions • 60 minutes</p></div>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"><Eye size={18} /> Preview</button>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium"><BookOpen size={16} /> IELTS</div>
         </div>
       </div>
 
-      {/* Info Banner */}
       <div className="flex items-start gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
         <HelpCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-emerald-800">
-          Each passage should be 700-900 words. Click a group to expand and add questions. Different group types have specialized input fields.
-        </p>
+        <div>
+          <p className="text-sm text-emerald-800 font-medium">Creating an IELTS Reading Test</p>
+          <ol className="text-xs text-emerald-700 mt-2 space-y-1 list-decimal list-inside">
+            <li>Each passage should be 700-900 words with a clear title</li>
+            <li>Paragraphs are automatically lettered A, B, C, etc.</li>
+            <li>Add Question Groups with specific question types (13 questions per passage recommended)</li>
+            <li>For matching questions, students select from passage letters or provided options</li>
+          </ol>
+        </div>
       </div>
 
-      {/* Passages */}
       <div className="space-y-5">
         {readingSections.length > 0 ? (
-          readingSections.map((section, idx) => (
-            <div key={section.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="px-5 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-xl bg-emerald-500 text-white font-bold text-lg`}>
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800 text-lg">{section.title || `Passage ${idx + 1}`}</h3>
-                    <span className="text-xs text-gray-500">Letter: {passageLetters[idx]}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => addQuestionGroup(section.id, { question_type: '', instruction_text: '', question_range_start: 1, question_range_end: 1 })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition"
-                >
-                  <Plus size={16} /> Add Group
-                </button>
-              </div>
-              <div className="px-5 pb-4">
-                <PassageImageUploader
-                  imageUrl={section.image_url || ""}
-                  onChange={url => {}}
-                  description={section.image_description || ""}
-                  onDescriptionChange={desc => {}}
-                />
-                <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-                    Passage Content
-                    <span className="ml-2 font-normal text-gray-400">(700-900 words recommended)</span>
-                  </label>
-                  <RichTextEditor
-                    content={section.content || ""}
-                    onChange={(html) => {}}
-                    placeholder="Paste or type the reading passage here..."
-                    minHeight="300px"
-                  />
-                </div>
-                {/* Groups for this section */}
-                <div className="mt-6 space-y-4">
-                  {questionGroups.filter(g => g.section_id === section.id).length > 0 ? (
-                    questionGroups.filter(g => g.section_id === section.id)
-                      .sort((a, b) => (a.group_order || 0) - (b.group_order || 0))
-                      .map((group, gidx) => (
-                        <ReadingGroupCard key={group.id} group={group} sectionId={section.id} passageNumber={idx + 1} passageLetters={passageLetters} />
-                      ))
-                  ) : (
-                    <div className="text-center py-4 text-xs text-gray-400 bg-blue-50 rounded">No groups yet</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
+          readingSections.map((section, idx) => <PassageCard key={section.id} section={section} passageNumber={idx + 1} passageLetters={passageLetters} />)
         ) : (
           <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
             <BookOpen size={48} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">No reading passages found</p>
+            <p className="text-gray-500">No reading sections found</p>
+            <p className="text-xs text-gray-400 mt-1">Sections should be initialized automatically</p>
           </div>
         )}
       </div>
+
+      <PreviewMode isOpen={showPreview} onClose={() => setShowPreview(false)} />
     </div>
   );
 }
