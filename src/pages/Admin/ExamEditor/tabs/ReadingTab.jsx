@@ -57,13 +57,17 @@ const Select = ({ label, hint, options, className = "", ...props }) => (
 // ============================================
 // RICH TEXT EDITOR
 // ============================================
-const RichTextArea = ({ label, hint, className = "", value = "", onChange, showBlankButton = false, ...props }) => {
+const RichTextArea = ({ label, hint, className = "", value = "", onChange, showBlankButton = true, ...props }) => {
   const editorRef = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   
+  // Sync HTML content when value changes externally
   useEffect(() => {
-    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
+    if (editorRef.current && !isFocused) {
+      // Only update if content actually differs to avoid cursor jumping
+      if (editorRef.current.innerHTML !== value) {
+        editorRef.current.innerHTML = value || '';
+      }
     }
   }, [value, isFocused]);
   
@@ -74,6 +78,7 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
   };
   
   const applyFormat = (command, val = null) => {
+    // Ensure we have focus and selection
     editorRef.current?.focus();
     document.execCommand(command, false, val);
     handleInput();
@@ -88,18 +93,83 @@ const RichTextArea = ({ label, hint, className = "", value = "", onChange, showB
   return (
     <div className={className}>
       {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</label>}
+      
+      {/* Toolbar */}
       <div className="flex items-center gap-0.5 p-1.5 bg-gray-100 rounded-t-lg border border-b-0 border-gray-200">
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition font-bold text-sm border border-transparent hover:border-gray-300" title="Bold">B</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition italic text-sm border border-transparent hover:border-gray-300" title="Italic">I</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }} className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition text-sm border border-transparent hover:border-gray-300" title="Underline"><span className="underline">U</span></button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition font-bold text-sm border border-transparent hover:border-gray-300"
+          title="Bold (Ctrl+B)"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition italic text-sm border border-transparent hover:border-gray-300"
+          title="Italic (Ctrl+I)"
+        >
+          I
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-700 transition text-sm border border-transparent hover:border-gray-300"
+          title="Underline (Ctrl+U)"
+        >
+          <span className="underline">U</span>
+        </button>
+        <div className="h-5 w-px bg-gray-300 mx-0.5" />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('foreColor', '#dc2626'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-red-600 transition font-bold text-sm border border-transparent hover:border-gray-300"
+          title="Red Text"
+        >
+          A
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('foreColor', '#000000'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-900 transition font-bold text-sm border border-transparent hover:border-gray-300"
+          title="Black Text"
+        >
+          A
+        </button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); applyFormat('removeFormat'); }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-white text-gray-500 transition text-xs border border-transparent hover:border-gray-300"
+          title="Remove Formatting"
+        >
+          ✕
+        </button>
+        <div className="h-5 w-px bg-gray-300 mx-0.5" />
         {showBlankButton && (
-          <>
-            <div className="h-5 w-px bg-gray-300 mx-0.5" />
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); insertBlank(); }} className="px-2 py-1 rounded hover:bg-emerald-100 text-emerald-700 transition text-xs font-medium border border-emerald-300 bg-emerald-50" title="Insert Blank">+ Blank</button>
-          </>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); insertBlank(); }}
+            className="px-2 py-1 rounded hover:bg-emerald-100 text-emerald-700 transition text-xs font-medium border border-emerald-300 bg-emerald-50"
+            title="Insert Blank Placeholder"
+          >
+            + Blank
+          </button>
         )}
+        <span className="text-xs text-gray-400 ml-auto hidden sm:block">Select text, then format</span>
       </div>
-      <div ref={editorRef} contentEditable onInput={handleInput} onFocus={() => setIsFocused(true)} onBlur={() => { setIsFocused(false); handleInput(); }} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition overflow-auto" style={{ minHeight: props.rows ? `${props.rows * 24}px` : '60px' }} suppressContentEditableWarning />
+      
+      {/* Editable area - contentEditable renders HTML as formatted text */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => { setIsFocused(false); handleInput(); }}
+        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-b-lg text-sm text-gray-800 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 outline-none transition overflow-auto"
+        style={{ minHeight: props.rows ? `${props.rows * 24}px` : '60px' }}
+        suppressContentEditableWarning
+      />
       {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
     </div>
   );
@@ -410,11 +480,49 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
 
       {isExpanded && (
         <div className="p-4 space-y-4">
+          {/* Question Range */}
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Question Type" value={group.question_type || ""} onChange={(e) => updateQuestionGroup(group.id, { question_type: e.target.value })} options={[{ value: "", label: "Select type..." }, ...QUESTION_TYPES]} />
-            <div className="grid grid-cols-2 gap-2">
-              <Input label="Range Start" type="number" min="1" max="13" value={group.question_range_start || 1} onChange={(e) => updateQuestionGroup(group.id, { question_range_start: parseInt(e.target.value) || 1 })} />
-              <Input label="Range End" type="number" min="1" max="13" value={group.question_range_end || 1} onChange={(e) => updateQuestionGroup(group.id, { question_range_end: parseInt(e.target.value) || 1 })} />
+            <Input
+              label="From Question"
+              type="number"
+              min="1"
+              max="13"
+              value={group.question_range_start || 1}
+              onChange={(e) => updateQuestionGroup(group.id, { question_range_start: parseInt(e.target.value) || 1 })}
+            />
+            <Input
+              label="To Question"
+              type="number"
+              min="1"
+              max="13"
+              value={group.question_range_end || 1}
+              onChange={(e) => updateQuestionGroup(group.id, { question_range_end: parseInt(e.target.value) || 1 })}
+            />
+          </div>
+
+          {/* Question Type */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Question Type</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {QUESTION_TYPES.map(type => {
+                const Icon = type.icon;
+                const isSelected = group.question_type === type.value;
+                return (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => updateQuestionGroup(group.id, { question_type: type.value })}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition ${
+                      isSelected 
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-800' 
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Icon size={14} className={isSelected ? 'text-emerald-600' : 'text-gray-400'} />
+                    <span className="text-xs font-medium truncate">{type.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -424,7 +532,15 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters }) 
             </div>
           )}
 
-          <RichTextArea label="Instructions" placeholder="Read the text and answer questions..." rows={2} value={group.instruction_text || ""} onChange={(e) => updateQuestionGroup(group.id, { instruction_text: e.target.value })} />
+          {/* Instruction Text */}
+          <RichTextArea
+            label="Instruction Text"
+            hint="IELTS-style instruction shown to students. Use formatting toolbar above."
+            placeholder="Read the text and answer questions..."
+            rows={3}
+            value={group.instruction_text || ""}
+            onChange={(e) => updateQuestionGroup(group.id, { instruction_text: e.target.value })}
+          />
 
           {(group.question_type === 'diagram_labeling' || group.question_type === 'table_completion') && (
             <ImageUploader group={group} updateGroup={updateQuestionGroup} />
@@ -567,6 +683,28 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  // Add paragraph letters before each paragraph
+  const addParagraphLetters = (content) => {
+    if (!content) return 'No content yet';
+    
+    // Split by double newlines for plain text or by paragraph tags
+    const paragraphs = content.includes('<p>') 
+      ? content.split(/<\/?p>/gi).filter(p => p.trim())
+      : content.split(/\n\n+/).filter(p => p.trim());
+    
+    if (paragraphs.length === 0) return content;
+    
+    return paragraphs.map((para, idx) => {
+      const letter = String.fromCharCode(65 + idx); // A, B, C, etc.
+      return (
+        <p key={idx} className="mb-4">
+          <span className="font-bold text-emerald-600 mr-2">{letter}</span>
+          <span>{para.trim()}</span>
+        </p>
+      );
+    });
+  };
+
   const renderQuestionGroup = (group, groupQuestions, globalOffset) => {
     const groupType = group.question_type;
     return (
@@ -616,7 +754,9 @@ const PreviewMode = ({ isOpen, onClose }) => {
               <div className="mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">{currentSection.title || `Passage ${selectedPassage}`}</h3>
                 {currentSection.image_url && <img src={currentSection.image_url} alt={currentSection.image_description || 'Passage image'} className="max-h-64 mx-auto rounded-lg my-4" />}
-                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">{currentSection.content || 'No content yet'}</div>
+                <div className="text-gray-700 leading-relaxed">
+                  {addParagraphLetters(currentSection.content)}
+                </div>
               </div>
 
               {currentGroups.length > 0 ? (
