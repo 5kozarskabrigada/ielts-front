@@ -264,12 +264,26 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    console.log('Starting image upload:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      uploadUrl: `${API_URL}/upload/passage-image`
+    });
+    
     setUploading(true);
     setError("");
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
       const formData = new FormData();
       formData.append("image", file);
+      
+      console.log('Sending upload request...');
       const response = await fetch(`${API_URL}/upload/passage-image`, {
         method: "POST",
         headers: {
@@ -277,12 +291,28 @@ const ImageUploader = ({ group, updateGroup, imageUrl, onImageChange, descriptio
         },
         body: formData,
       });
+      
+      console.log('Upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Upload error:', errorData);
-        throw new Error(errorData.message || "Upload failed");
+        console.error('Upload error response:', errorData);
+        
+        if (response.status === 401) {
+          throw new Error('Session expired. Please logout and login again.');
+        }
+        
+        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
       }
-      const { url } = await response.json();
+      
+      const result = await response.json();
+      console.log('Upload success:', result);
+      
+      const { url } = result;
       if (group) {
         updateGroup(group.id, { image_url: url });
       } else if (onImageChange) {
@@ -933,11 +963,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
   const currentSection = readingSections[selectedPassage - 1];
   const currentGroups = questionGroups.filter(g => g.section_id === currentSection?.id).sort((a, b) => a.group_order - b.group_order);
 
-  // Accent colors for each passage
+  // Accent colors for each passage - all use same green for consistency
   const accentColors = [
     'rgb(55, 133, 77)',   // Passage 1: Green
-    'rgb(50, 180, 200)',  // Passage 2: Cyan
-    'rgb(150, 100, 180)'  // Passage 3: Purple
+    'rgb(55, 133, 77)',   // Passage 2: Green
+    'rgb(55, 133, 77)'    // Passage 3: Green
   ];
   const accentColor = accentColors[selectedPassage - 1] || accentColors[0];
 
@@ -1052,7 +1082,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
             const isMultiple = groupType === 'multiple_choice_multiple';
             
             return (
-              <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+              <div key={q.id} className="py-2" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
                 {/* Question number and text - hide number for multiple choice multiple */}
                 {!isMultiple && (
                   <p style={{
@@ -1207,6 +1237,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <style>{`
+        .reading-instruction p {
+          margin-bottom: 5px !important;
+        }
+      `}</style>
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
           <div><h2 className="text-xl font-bold text-gray-800">Preview Mode</h2><p className="text-sm text-gray-500">Student view of the reading section</p></div>
@@ -1231,7 +1266,15 @@ const PreviewMode = ({ isOpen, onClose }) => {
               </h2>
               {currentSection.instruction && (
                 <div 
-                  style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '14px', color: 'rgb(100, 100, 100)', marginBottom: '20px', lineHeight: '21px' }}
+                  className="reading-instruction"
+                  style={{ 
+                    fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+                    fontSize: '14px', 
+                    fontStyle: 'italic',
+                    color: 'rgb(40, 40, 40)', 
+                    marginBottom: '5px', 
+                    lineHeight: '21px' 
+                  }}
                   dangerouslySetInnerHTML={{ __html: currentSection.instruction }}
                 />
               )}
@@ -1244,7 +1287,16 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     style={{ maxWidth: '100%', display: 'block', verticalAlign: 'middle', marginBottom: '16px' }} 
                   />
                 )}
-                <h3 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '20px', fontWeight: 700, color: 'rgb(41, 69, 99)', marginBottom: '16px', lineHeight: '24px', textAlign: 'center' }}>
+                <h3 style={{ 
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+                  fontSize: '18px', 
+                  fontWeight: 700, 
+                  textTransform: 'uppercase',
+                  color: 'rgb(41, 69, 99)', 
+                  marginBottom: '10px', 
+                  lineHeight: '21.6px',
+                  textAlign: 'left'
+                }}>
                   {currentSection.title || `Passage ${selectedPassage}`}
                 </h3>
                 <div 
@@ -1252,8 +1304,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
                     fontSize: '16px', 
                     color: 'rgb(40, 40, 40)', 
-                    lineHeight: '1.6',
-                    textAlign: currentSection.text_align || 'left'
+                    lineHeight: '1.6'
                   }}
                   dangerouslySetInnerHTML={{ __html: (currentSection.content || 'No content yet').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
                 />
