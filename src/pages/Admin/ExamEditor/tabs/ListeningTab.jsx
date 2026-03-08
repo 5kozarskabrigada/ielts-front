@@ -1538,11 +1538,11 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                     onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
                   />
                   <Input
-                    label="Alternative Answers (comma-separated)"
-                    placeholder="e.g., 15, fifteen, Fifteen"
-                    value={(question.answer_alternatives || []).join(', ')}
+                    label="Alternative Answers (use / to separate)"
+                    placeholder="e.g., 15/fifteen/Fifteen"
+                    value={(question.answer_alternatives || []).join('/')}
                     onChange={(e) => updateQuestion(question.id, { 
-                      answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean)
                     })}
                   />
                 </>
@@ -1574,11 +1574,11 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
               />
               <Input
-                label="Alternative Answers (comma-separated)"
-                placeholder="e.g., 9, Nine, nine o'clock"
-                value={(question.answer_alternatives || []).join(', ')}
+                label="Alternative Answers (use / to separate)"
+                placeholder="e.g., 9/Nine/nine o'clock"
+                value={(question.answer_alternatives || []).join('/')}
                 onChange={(e) => updateQuestion(question.id, { 
-                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean)
                 })}
               />
             </>
@@ -1608,11 +1608,11 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
               />
               <Input
-                label="Alternative Answers (comma-separated)"
+                label="Alternative Answers (use / to separate)"
                 placeholder="Accept multiple spellings/formats"
-                value={(question.answer_alternatives || []).join(', ')}
+                value={(question.answer_alternatives || []).join('/')}
                 onChange={(e) => updateQuestion(question.id, { 
-                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean)
                 })}
               />
             </>
@@ -1654,11 +1654,11 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
               />
               <Input
-                label="Alternative Answers (comma-separated)"
-                placeholder="e.g., 5pm, 5:00 pm, five o'clock"
-                value={(question.answer_alternatives || []).join(', ')}
+                label="Alternative Answers (use / to separate)"
+                placeholder="e.g., 5pm/5:00 pm/five o'clock"
+                value={(question.answer_alternatives || []).join('/')}
                 onChange={(e) => updateQuestion(question.id, { 
-                  answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean)
                 })}
               />
             </>

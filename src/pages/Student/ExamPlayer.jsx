@@ -218,7 +218,11 @@ export default function ExamPlayer() {
     }
   }, [hasStarted, answers, currentModule, examId, token]);
 
-  // Auto-save on answer change  useEffect(() => {
+  // ============================================
+  // AUTO-SAVE
+  // ============================================
+  // Auto-save on answer change
+  useEffect(() => {
     if (JSON.stringify(answers) === JSON.stringify(lastSaveRef.current)) return;
 
     if (autoSaveTimeoutRef.current) {

@@ -481,7 +481,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
           {groupType === 'multiple_choice_multiple' && (
             <>
               <RichTextArea label="Question Text" placeholder="Which TWO of the following are mentioned?" rows={3} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
-              <Input label="Correct Answers (comma-separated, e.g., A,C)" placeholder="A,C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <Input label="Correct Answers (use / to separate, e.g., A/C)" placeholder="A/C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase">Options</label>
                 {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
@@ -576,8 +576,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
                 <p className="text-sm text-gray-700">{question.question_template ? renderTemplateWithBlanks(question.question_template, questionNumber) : question.question_text || 'Enter question text'}</p>
               </div>
-              <Input label="Correct Answer" placeholder="e.g., photosynthesis, 1990" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
-              <Input label="Alternative Answers (comma-separated)" placeholder="e.g., photo-synthesis, Photosynthesis" value={(question.answer_alternatives || []).join(', ')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+              <Input label="Correct Answer" placeholder="e.g., photosynthesis" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <Input label="Alternative Answers (use / to separate)" placeholder="e.g., photo-synthesis/Photosynthesis" value={(question.answer_alternatives || []).join('/')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean) })} />
             </>
           )}
 
