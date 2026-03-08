@@ -121,6 +121,58 @@ function ExamEditorContent() {
             }
           });
         }
+        
+        // Handle multiple-answer multiple choice questions (split into individual questions)
+        // E.g., "Choose 3 correct answers" creates 3 question records
+        if ((group.question_type === 'multiple_choice' || group.question_type === 'multiple_choice_multiple') && 
+            group.num_answers && group.num_answers > 1) {
+          const startNum = group.question_range_start || 1;
+          const endNum = group.question_range_end || startNum;
+          const numQuestions = endNum - startNum + 1;
+          
+          // Get the single question record for this group (if it exists as one question)
+          const existingQuestion = allQuestions.find(q => 
+            q.group_id === group.id || 
+            (q.section_id === group.section_id && q.question_number === startNum)
+          );
+          
+          if (existingQuestion && numQuestions === 1 && group.num_answers > 1) {
+            // This is a single question that should be split into multiple
+            // Split the correct answer (e.g., "A/B/C" becomes separate questions with A, B, C)
+            const answers = existingQuestion.correct_answer ? 
+              existingQuestion.correct_answer.split('/').map(a => a.trim()).filter(Boolean) : [];
+            
+            if (answers.length >= group.num_answers) {
+              // Remove the single question
+              const idx = allQuestions.findIndex(q => q.id === existingQuestion.id);
+              if (idx >= 0) allQuestions.splice(idx, 1);
+              
+              // Create individual questions for each answer
+              for (let i = 0; i < group.num_answers; i++) {
+                const questionNumber = startNum + i;
+                allQuestions.push({
+                  id: `temp_multi_${Date.now()}_${questionNumber}_${Math.random().toString(36).substr(2, 9)}`,
+                  section_id: group.section_id,
+                  group_id: group.id,
+                  question_number: questionNumber,
+                  question_type: group.question_type,
+                  question_text: existingQuestion.question_text,
+                  option_a: existingQuestion.option_a,
+                  option_b: existingQuestion.option_b,
+                  option_c: existingQuestion.option_c,
+                  option_d: existingQuestion.option_d,
+                  option_e: existingQuestion.option_e,
+                  option_f: existingQuestion.option_f,
+                  option_g: existingQuestion.option_g,
+                  option_h: existingQuestion.option_h,
+                  correct_answer: answers[i] || '',
+                  points: 1
+                });
+              }
+              questionsAdded = true;
+            }
+          }
+        }
       });
 
       // FIX: Ensure each question has correct section_id from its parent group
