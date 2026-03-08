@@ -577,7 +577,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 <p className="text-sm text-gray-700">{question.question_template ? renderTemplateWithBlanks(question.question_template, questionNumber) : question.question_text || 'Enter question text'}</p>
               </div>
               <Input label="Correct Answer" placeholder="e.g., photosynthesis" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
-              <Input label="Alternative Answers (use / to separate)" placeholder="e.g., photo-synthesis/Photosynthesis" value={(question.answer_alternatives || []).join('/')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value.split('/').map(s => s.trim()).filter(Boolean) })} />
+              <Input label="Alternative Answers (use / to separate)" placeholder="e.g., photo synthesis/photo-synthesis/Photosynthesis" value={Array.isArray(question.answer_alternatives) ? question.answer_alternatives.join('/') : (question.answer_alternatives || '')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value })} />
             </>
           )}
 
