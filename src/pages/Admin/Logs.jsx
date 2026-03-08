@@ -58,7 +58,7 @@ export default function LogsPage() {
   };
 
   const filterLogs = () => {
-    let filtered = logs;
+    let filtered = Array.isArray(logs) ? [...logs] : [];
 
     // Filter by exam
     if (selectedExam !== "all") {
@@ -115,9 +115,24 @@ export default function LogsPage() {
     return colors[config.color] || colors.gray;
   };
 
-  const violationCount = logs.filter(log => 
+  const violationCount = Array.isArray(logs) ? logs.filter(log => 
     log.event_type === "fullscreen_exit" || log.event_type === "tab_switch"
-  ).length;
+  ).length : 0;
+
+  const activeSessionsCount = Array.isArray(logs) 
+    ? logs.filter(log => log.event_type === "exam_started").length -
+      logs.filter(log => log.event_type === "exam_submitted").length
+    : 0;
+
+  const todayActivityCount = Array.isArray(logs) ? logs.filter(log => {
+    try {
+      const logDate = new Date(log.timestamp);
+      const today = new Date();
+      return logDate.toDateString() === today.toDateString();
+    } catch {
+      return false;
+    }
+  }).length : 0;
 
   if (loading) {
     return (
@@ -143,7 +158,7 @@ export default function LogsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Events</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{logs.length}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{Array.isArray(logs) ? logs.length : 0}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Activity size={24} className="text-blue-600" />
@@ -167,10 +182,7 @@ export default function LogsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Active Sessions</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">
-                {logs.filter(log => log.event_type === "exam_started").length -
-                 logs.filter(log => log.event_type === "exam_submitted").length}
-              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{activeSessionsCount}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <User size={24} className="text-green-600" />
@@ -182,13 +194,7 @@ export default function LogsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Today's Activity</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">
-                {logs.filter(log => {
-                  const logDate = new Date(log.timestamp);
-                  const today = new Date();
-                  return logDate.toDateString() === today.toDateString();
-                }).length}
-              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{todayActivityCount}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <Calendar size={24} className="text-purple-600" />
@@ -284,12 +290,12 @@ export default function LogsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900 text-sm">{log.user_name || "Unknown"}</p>
-                            <p className="text-xs text-gray-500">{log.user_email}</p>
+                            <p className="text-xs text-gray-500">{log.user_email || "-"}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{log.exam_title}</p>
+                        <p className="text-sm font-medium text-gray-900">{log.exam_title || "Unknown Exam"}</p>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold border ${getEventColor(log.event_type)}`}>
@@ -298,7 +304,7 @@ export default function LogsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {log.metadata && (
+                        {log.metadata && typeof log.metadata === 'object' && (
                           <p className="text-sm text-gray-600">
                             {log.metadata.module && <span className="capitalize">{log.metadata.module}</span>}
                             {log.metadata.time_spent && <span> • {Math.floor(log.metadata.time_spent / 60)}m</span>}
