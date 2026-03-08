@@ -674,6 +674,7 @@ function TaskEditor({ section, taskNumber, token }) {
 export default function WritingTab() {
   const { sections, exam } = useExamEditor();
   const { token } = useAuth();
+  const [showPreview, setShowPreview] = useState(false);
   const writingSections = sections.filter(s => s.module_type === 'writing');
 
   // Sort by section_order to ensure Task 1 comes before Task 2
@@ -689,14 +690,23 @@ export default function WritingTab() {
             {exam?.type === 'general' ? 'General Training' : 'Academic'} Writing • 2 Tasks • 60 minutes total
           </p>
         </div>
-        <div className="flex items-center space-x-2 text-sm">
-          <div className="flex items-center space-x-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full">
-            <Clock size={14} />
-            <span>Task 1: 20 min</span>
-          </div>
-          <div className="flex items-center space-x-1 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full">
-            <Clock size={14} />
-            <span>Task 2: 40 min</span>
+        <div className="flex items-center gap-3">
+          <button 
+            type="button" 
+            onClick={() => setShowPreview(true)} 
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+          >
+            <Eye size={18} /> Preview
+          </button>
+          <div className="flex items-center space-x-2 text-sm">
+            <div className="flex items-center space-x-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full">
+              <Clock size={14} />
+              <span>Task 1: 20 min</span>
+            </div>
+            <div className="flex items-center space-x-1 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full">
+              <Clock size={14} />
+              <span>Task 2: 40 min</span>
+            </div>
           </div>
         </div>
       </div>
@@ -786,6 +796,182 @@ export default function WritingTab() {
                 <span>Add Band 9 model answer</span>
               </li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      <PreviewMode isOpen={showPreview} onClose={() => setShowPreview(false)} sections={sortedSections} examType={exam?.type} />
+    </div>
+  );
+}
+
+// Preview Mode Component
+function PreviewMode({ isOpen, onClose, sections, examType }) {
+  const [selectedTask, setSelectedTask] = useState(1);
+  const [wordCount, setWordCount] = useState({1: 0, 2: 0});
+  const [responses, setResponses] = useState({1: '', 2: ''});
+
+  if (!isOpen) return null;
+
+  const currentSection = sections[selectedTask - 1];
+  if (!currentSection) return null;
+
+  let taskConfig;
+  try {
+    taskConfig = currentSection.task_config ? JSON.parse(currentSection.task_config) : {};
+  } catch {
+    taskConfig = {};
+  }
+
+  const isTask1 = selectedTask === 1;
+  const minWords = isTask1 ? 150 : 250;
+  const duration = isTask1 ? 20 : 40;
+
+  const handleResponseChange = (text) => {
+    setResponses({...responses, [selectedTask]: text});
+    const count = text.trim().split(/\s+/).filter(Boolean).length;
+    setWordCount({...wordCount, [selectedTask]: count});
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Writing Module Preview</h2>
+            <p className="text-sm text-gray-500">Student view of the writing tasks</p>
+          </div>
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"
+          >
+            <EyeOff size={20} />
+          </button>
+        </div>
+
+        {/* Task Selector */}
+        <div className="flex border-b border-gray-200">
+          {sections.map((_, idx) => (
+            <button 
+              key={idx + 1}
+              type="button" 
+              onClick={() => setSelectedTask(idx + 1)} 
+              className={`flex-1 py-3 text-sm font-medium transition ${
+                selectedTask === idx + 1 
+                  ? idx === 0 ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500' : 'bg-purple-50 text-purple-700 border-b-2 border-purple-500'
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              Task {idx + 1}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            {/* Task Header */}
+            <div className="mb-6">
+              <h1 style={{
+                fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                fontSize: '24px',
+                fontWeight: 700,
+                color: isTask1 ? 'rgb(37, 99, 235)' : 'rgb(126, 34, 206)',
+                marginBottom: '8px'
+              }}>
+                WRITING TASK {selectedTask}
+              </h1>
+              <p style={{
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                fontSize: '14px',
+                color: 'rgb(75, 85, 99)'
+              }}>
+                You should spend about <strong>{duration} minutes</strong> on this task.
+                Write at least <strong>{minWords} words</strong>.
+              </p>
+            </div>
+
+            {/* Visual Material for Task 1 */}
+            {isTask1 && taskConfig.imageUrl && (
+              <div className="mb-6">
+                <img 
+                  src={taskConfig.imageUrl} 
+                  alt="Task visual" 
+                  style={{
+                    maxWidth: '100%',
+                    width: 'auto',
+                    height: 'auto',
+                    display: 'block',
+                    margin: '0 auto',
+                    border: '1px solid rgb(221, 221, 221)',
+                    borderRadius: '8px'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Task Prompt */}
+            <div 
+              className="mb-6 prose prose-sm max-w-none"
+              style={{
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                fontSize: '16px',
+                lineHeight: '1.6',
+                color: 'rgb(31, 41, 55)'
+              }}
+              dangerouslySetInnerHTML={{ __html: taskConfig.prompt || 'No prompt configured' }}
+            />
+
+            {/* Additional Instructions */}
+            {taskConfig.instructions && (
+              <div 
+                className="mb-6"
+                style={{
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                  color: 'rgb(75, 85, 99)',
+                  fontStyle: 'italic'
+                }}
+              >
+                {taskConfig.instructions}
+              </div>
+            )}
+
+            {/* Writing Area */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label style={{
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: 'rgb(55, 65, 81)'
+                }}>
+                  Your Answer:
+                </label>
+                <span style={{
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '13px',
+                  color: wordCount[selectedTask] >= minWords ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)',
+                  fontWeight: 600
+                }}>
+                  {wordCount[selectedTask]} / {minWords} words
+                </span>
+              </div>
+              <textarea
+                className="w-full h-96 p-4 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                style={{
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '15px',
+                  lineHeight: '1.6'
+                }}
+                placeholder="Write your response here..."
+                value={responses[selectedTask]}
+                onChange={(e) => handleResponseChange(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>
