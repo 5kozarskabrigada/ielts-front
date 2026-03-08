@@ -355,6 +355,43 @@ export default function ExamPlayer() {
   });
 
   // ============================================
+  // ORGANIZE QUESTIONS BY PARTS
+  // ============================================
+  const getQuestionsByPart = () => {
+    if (currentModule === "writing") {
+      // Writing has tasks instead of parts
+      return {
+        "Task 1": currentSections.slice(0, 1),
+        "Task 2": currentSections.slice(1, 2)
+      };
+    }
+
+    // For listening/reading, organize by question number ranges
+    const parts = {};
+    const sortedQuestions = [...currentQuestions].sort((a, b) => a.question_number - b.question_number);
+    
+    if (currentModule === "listening") {
+      // Listening: 4 parts with ~10 questions each (1-10, 11-20, 21-30, 31-40)
+      for (let i = 1; i <= 4; i++) {
+        const start = (i - 1) * 10 + 1;
+        const end = i * 10;
+        parts[`Part ${i}`] = sortedQuestions.filter(q => q.question_number >= start && q.question_number <= end);
+      }
+    } else if (currentModule === "reading") {
+      // Reading: 3 passages with ~13 questions each (1-13, 14-26, 27-40)
+      for (let i = 1; i <= 3; i++) {
+        const start = (i - 1) * 13 + 1;
+        const end = i * 13;
+        parts[`Part ${i}`] = sortedQuestions.filter(q => q.question_number >= start && q.question_number <= end);
+      }
+    }
+
+    return parts;
+  };
+
+  const questionsByPart = getQuestionsByPart();
+
+  // ============================================
   // LOADING & ERROR STATES
   // ============================================
   if (loading) {
@@ -580,11 +617,100 @@ export default function ExamPlayer() {
         {currentModule === "listening" && (
           <div className="h-full flex flex-col p-6">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module</h3>
-            <div className="flex-1 bg-gray-50 rounded-xl border-2 border-gray-200 p-8 flex items-center justify-center">
-              <div className="text-center">
-                <Volume2 size={64} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 text-lg mb-4">Audio player and questions would appear here</p>
-                <p className="text-sm text-gray-500">Answer the listening questions as you hear them</p>
+            
+            {/* Audio Section (Placeholder) */}
+            <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-center space-x-4">
+                <Volume2 size={40} className="text-gray-400" />
+                <div className="text-center">
+                  <p className="text-gray-600 mb-2">Audio player would appear here</p>
+                  <p className="text-sm text-gray-500">Listen carefully and answer the questions</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Questions */}
+            <div className="flex-1 overflow-y-auto">
+              <h4 className="font-bold text-lg text-gray-900 mb-4">Questions</h4>
+              <div className="space-y-4">
+                {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => (
+                  <div key={q.id} className="bg-white rounded-lg border p-4">
+                    <p className="font-semibold mb-3">
+                      <span className="text-emerald-600">{q.question_number}.</span> 
+                      <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
+                    </p>
+                    
+                    {/* Multiple Choice Single */}
+                    {q.question_type === "multiple_choice_single" && (
+                      <div className="space-y-2">
+                        {['A', 'B', 'C', 'D'].map(option => {
+                          const optionText = q[`option_${option.toLowerCase()}`];
+                          if (!optionText) return null;
+                          return (
+                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`question_${q.id}`}
+                                value={option}
+                                checked={answers[q.id] === option}
+                                onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                                className="mt-1"
+                              />
+                              <span className="text-sm">
+                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Multiple Choice Multiple */}
+                    {q.question_type === "multiple_choice_multiple" && (
+                      <div className="space-y-2">
+                        {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(option => {
+                          const optionText = q[`option_${option.toLowerCase()}`];
+                          if (!optionText) return null;
+                          const currentAnswers = (answers[q.id] || '').split('/').filter(Boolean);
+                          const isChecked = currentAnswers.includes(option);
+                          return (
+                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                value={option}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  let newAnswers = [...currentAnswers];
+                                  if (e.target.checked) {
+                                    newAnswers.push(option);
+                                  } else {
+                                    newAnswers = newAnswers.filter(a => a !== option);
+                                  }
+                                  setAnswers({...answers, [q.id]: newAnswers.sort().join('/')});
+                                }}
+                                className="mt-1"
+                              />
+                              <span className="text-sm">
+                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Text Input (for other types) */}
+                    {!['multiple_choice_single', 'multiple_choice_multiple'].includes(q.question_type) && (
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Type your answer here"
+                        value={answers[q.id] || ""}
+                        onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -608,16 +734,118 @@ export default function ExamPlayer() {
             <div className="w-1/2 p-6 overflow-y-auto bg-gray-50">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Questions</h3>
               <div className="space-y-4">
-                {currentQuestions.map((q, idx) => (
+                {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => (
                   <div key={q.id} className="bg-white rounded-lg border p-4">
-                    <p className="font-semibold mb-2">{idx + 1}. {q.question_text}</p>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg"
-                      placeholder="Your answer"
-                      value={answers[q.id] || ""}
-                      onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                    />
+                    <p className="font-semibold mb-3">
+                      <span className="text-emerald-600">{q.question_number}.</span> 
+                      <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
+                    </p>
+                    
+                    {/* Multiple Choice Single */}
+                    {q.question_type === "multiple_choice_single" && (
+                      <div className="space-y-2">
+                        {['A', 'B', 'C', 'D'].map(option => {
+                          const optionText = q[`option_${option.toLowerCase()}`];
+                          if (!optionText) return null;
+                          return (
+                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`question_${q.id}`}
+                                value={option}
+                                checked={answers[q.id] === option}
+                                onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                                className="mt-1"
+                              />
+                              <span className="text-sm">
+                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Multiple Choice Multiple */}
+                    {q.question_type === "multiple_choice_multiple" && (
+                      <div className="space-y-2">
+                        {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(option => {
+                          const optionText = q[`option_${option.toLowerCase()}`];
+                          if (!optionText) return null;
+                          const currentAnswers = (answers[q.id] || '').split('/').filter(Boolean);
+                          const isChecked = currentAnswers.includes(option);
+                          return (
+                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                value={option}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  let newAnswers = [...currentAnswers];
+                                  if (e.target.checked) {
+                                    newAnswers.push(option);
+                                  } else {
+                                    newAnswers = newAnswers.filter(a => a !== option);
+                                  }
+                                  setAnswers({...answers, [q.id]: newAnswers.sort().join('/')});
+                                }}
+                                className="mt-1"
+                              />
+                              <span className="text-sm">
+                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* True/False/Not Given */}
+                    {q.question_type === "true_false_not_given" && (
+                      <div className="space-y-2">
+                        {['TRUE', 'FALSE', 'NOT GIVEN'].map(option => (
+                          <label key={option} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`question_${q.id}`}
+                              value={option}
+                              checked={answers[q.id] === option}
+                              onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                            />
+                            <span className="text-sm font-medium">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Yes/No/Not Given */}
+                    {q.question_type === "yes_no_not_given" && (
+                      <div className="space-y-2">
+                        {['YES', 'NO', 'NOT GIVEN'].map(option => (
+                          <label key={option} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`question_${q.id}`}
+                              value={option}
+                              checked={answers[q.id] === option}
+                              onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                            />
+                            <span className="text-sm font-medium">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Text Input (for all other types) */}
+                    {!['multiple_choice_single', 'multiple_choice_multiple', 'true_false_not_given', 'yes_no_not_given'].includes(q.question_type) && (
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Type your answer here"
+                        value={answers[q.id] || ""}
+                        onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -627,9 +855,10 @@ export default function ExamPlayer() {
 
         {/* Writing Module */}
         {currentModule === "writing" && (
-          <div className="h-full flex">
-            <div className="w-1/3 p-6 overflow-y-auto border-r bg-gray-50">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Tasks</h3>
+          <div className="h-full flex flex-col p-6">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Writing Module</h3>
+            
+            <div className="flex-1 overflow-y-auto space-y-6">
               {currentSections.map((section, idx) => {
                 let taskConfig;
                 try {
@@ -637,31 +866,90 @@ export default function ExamPlayer() {
                 } catch {
                   taskConfig = {};
                 }
+                const taskKey = `writing_task_${idx + 1}`;
                 return (
-                  <div key={section.id} className="bg-white rounded-lg border p-6 mb-4">
-                    <h4 className="font-bold text-lg mb-2">Task {idx + 1}</h4>
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
+                  <div key={section.id} className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="font-bold text-xl text-gray-900">Task {idx + 1}</h4>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {idx === 0 ? 'Minimum 150 words' : 'Minimum 250 words'}
+                        </p>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Word count: {(answers[taskKey] || '').split(/\s+/).filter(Boolean).length}
+                      </div>
+                    </div>
+
+                    {/* Task Prompt */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
+                      />
+                    </div>
+
+                    {/* Response Area */}
+                    <textarea
+                      className="w-full h-48 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder={`Write your response for Task ${idx + 1} here...`}
+                      value={answers[taskKey] || ""}
+                      onChange={(e) => setAnswers({...answers, [taskKey]: e.target.value})}
                     />
                   </div>
                 );
               })}
             </div>
-            <div className="w-2/3 p-6 flex flex-col">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Your Response</h3>
-              <textarea
-                className="flex-1 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder="Write your response here..."
-                value={answers['writing_response'] || ""}
-                onChange={(e) => setAnswers({...answers, 'writing_response': e.target.value})}
-              />
-              <div className="mt-2 text-sm text-gray-600">
-                Word count: {(answers['writing_response'] || '').split(/\s+/).filter(Boolean).length}
-              </div>
-            </div>
           </div>
         )}
+      </div>
+
+      {/* Progress Footer */}
+      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-center space-x-8">
+          {Object.entries(questionsByPart).map(([partName, partQuestions]) => {
+            if (currentModule === "writing") {
+              // For writing, show task completion status
+              const taskNumber = partName === "Task 1" ? 1 : 2;
+              const taskKey = `writing_task_${taskNumber}`;
+              const isAnswered = (answers[taskKey] || '').trim().length > 0;
+              
+              return (
+                <div key={partName} className="flex items-center space-x-3">
+                  <span className="text-sm font-semibold text-gray-700 min-w-[60px]">{partName}</span>
+                  <div 
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isAnswered ? 'bg-green-100 border-green-400' : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    {isAnswered && <span className="text-green-600 text-xs">✓</span>}
+                  </div>
+                </div>
+              );
+            }
+
+            // For listening/reading, show question circles
+            return (
+              <div key={partName} className="flex items-center space-x-2">
+                <span className="text-sm font-semibold text-gray-700 min-w-[50px]">{partName}</span>
+                <div className="flex space-x-1">
+                  {partQuestions.map((q, idx) => {
+                    const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                    return (
+                      <div
+                        key={q.id}
+                        className={`w-3 h-3 rounded-full transition-colors ${
+                          isAnswered ? 'bg-green-400' : 'bg-white border border-gray-300'
+                        }`}
+                        title={`Question ${q.question_number}${isAnswered ? ' - Answered' : ''}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Fullscreen Exit Warning */}
