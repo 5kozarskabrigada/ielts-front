@@ -292,12 +292,25 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               const qNum = globalOffset + group.question_range_start + blankCount;
               const question = groupQuestions[blankCount];
               blankCount++;
+              
+              // Safety check for missing question
+              if (!question) {
+                console.warn(`Summary completion: Question not found for blank ${blankCount}`);
+                return <span key={idx} className="text-red-500">[Missing Question]</span>;
+              }
+              
               return (
                 <BlankInput 
                   key={idx}
                   questionNumber={qNum}
-                  value={answers[question?.id]}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [question.id]: e.target.value }))}
+                  value={answers[question.id] || ''}
+                  onChange={(e) => {
+                    try {
+                      setAnswers(prev => ({ ...prev, [question.id]: e.target.value }));
+                    } catch (error) {
+                      console.error('Error updating summary answer:', error);
+                    }
+                  }}
                 />
               );
             }
@@ -328,8 +341,14 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               <>
                 <BlankInput 
                   questionNumber={globalNum}
-                  value={answers[q.id]}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  value={answers[q.id] || ''}
+                  onChange={(e) => {
+                    try {
+                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                    } catch (error) {
+                      console.error('Error updating sentence answer:', error);
+                    }
+                  }}
                 />
                 <RenderHtml html={parts[1]} />
               </>
@@ -355,8 +374,14 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               <>
                 <BlankInput 
                   questionNumber={globalNum}
-                  value={answers[q.id]}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  value={answers[q.id] || ''}
+                  onChange={(e) => {
+                    try {
+                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                    } catch (error) {
+                      console.error('Error updating note answer:', error);
+                    }
+                  }}
                 />
                 <RenderHtml html={parts[1]} />
               </>
