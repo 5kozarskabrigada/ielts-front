@@ -384,25 +384,3 @@ export default function SubmissionsPage() {
     </div>
   );
 }
-                                      ) : (
-                                        <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-semibold">✗ Wrong</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
