@@ -9,8 +9,8 @@ const RenderHtml = ({ html }) => {
 };
 
 // Blank input component for fill-in questions
-const BlankInput = ({ questionNumber, value, onChange }) => (
-  <span className="inline-flex items-center gap-2 mx-1 my-0.5">
+const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
+  <span id={`question-${questionNumber}`} className="inline-flex items-center gap-2 mx-1 my-0.5 scroll-mt-20">
     <span 
       style={{
         display: 'flex',
@@ -59,7 +59,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map(q => {
       const globalNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+        <div key={q.id} id={`question-${globalNum}`} className="py-4 scroll-mt-20" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
@@ -147,6 +147,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             <BlankInput 
               key={idx}
               questionNumber={qNum}
+              questionId={question?.id}
               value={answers[question?.id]}
               onChange={(e) => setAnswers(prev => ({ ...prev, [question.id]: e.target.value }))}
             />
@@ -433,7 +434,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
     .sort((a, b) => a.section_order - b.section_order);
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
       {listeningSections.map((section, partIdx) => {
         const partNumber = partIdx + 1;
         const globalOffset = (partNumber - 1) * 10;
@@ -443,7 +444,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
           .sort((a, b) => a.group_order - b.group_order);
 
         return (
-          <div key={section.id} className="bg-white rounded-xl border-2 border-gray-200 p-6">
+          <div key={section.id} id={`part-${partNumber}`} className="bg-white rounded-xl border-2 border-gray-200 p-6 scroll-mt-20">
             {/* Part Header */}
             <h3 style={{
               color: 'rgb(41, 69, 99)',

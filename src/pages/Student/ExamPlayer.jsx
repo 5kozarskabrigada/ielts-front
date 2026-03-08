@@ -6,6 +6,7 @@ import {
   Maximize2, Volume2, FileText, Edit3, Send 
 } from "lucide-react";
 import ListeningRenderer from "./ListeningRenderer";
+import ErrorBoundary from "../../components/ErrorBoundary";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
@@ -595,13 +596,15 @@ export default function ExamPlayer() {
 
             {/* Questions - Rendered like preview mode */}
             <div className="flex-1 overflow-y-auto">
-              <ListeningRenderer 
-                sections={sections}
-                questions={questions}
-                questionGroups={questionGroups}
-                answers={answers}
-                setAnswers={setAnswers}
-              />
+              <ErrorBoundary>
+                <ListeningRenderer 
+                  sections={sections}
+                  questions={questions}
+                  questionGroups={questionGroups}
+                  answers={answers}
+                  setAnswers={setAnswers}
+                />
+              </ErrorBoundary>
             </div>
           </div>
         )}
@@ -807,21 +810,27 @@ export default function ExamPlayer() {
 
             return (
               <div key={section.id} className="flex flex-col items-center space-y-2">
-                <span className="text-sm font-semibold text-gray-700">Part {partNumber}</span>
+                <button 
+                  onClick={() => document.getElementById(`part-${partNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition cursor-pointer"
+                >
+                  Part {partNumber}
+                </button>
                 <div className="flex space-x-1">
                   {partQuestions.map((q) => {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <div
+                      <button
                         key={q.id}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                        onClick={() => document.getElementById(`question-${globalNum}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors cursor-pointer hover:ring-2 hover:ring-blue-400 ${
                           isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
-                        {q.question_number}
-                      </div>
+                        {globalNum}
+                      </button>
                     );
                   })}
                 </div>
@@ -839,21 +848,27 @@ export default function ExamPlayer() {
 
             return (
               <div key={section.id} className="flex flex-col items-center space-y-2">
-                <span className="text-sm font-semibold text-gray-700">Part {partNumber}</span>
+                <button 
+                  onClick={() => document.getElementById(`part-${partNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition cursor-pointer"
+                >
+                  Part {partNumber}
+                </button>
                 <div className="flex space-x-1">
                   {partQuestions.map((q) => {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <div
+                      <button
                         key={q.id}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                        onClick={() => document.getElementById(`question-${globalNum}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors cursor-pointer hover:ring-2 hover:ring-blue-400 ${
                           isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
-                        {q.question_number}
-                      </div>
+                        {globalNum}
+                      </button>
                     );
                   })}
                 </div>

@@ -320,6 +320,37 @@ export default function SubmissionsPage() {
                   </div>
                 )}
 
+                {/* Violations */}
+                {selectedSubmission.violations && selectedSubmission.violations.length > 0 && (
+                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <AlertCircle size={20} className="text-red-600" />
+                      <h3 className="font-semibold text-red-900">Violations ({selectedSubmission.violations.length})</h3>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {selectedSubmission.violations.map((violation, idx) => (
+                        <div key={idx} className="bg-white rounded p-3 border border-red-200">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm text-red-900 capitalize">
+                                {violation.violation_type?.replace('_', ' ')}
+                              </p>
+                              {violation.metadata && Object.keys(violation.metadata).length > 0 && (
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {JSON.stringify(violation.metadata)}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                              {new Date(violation.occurred_at).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Answers by Module */}
                 {selectedSubmission.answers_by_module && (
                   <div className="space-y-4">
