@@ -32,6 +32,11 @@ export default function LogsPage() {
       const logsResponse = await fetch(`${API_URL}/monitoring/logs/all`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
+      
+      if (!logsResponse.ok) {
+        throw new Error(`Failed to fetch logs: ${logsResponse.status}`);
+      }
+      
       const logsData = await logsResponse.json();
 
       // Fetch exams for filter
@@ -40,10 +45,13 @@ export default function LogsPage() {
       });
       const examsData = await examsResponse.json();
 
-      setLogs(logsData);
-      setExams(examsData);
+      setLogs(Array.isArray(logsData) ? logsData : []);
+      setExams(Array.isArray(examsData) ? examsData : []);
     } catch (err) {
       console.error("Failed to fetch data:", err);
+      alert("Failed to load logs. Please ensure database tables are created. See DATABASE_MIGRATION_INSTRUCTIONS.md");
+      setLogs([]);
+      setExams([]);
     } finally {
       setLoading(false);
     }
@@ -200,7 +208,7 @@ export default function LogsPage() {
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="all">All Exams</option>
-              {exams.map(exam => (
+              {Array.isArray(exams) && exams.map(exam => (
                 <option key={exam.id} value={exam.id}>{exam.title}</option>
               ))}
             </select>

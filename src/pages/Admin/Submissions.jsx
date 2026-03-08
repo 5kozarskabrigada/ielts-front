@@ -24,6 +24,11 @@ export default function SubmissionsPage() {
       const subsResponse = await fetch(`${API_URL}/monitoring/submissions/all`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
+      
+      if (!subsResponse.ok) {
+        throw new Error(`Failed to fetch submissions: ${subsResponse.status}`);
+      }
+      
       const subsData = await subsResponse.json();
 
       // Fetch exams for filter
@@ -32,10 +37,13 @@ export default function SubmissionsPage() {
       });
       const examsData = await examsResponse.json();
 
-      setSubmissions(subsData.submissions || subsData);
-      setExams(examsData);
+      setSubmissions(subsData.submissions || subsData || []);
+      setExams(Array.isArray(examsData) ? examsData : []);
     } catch (err) {
       console.error("Failed to fetch data:", err);
+      alert("Failed to load submissions. Please ensure database tables are created. See DATABASE_MIGRATION_INSTRUCTIONS.md");
+      setSubmissions([]);
+      setExams([]);
     } finally {
       setLoading(false);
     }
@@ -112,7 +120,7 @@ export default function SubmissionsPage() {
               <p className="text-sm text-gray-600">Avg Band Score</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">
                 {submissions.length > 0 
-                  ? (submissions.reduce((sum, s) => sum + (s.overall_band_score || 0), 0) / submissions.length).toFixed(1)
+                  ? (submissions.reduce((sum, s) => sum + (s.band_score || 0), 0) / submissions.length).toFixed(1)
                   : "0.0"}
               </p>
             </div>
@@ -166,7 +174,7 @@ export default function SubmissionsPage() {
             className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="all">All Exams</option>
-            {exams.map(exam => (
+            {Array.isArray(exams) && exams.map(exam => (
               <option key={exam.id} value={exam.id}>{exam.title}</option>
             ))}
           </select>
@@ -210,23 +218,23 @@ export default function SubmissionsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">{submission.exam_title}</p>
-                      <p className="text-sm text-gray-500">{submission.exam_type}</p>
+                      <p className="font-medium text-gray-900">{submission.exam_title || 'Unknown Exam'}</p>
+                      <p className="text-sm text-gray-500">Mock Test</p>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm text-gray-900">{formatDate(submission.submitted_at)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(submission.overall_band_score)}`}>
-                        {submission.overall_band_score?.toFixed(1) || "N/A"}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(submission.band_score)}`}>
+                        {submission.band_score?.toFixed(1) || "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm font-medium text-gray-900">
-                        {submission.total_correct} / {submission.total_questions}
+                        {Object.keys(submission.answers || {}).length} answers
                       </p>
                       <p className="text-xs text-gray-500">
-                        {((submission.total_correct / submission.total_questions) * 100).toFixed(0)}%
+                        Submitted
                       </p>
                     </td>
                     <td className="px-6 py-4">
@@ -284,17 +292,17 @@ export default function SubmissionsPage() {
                     </div>
                     <div>
                       <p className="text-gray-600">Band Score</p>
-                      <p className="font-bold text-xl text-blue-600">{selectedSubmission.overall_band_score?.toFixed(1)}</p>
+                      <p className="font-bold text-xl text-blue-600">{selectedSubmission.band_score?.toFixed(1) || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Time Spent */}
-                {selectedSubmission.time_spent_by_module && (
+                {selectedSubmission.time_spent && (
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-3">Time Spent by Module</h3>
                     <div className="grid grid-cols-3 gap-4">
-                      {Object.entries(selectedSubmission.time_spent_by_module).map(([module, seconds]) => (
+                      {Object.entries(selectedSubmission.time_spent).map(([module, seconds]) => (
                         <div key={module} className="bg-gray-50 rounded-lg p-4 text-center">
                           <p className="text-gray-600 text-sm capitalize">{module}</p>
                           <p className="font-bold text-2xl text-gray-900 mt-1">
@@ -311,9 +319,13 @@ export default function SubmissionsPage() {
                   <h3 className="font-semibold text-gray-900 mb-3">Answers Summary</h3>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-sm text-gray-600">
-                      {selectedSubmission.total_correct} correct out of {selectedSubmission.total_questions} questions 
-                      ({((selectedSubmission.total_correct / selectedSubmission.total_questions) * 100).toFixed(1)}%)
+                      Total answers submitted: {Object.keys(selectedSubmission.answers || {}).length}
                     </p>
+                    {selectedSubmission.logs && selectedSubmission.logs.length > 0 && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        Activity logs: {selectedSubmission.logs.length} events recorded
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
