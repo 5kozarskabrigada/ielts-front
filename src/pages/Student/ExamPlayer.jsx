@@ -5,6 +5,7 @@ import {
   Clock, AlertTriangle, CheckCircle, ArrowRight, ChevronRight, 
   Maximize2, Volume2, FileText, Edit3, Send 
 } from "lucide-react";
+import ListeningRenderer from "./ListeningRenderer";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
@@ -355,43 +356,6 @@ export default function ExamPlayer() {
   });
 
   // ============================================
-  // ORGANIZE QUESTIONS BY PARTS
-  // ============================================
-  const getQuestionsByPart = () => {
-    if (currentModule === "writing") {
-      // Writing has tasks instead of parts
-      return {
-        "Task 1": currentSections.slice(0, 1),
-        "Task 2": currentSections.slice(1, 2)
-      };
-    }
-
-    // For listening/reading, organize by question number ranges
-    const parts = {};
-    const sortedQuestions = [...currentQuestions].sort((a, b) => a.question_number - b.question_number);
-    
-    if (currentModule === "listening") {
-      // Listening: 4 parts with ~10 questions each (1-10, 11-20, 21-30, 31-40)
-      for (let i = 1; i <= 4; i++) {
-        const start = (i - 1) * 10 + 1;
-        const end = i * 10;
-        parts[`Part ${i}`] = sortedQuestions.filter(q => q.question_number >= start && q.question_number <= end);
-      }
-    } else if (currentModule === "reading") {
-      // Reading: 3 passages with ~13 questions each (1-13, 14-26, 27-40)
-      for (let i = 1; i <= 3; i++) {
-        const start = (i - 1) * 13 + 1;
-        const end = i * 13;
-        parts[`Part ${i}`] = sortedQuestions.filter(q => q.question_number >= start && q.question_number <= end);
-      }
-    }
-
-    return parts;
-  };
-
-  const questionsByPart = getQuestionsByPart();
-
-  // ============================================
   // LOADING & ERROR STATES
   // ============================================
   if (loading) {
@@ -629,89 +593,15 @@ export default function ExamPlayer() {
               </div>
             </div>
 
-            {/* Questions */}
+            {/* Questions - Rendered like preview mode */}
             <div className="flex-1 overflow-y-auto">
-              <h4 className="font-bold text-lg text-gray-900 mb-4">Questions</h4>
-              <div className="space-y-4">
-                {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => (
-                  <div key={q.id} className="bg-white rounded-lg border p-4">
-                    <p className="font-semibold mb-3">
-                      <span className="text-emerald-600">{q.question_number}.</span> 
-                      <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
-                    </p>
-                    
-                    {/* Multiple Choice Single */}
-                    {q.question_type === "multiple_choice_single" && (
-                      <div className="space-y-2">
-                        {['A', 'B', 'C', 'D'].map(option => {
-                          const optionText = q[`option_${option.toLowerCase()}`];
-                          if (!optionText) return null;
-                          return (
-                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`question_${q.id}`}
-                                value={option}
-                                checked={answers[q.id] === option}
-                                onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                                className="mt-1"
-                              />
-                              <span className="text-sm">
-                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Multiple Choice Multiple */}
-                    {q.question_type === "multiple_choice_multiple" && (
-                      <div className="space-y-2">
-                        {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(option => {
-                          const optionText = q[`option_${option.toLowerCase()}`];
-                          if (!optionText) return null;
-                          const currentAnswers = (answers[q.id] || '').split('/').filter(Boolean);
-                          const isChecked = currentAnswers.includes(option);
-                          return (
-                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                value={option}
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  let newAnswers = [...currentAnswers];
-                                  if (e.target.checked) {
-                                    newAnswers.push(option);
-                                  } else {
-                                    newAnswers = newAnswers.filter(a => a !== option);
-                                  }
-                                  setAnswers({...answers, [q.id]: newAnswers.sort().join('/')});
-                                }}
-                                className="mt-1"
-                              />
-                              <span className="text-sm">
-                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Text Input (for other types) */}
-                    {!['multiple_choice_single', 'multiple_choice_multiple'].includes(q.question_type) && (
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                        placeholder="Type your answer here"
-                        value={answers[q.id] || ""}
-                        onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+              <ListeningRenderer 
+                sections={sections}
+                questions={questions}
+                questionGroups={questionGroups}
+                answers={answers}
+                setAnswers={setAnswers}
+              />
             </div>
           </div>
         )}
@@ -906,45 +796,84 @@ export default function ExamPlayer() {
 
       {/* Progress Footer */}
       <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-center space-x-8">
-          {Object.entries(questionsByPart).map(([partName, partQuestions]) => {
-            if (currentModule === "writing") {
-              // For writing, show task completion status
-              const taskNumber = partName === "Task 1" ? 1 : 2;
-              const taskKey = `writing_task_${taskNumber}`;
-              const isAnswered = (answers[taskKey] || '').trim().length > 0;
-              
-              return (
-                <div key={partName} className="flex items-center space-x-3">
-                  <span className="text-sm font-semibold text-gray-700 min-w-[60px]">{partName}</span>
-                  <div 
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      isAnswered ? 'bg-green-100 border-green-400' : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    {isAnswered && <span className="text-green-600 text-xs">✓</span>}
-                  </div>
-                </div>
-              );
-            }
+        <div className="flex items-center justify-center space-x-8 flex-wrap">
+          {currentModule === "listening" && sections.filter(s => s.module_type === 'listening').map((section, partIdx) => {
+            const partNumber = partIdx + 1;
+            const globalOffset = (partNumber - 1) * 10;
+            const partQuestions = questions.filter(q => {
+              const qSection = sections.find(s => s.id === q.section_id);
+              return qSection?.module_type === 'listening' && q.section_id === section.id;
+            }).sort((a, b) => a.question_number - b.question_number);
 
-            // For listening/reading, show question circles
             return (
-              <div key={partName} className="flex items-center space-x-2">
-                <span className="text-sm font-semibold text-gray-700 min-w-[50px]">{partName}</span>
+              <div key={section.id} className="flex flex-col items-center space-y-2">
+                <span className="text-sm font-semibold text-gray-700">Part {partNumber}</span>
                 <div className="flex space-x-1">
-                  {partQuestions.map((q, idx) => {
+                  {partQuestions.map((q) => {
+                    const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
                       <div
                         key={q.id}
-                        className={`w-3 h-3 rounded-full transition-colors ${
-                          isAnswered ? 'bg-green-400' : 'bg-white border border-gray-300'
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
                         }`}
-                        title={`Question ${q.question_number}${isAnswered ? ' - Answered' : ''}`}
-                      />
+                        title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                      >
+                        {q.question_number}
+                      </div>
                     );
                   })}
+                </div>
+              </div>
+            );
+          })}
+
+          {currentModule === "reading" && sections.filter(s => s.module_type === 'reading').map((section, partIdx) => {
+            const partNumber = partIdx + 1;
+            const globalOffset = (partNumber - 1) * 13;
+            const partQuestions = questions.filter(q => {
+              const qSection = sections.find(s => s.id === q.section_id);
+              return qSection?.module_type === 'reading' && q.section_id === section.id;
+            }).sort((a, b) => a.question_number - b.question_number);
+
+            return (
+              <div key={section.id} className="flex flex-col items-center space-y-2">
+                <span className="text-sm font-semibold text-gray-700">Part {partNumber}</span>
+                <div className="flex space-x-1">
+                  {partQuestions.map((q) => {
+                    const globalNum = globalOffset + q.question_number;
+                    const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                    return (
+                      <div
+                        key={q.id}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
+                        }`}
+                        title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                      >
+                        {q.question_number}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {currentModule === "writing" && currentSections.map((section, idx) => {
+            const taskKey = `writing_task_${idx + 1}`;
+            const isAnswered = (answers[taskKey] || '').trim().length > 0;
+            
+            return (
+              <div key={section.id} className="flex items-center space-x-3">
+                <span className="text-sm font-semibold text-gray-700 min-w-[60px]">Task {idx + 1}</span>
+                <div 
+                  className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    isAnswered ? 'bg-green-100 border-green-400' : 'bg-white border-gray-300'
+                  }`}
+                >
+                  {isAnswered && <span className="text-green-600 text-xs">✓</span>}
                 </div>
               </div>
             );

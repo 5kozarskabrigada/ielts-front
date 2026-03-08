@@ -301,37 +301,103 @@ export default function SubmissionsPage() {
                   </div>
                 </div>
 
-                {/* Time Spent */}
-                {selectedSubmission.time_spent && (
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Time Spent by Module</h3>
+                {/* Module-Wise Band Scores */}
+                {selectedSubmission.scores_by_module && Object.keys(selectedSubmission.scores_by_module).length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3">Module-Wise Band Scores</h3>
                     <div className="grid grid-cols-3 gap-4">
-                      {Object.entries(selectedSubmission.time_spent).map(([module, seconds]) => (
-                        <div key={module} className="bg-gray-50 rounded-lg p-4 text-center">
-                          <p className="text-gray-600 text-sm capitalize">{module}</p>
-                          <p className="font-bold text-2xl text-gray-900 mt-1">
-                            {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, '0')}
-                          </p>
-                        </div>
-                      ))}
+                      {['listening', 'reading', 'writing'].map(module => {
+                        const score = selectedSubmission.scores_by_module[module];
+                        if (score === undefined) return null;
+                        return (
+                          <div key={module} className="bg-white rounded-lg p-3 border">
+                            <p className="text-xs text-gray-500 uppercase mb-1">{module}</p>
+                            <p className="text-2xl font-bold text-blue-600">{score.toFixed(1)}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Answers Preview */}
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Answers Summary</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600">
-                      Total answers submitted: {Object.keys(selectedSubmission.answers || {}).length}
-                    </p>
-                    {selectedSubmission.logs && selectedSubmission.logs.length > 0 && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Activity logs: {selectedSubmission.logs.length} events recorded
-                      </p>
-                    )}
+                {/* Answers by Module */}
+                {selectedSubmission.answers_by_module && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900">Detailed Answers</h3>
+                    
+                    {['listening', 'reading', 'writing'].map(module => {
+                      const moduleData = selectedSubmission.answers_by_module[module];
+                      if (!moduleData || moduleData.answers.length === 0) return null;
+
+                      return (
+                        <div key={module} className="border rounded-lg overflow-hidden">
+                          <div className="bg-gray-100 px-4 py-3 border-b">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold text-gray-900 capitalize">{module}</h4>
+                              <div className="text-sm">
+                                <span className="text-green-600 font-semibold">{moduleData.correct} Correct</span>
+                                <span className="mx-2">|</span>
+                                <span className="text-red-600 font-semibold">{moduleData.wrong} Wrong</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4 max-h-64 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="text-left text-xs text-gray-500 uppercase">
+                                <tr>
+                                  <th className="pb-2">Q#</th>
+                                  <th className="pb-2">Section</th>
+                                  <th className="pb-2">Your Answer</th>
+                                  <th className="pb-2">Correct Answer</th>
+                                  <th className="pb-2">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {moduleData.answers.map(ans => (
+                                  <tr key={ans.question_id} className={ans.is_correct ? 'bg-green-50' : 'bg-red-50'}>
+                                    <td className="py-2 font-semibold">{ans.question_number}</td>
+                                    <td className="py-2 text-gray-600">{ans.section_title}</td>
+                                    <td className="py-2 font-medium">{ans.user_answer || <span className="text-gray-400 italic">No answer</span>}</td>
+                                    <td className="py-2 text-gray-700">{ans.correct_answer}</td>
+                                    <td className="py-2">
+                                      {ans.is_correct ? (
+                                        <span className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs font-semibold">✓ Correct</span>
+                                      ) : (
+                                        <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-semibold">✗ Wrong</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+                                      ) : (
+                                        <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-semibold">✗ Wrong</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
