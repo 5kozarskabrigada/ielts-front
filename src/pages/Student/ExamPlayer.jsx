@@ -792,12 +792,23 @@ export default function ExamPlayer() {
           {currentModule === 'writing' && (
             <div className="flex w-full h-full">
               <div className="w-1/2 border-r overflow-auto p-8 bg-white">
-                {currentSections.map(section => (
-                  <div key={section.id} className="mb-8">
-                    <h3 className="text-lg font-bold mb-4">{section.title || "Writing Task"}</h3>
-                    <div className="prose max-w-none text-gray-700">{section.content}</div>
-                  </div>
-                ))}
+                {currentSections.map(section => {
+                  let taskConfig;
+                  try {
+                    taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
+                  } catch {
+                    taskConfig = {};
+                  }
+                  return (
+                    <div key={section.id} className="mb-8">
+                      <h3 className="text-lg font-bold mb-4">{section.title || "Writing Task"}</h3>
+                      <div 
+                        className="prose max-w-none text-gray-700" 
+                        dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content || '' }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
               <div className="w-1/2 p-8 bg-gray-50">
                 <div className="bg-white border rounded-lg p-4 h-full">
@@ -1058,12 +1069,23 @@ export default function ExamPlayer() {
               <h3 className="text-lg font-bold uppercase text-gray-500 mb-4 flex items-center">
                 <FileText size={18} className="mr-2" /> Task Prompt
               </h3>
-              {currentSections.map((section) => (
-                <div key={section.id} className="bg-white p-6 rounded shadow-sm mb-6 border">
-                  <h4 className="font-bold text-gray-800 mb-2">{section.title}</h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
-                </div>
-              ))}
+              {currentSections.map((section) => {
+                let taskConfig;
+                try {
+                  taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
+                } catch {
+                  taskConfig = {};
+                }
+                return (
+                  <div key={section.id} className="bg-white p-6 rounded shadow-sm mb-6 border">
+                    <h4 className="font-bold text-gray-800 mb-2">{section.title}</h4>
+                    <div 
+                      className="text-gray-700 prose prose-sm max-w-none" 
+                      dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content || '' }}
+                    />
+                  </div>
+                );
+              })}
               {currentSections.length === 0 && <p className="text-gray-500">No prompt available.</p>}
             </div>
 
