@@ -613,26 +613,32 @@ export default function ExamPlayer() {
         {currentModule === "reading" && (
           <div className="h-full flex">
             <div className="w-1/2 p-6 overflow-y-auto border-r">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Reading Passages</h3>
-              {currentSections.map(section => (
-                <div key={section.id} className="mb-8 bg-white rounded-lg border p-6">
-                  <h4 className="font-bold text-lg mb-4">{section.title}</h4>
-                  <div 
-                    className="prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: section.content }}
-                  />
-                </div>
-              ))}
+              <div className="max-w-3xl mx-auto">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Reading Passages</h3>
+                {currentSections.map((section, idx) => (
+                  <div key={section.id} id={`part-${idx + 1}`} className="mb-8 bg-white rounded-lg border p-6 scroll-mt-20">
+                    <h4 className="font-bold text-xl mb-4"style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>{section.title}</h4>
+                    <div 
+                      className="prose max-w-none"
+                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                      dangerouslySetInnerHTML={{ __html: section.content }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="w-1/2 p-6 overflow-y-auto bg-gray-50">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Questions</h3>
-              <div className="space-y-4">
-                {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => (
-                  <div key={q.id} className="bg-white rounded-lg border p-4">
-                    <p className="font-semibold mb-3">
-                      <span className="text-emerald-600">{q.question_number}.</span> 
-                      <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
-                    </p>
+              <div className="max-w-2xl mx-auto">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Questions</h3>
+                <div className="space-y-6">
+                  {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => {
+                    const globalNum = Math.floor((sections.findIndex(s => s.id === q.section_id)) * 13.33) + q.question_number;
+                    return (
+                      <div key={q.id} id={`question-${globalNum}`} className="bg-white rounded-lg border p-4 scroll-mt-20">
+                        <p className="font-semibold mb-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+                          <span className="text-emerald-600">{globalNum}.</span> 
+                          <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
+                        </p>
                     
                     {/* Multiple Choice Single */}
                     {q.question_type === "multiple_choice_single" && (
@@ -740,7 +746,9 @@ export default function ExamPlayer() {
                       />
                     )}
                   </div>
-                ))}
+                  );
+                })}
+              </div>
               </div>
             </div>
           </div>
@@ -749,7 +757,8 @@ export default function ExamPlayer() {
         {/* Writing Module */}
         {currentModule === "writing" && (
           <div className="h-full flex flex-col p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Writing Module</h3>
+            <div className="max-w-4xl mx-auto w-full">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6" style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>Writing Module</h3>
             
             <div className="flex-1 overflow-y-auto space-y-6">
               {currentSections.map((section, idx) => {
@@ -761,10 +770,10 @@ export default function ExamPlayer() {
                 }
                 const taskKey = `writing_task_${idx + 1}`;
                 return (
-                  <div key={section.id} className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                  <div key={section.id} id={`task-${idx + 1}`} className="bg-white rounded-xl border-2 border-gray-200 p-6 scroll-mt-20">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h4 className="font-bold text-xl text-gray-900">Task {idx + 1}</h4>
+                        <h4 className="font-bold text-xl text-gray-900" style={{fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>Task {idx + 1}</h4>
                         <p className="text-sm text-gray-500 mt-1">
                           {idx === 0 ? 'Minimum 150 words' : 'Minimum 250 words'}
                         </p>
@@ -778,6 +787,7 @@ export default function ExamPlayer() {
                     <div className="bg-gray-50 rounded-lg p-4 mb-4">
                       <div 
                         className="prose prose-sm max-w-none"
+                        style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
                         dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
                       />
                     </div>
@@ -785,6 +795,7 @@ export default function ExamPlayer() {
                     {/* Response Area */}
                     <textarea
                       className="w-full h-48 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
                       placeholder={`Write your response for Task ${idx + 1} here...`}
                       value={answers[taskKey] || ""}
                       onChange={(e) => setAnswers({...answers, [taskKey]: e.target.value})}
@@ -792,6 +803,7 @@ export default function ExamPlayer() {
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         )}
@@ -881,7 +893,11 @@ export default function ExamPlayer() {
             const isAnswered = (answers[taskKey] || '').trim().length > 0;
             
             return (
-              <div key={section.id} className="flex items-center space-x-3">
+              <button 
+                key={section.id} 
+                onClick={() => document.getElementById(`task-${idx + 1}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition"
+              >
                 <span className="text-sm font-semibold text-gray-700 min-w-[60px]">Task {idx + 1}</span>
                 <div 
                   className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
@@ -890,7 +906,7 @@ export default function ExamPlayer() {
                 >
                   {isAnswered && <span className="text-green-600 text-xs">✓</span>}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
