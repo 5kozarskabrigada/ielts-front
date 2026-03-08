@@ -586,7 +586,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
             <>
               <Input label="Table Row Label" placeholder="e.g., Year, Location" value={question.label_text || ""} onChange={(e) => updateQuestion(question.id, { label_text: e.target.value })} />
               <RichTextArea label="Cell content with blank" placeholder="Started in [BLANK]" rows={2} value={question.question_template || ""} onChange={(e) => updateQuestion(question.id, { question_template: e.target.value })} showBlankButton={true} />
-              <Input label="Correct Answer" placeholder="e.g., 1990, London" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <Input label="Correct Answer" placeholder="e.g., 1990" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} />
+              <Input label="Alternative Answers (use / to separate)" placeholder="e.g., nineteen ninety/1990s" value={Array.isArray(question.answer_alternatives) ? question.answer_alternatives.join('/') : (question.answer_alternatives || '')} onChange={(e) => updateQuestion(question.id, { answer_alternatives: e.target.value })} />
             </>
           )}
         </div>

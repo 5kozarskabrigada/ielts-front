@@ -96,6 +96,11 @@ function ExamEditorContent() {
           const startNum = group.question_range_start || 1;
           Object.entries(group.table_data.answers).forEach(([blankIdx, answer]) => {
             const questionNumber = startNum + parseInt(blankIdx);
+            // Split answer by / to separate main answer from alternatives
+            const answerParts = answer ? answer.split('/').map(a => a.trim()).filter(Boolean) : [];
+            const correctAnswer = answerParts[0] || '';
+            const alternatives = answerParts.length > 1 ? answerParts.slice(1).join('/') : '';
+            
             // Check if question already exists
             const existingIdx = allQuestions.findIndex(q => 
               q.section_id === group.section_id && q.question_number === questionNumber
@@ -104,7 +109,8 @@ function ExamEditorContent() {
               section_id: group.section_id,
               question_number: questionNumber,
               question_type: 'form_completion',
-              correct_answer: answer,
+              correct_answer: correctAnswer,
+              answer_alternatives: alternatives || '',
               points: 1
             };
             if (existingIdx >= 0) {

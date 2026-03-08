@@ -788,7 +788,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
       {/* Answers section - one for each blank */}
       {totalBlanks() > 0 && (
         <div className="border-t border-gray-200 pt-4">
-          <h6 className="text-xs font-semibold text-gray-600 mb-2">Correct Answers</h6>
+          <h6 className="text-xs font-semibold text-gray-600 mb-2">Correct Answers (use / for alternatives)</h6>
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: totalBlanks() }, (_, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -802,7 +802,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
                   type="text"
                   value={answers[i] || ''}
                   onChange={(e) => handleAnswerChange(i, e.target.value)}
-                  placeholder="Answer..."
+                  placeholder="e.g., answer/alternative"
                   className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                 />
               </div>
@@ -1084,7 +1084,7 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
       {/* Answers section - one for each blank */}
       {totalBlanks() > 0 && (
         <div className="border-t border-amber-200 pt-4">
-          <h6 className="text-sm font-semibold text-gray-700 mb-3">Correct Answers</h6>
+          <h6 className="text-sm font-semibold text-gray-700 mb-3">Correct Answers (use / for alternatives)</h6>
           <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: totalBlanks() }, (_, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -1098,7 +1098,7 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
                   type="text"
                   value={answers[i] || ''}
                   onChange={(e) => handleAnswerChange(i, e.target.value)}
-                  placeholder="Answer..."
+                  placeholder="e.g., answer/alternative"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-amber-400 outline-none"
                 />
               </div>
