@@ -39,52 +39,50 @@ export default function StudentDashboard() {
       </nav>
 
       <main className="container mx-auto px-6 py-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Available Exams</h2>
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Student Dashboard</h2>
+          <p className="text-gray-600">Enter your exam code to begin your test</p>
+        </div>
         
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white text-center shadow-xl">
+            <h3 className="text-2xl font-bold mb-4">Ready to Start Your Exam?</h3>
+            <p className="text-blue-100 mb-6">Click below to enter your exam access code</p>
+            <button
+              onClick={() => navigate("/student/join")}
+              className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors inline-flex items-center space-x-2"
+            >
+              <PlayCircle size={20} />
+              <span>Enter Exam Code</span>
+            </button>
           </div>
-        ) : exams.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-            <p className="text-gray-500 text-lg">No active exams available at the moment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {exams.map((exam) => (
-              <div key={exam.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow duration-200">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{exam.title}</h3>
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                      Active
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-6 line-clamp-2 h-10">{exam.description}</p>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-6">
-                    <div className="flex items-center">
-                      <Clock size={16} className="mr-1.5" />
-                      <span>{exam.duration_minutes} min</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar size={16} className="mr-1.5" />
-                      <span>{new Date(exam.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={() => navigate(`/student/exam/${exam.id}`)}
-                    className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <PlayCircle size={18} />
-                    <span>Start Exam</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border">
+            <h4 className="font-semibold text-gray-800 mb-4">Exam Instructions:</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-start">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3"></span>
+                <span>Ensure you have a stable internet connection</span>
+              </li>
+              <li className="flex items-start">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3"></span>
+                <span>Find a quiet place to take your exam</span>
+              </li>
+              <li className="flex items-start">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3"></span>
+                <span>The exam will be in fullscreen mode - do not exit during the test</span>
+              </li>
+              <li className="flex items-start">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3"></span>
+                <span>Your answers will be automatically saved</span>
+              </li>
+              <li className="flex items-start">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 mr-3"></span>
+                <span>You cannot go back to previous modules after submission</span>
+              </li>
+            </ul>
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

@@ -13,7 +13,10 @@ import ExamEditor from "./pages/Admin/ExamEditor"; // New Editor
 import SettingsPage from "./pages/Admin/Settings";
 import ResultsPage from "./pages/Admin/Results";
 import RecycleBin from "./pages/Admin/RecycleBin";
+import SubmissionsPage from "./pages/Admin/Submissions";
+import LogsPage from "./pages/Admin/Logs";
 import StudentDashboard from "./pages/Student/Dashboard";
+import ExamCodeEntry from "./pages/Student/ExamCodeEntry";
 import ExamPlayer from "./pages/Student/ExamPlayer";
 
 function PrivateRoute({ children, role }) {
@@ -58,6 +61,8 @@ function App() {
             <Route path="exams/:id" element={<ExamDetail />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="results" element={<ResultsPage />} />
+            <Route path="submissions" element={<SubmissionsPage />} />
+            <Route path="logs" element={<LogsPage />} />
             <Route path="recycle-bin" element={<RecycleBin />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
@@ -68,6 +73,14 @@ function App() {
             element={
               <PrivateRoute role="student">
                 <StudentDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/student/join"
+            element={
+              <PrivateRoute role="student">
+                <ExamCodeEntry />
               </PrivateRoute>
             }
           />

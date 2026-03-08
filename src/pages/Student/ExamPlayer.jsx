@@ -1,1059 +1,619 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { apiGetExam, apiLogViolation, apiSubmitExam } from "../../api";
-import { AlertTriangle, Clock, Save, ShieldAlert, Headphones, BookOpen, PenTool, SkipForward, CheckSquare, FileText, Eye, X } from "lucide-react";
+import { 
+  Clock, AlertTriangle, CheckCircle, ArrowRight, ChevronRight, 
+  Maximize2, Volume2, FileText, Edit3, Send 
+} from "lucide-react";
 
-// ============================================
-// HTML HELPERS
-// ============================================
-
-// Decode HTML entities (in case they were double-encoded)
-const decodeHtmlEntities = (text) => {
-  if (!text) return '';
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
-};
-
-// Strip all HTML tags to get plain text
-const stripHtml = (html) => {
-  if (!html) return '';
-  // First decode any entities
-  const decoded = decodeHtmlEntities(html);
-  const doc = new DOMParser().parseFromString(decoded, 'text/html');
-  return doc.body.textContent || '';
-};
-
-// Clean HTML - decode entities and prepare for rendering
-const cleanHtml = (html) => {
-  if (!html) return '';
-  // Decode HTML entities
-  let cleaned = decodeHtmlEntities(html);
-  // Remove any escaped quotes that might cause issues
-  cleaned = cleaned.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-  return cleaned;
-};
-
-// ============================================
-// LISTENING QUESTION GROUP RENDERER  
-// ============================================
-const ListeningQuestionGroup = ({ group, questions, sectionNumber, answers, setAnswers, isPreview }) => {
-  // Filter questions that belong to this group
-  const groupQuestions = questions.filter(q => {
-    const qNum = q.question_number;
-    return qNum >= group.question_range_start && qNum <= group.question_range_end;
-  }).sort((a, b) => a.question_number - b.question_number);
-
-  // Calculate global question number (for display)
-  const globalStart = (sectionNumber - 1) * 10 + group.question_range_start;
-  const globalEnd = (sectionNumber - 1) * 10 + group.question_range_end;
-  
-  // Check if this group uses table_data format (TableBuilder)
-  const hasTableData = group.question_type === 'form_completion' && group.table_data?.cells;
-
-  // Parse example data - options are stored as option_a, option_b, etc.
-  const exampleData = group.example_data || {};
-  const exampleOptions = [];
-  ['a', 'b', 'c', 'd'].forEach(letter => {
-    if (exampleData[`option_${letter}`]) {
-      exampleOptions.push(exampleData[`option_${letter}`]);
-    }
-  });
-  // Fallback to options array if exists
-  if (exampleOptions.length === 0 && exampleData.options) {
-    exampleOptions.push(...exampleData.options);
-  }
-
-  return (
-    <div className="mb-10" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-      {/* Questions range header - accent color, Montserrat font */}
-      <h3 style={{
-        color: 'rgb(50, 180, 200)',
-        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
-        fontSize: '20px',
-        fontWeight: 700,
-        lineHeight: '24px',
-        marginTop: '10px',
-        marginBottom: '10px'
-      }}>
-        Questions {globalStart}–{globalEnd}
-      </h3>
-
-      {/* Instruction text - rendered as clean HTML, NO container/card/border */}
-      {group.instruction_text && (
-        <div 
-          className="mb-4 leading-relaxed [&>*]:m-0"
-          style={{ color: 'rgb(40, 40, 40)', fontSize: '14px', lineHeight: '21px' }}
-          dangerouslySetInnerHTML={{ __html: cleanHtml(group.instruction_text) }}
-        />
-      )}
-
-      {/* Example section - only if has_example is true */}
-      {group.has_example && (
-        <div className="mb-6 text-gray-700">
-          {/* Example header - italic, underlined, bold */}
-          <p className="font-bold italic underline mb-2">Example:</p>
-          
-          {/* Example question text - all italic, render HTML properly (stem or question_text) */}
-          {(exampleData.stem || exampleData.question_text) && (
-            <p 
-              className="italic mb-2"
-              dangerouslySetInnerHTML={{ __html: cleanHtml(exampleData.stem || exampleData.question_text) }}
-            />
-          )}
-          
-          {/* Example options - all italic, correct answer is bold (NO "Answer: X" shown) */}
-          {exampleOptions.length > 0 && (
-            <div className="space-y-1 ml-4">
-              {exampleOptions.map((opt, idx) => {
-                const letter = String.fromCharCode(65 + idx); // A, B, C...
-                const optText = typeof opt === 'object' ? (opt.text || opt.label || '') : opt;
-                const correctAnswer = exampleData.answer || exampleData.correct_answer;
-                const isCorrect = correctAnswer === letter || 
-                                  correctAnswer === optText ||
-                                  correctAnswer === String(idx);
-                return (
-                  <p key={idx} className={`italic ${isCorrect ? 'font-bold' : ''}`}>
-                    <span className={isCorrect ? 'font-bold' : 'font-semibold'}>{letter}</span> {optText}
-                  </p>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Render table if using TableBuilder format */}
-      {hasTableData && (() => {
-        const { cells, hasHeaders, headers } = group.table_data;
-        let blankCounter = 0;
-        
-        // Helper to render cell content with inputs for blanks
-        const renderCellWithInputs = (cellContent, startBlankIdx) => {
-          if (!cellContent) return null;
-          const parts = cellContent.split(/(\[BLANK\])/g);
-          let localBlank = 0;
-          
-          return parts.map((part, idx) => {
-            if (part === '[BLANK]') {
-              const blankNum = startBlankIdx + localBlank;
-              localBlank++;
-              // Find the question for this blank
-              const questionNum = group.question_range_start + blankNum;
-              const question = groupQuestions.find(q => q.question_number === questionNum);
-              const globalQNum = (sectionNumber - 1) * 10 + questionNum;
-              
-              if (question) {
-                return (
-                  <span key={idx} className="inline-flex items-center gap-1">
-                    <span 
-                      className="w-5 h-5 flex items-center justify-center rounded-full text-white text-xs font-bold"
-                      style={{ backgroundColor: 'rgb(50, 180, 200)', fontSize: '10px' }}
-                    >
-                      {globalQNum}
-                    </span>
-                    <input
-                      type="text"
-                      className="px-2 py-1 min-w-[100px] max-w-[150px] outline-none"
-                      style={{
-                        fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                        fontSize: '14px',
-                        borderRadius: '8px',
-                        border: '1px solid rgb(209, 213, 219)'
-                      }}
-                      value={answers[question.id] || ''}
-                      onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
-                      disabled={isPreview}
-                    />
-                  </span>
-                );
-              }
-              return <span key={idx} className="text-gray-400">[?]</span>;
-            }
-            return <span key={idx} dangerouslySetInnerHTML={{ __html: cleanHtml(part) }} />;
-          });
-        };
-        
-        return (
-          <div className="mt-6">
-            {/* Table title */}
-            {group.table_title && (
-              <div 
-                style={{
-                  color: 'rgb(41, 69, 99)',
-                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  marginBottom: '12px'
-                }}
-                dangerouslySetInnerHTML={{ __html: cleanHtml(group.table_title) }}
-              />
-            )}
-            
-            <table style={{ 
-              width: '100%', 
-              borderCollapse: 'collapse', 
-              borderRadius: '8px',
-              overflow: 'hidden',
-              border: '1px solid rgb(221, 221, 221)'
-            }}>
-              {hasHeaders && headers?.some(h => h) && (
-                <thead>
-                  <tr>
-                    {headers.map((header, idx) => (
-                      <th 
-                        key={idx}
-                        style={{
-                          backgroundColor: 'rgb(221, 221, 221)',
-                          border: '1px solid rgb(221, 221, 221)',
-                          padding: '10px 12px',
-                          textAlign: 'center',
-                          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: 600
-                        }}
-                      >
-                        {header || ''}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-              )}
-              <tbody>
-                {cells.map((row, rowIdx) => {
-                  // Count blanks in previous rows
-                  let blanksBefore = 0;
-                  for (let r = 0; r < rowIdx; r++) {
-                    cells[r].forEach(c => {
-                      blanksBefore += (c.match(/\[BLANK\]/g) || []).length;
-                    });
-                  }
-                  
-                  return (
-                    <tr key={rowIdx}>
-                      {row.map((cell, colIdx) => {
-                        // Count blanks before this cell in this row
-                        let blanksInRowBefore = 0;
-                        for (let c = 0; c < colIdx; c++) {
-                          blanksInRowBefore += (row[c].match(/\[BLANK\]/g) || []).length;
-                        }
-                        const startBlank = blanksBefore + blanksInRowBefore;
-                        
-                        return (
-                          <td 
-                            key={colIdx}
-                            style={{
-                              border: '1px solid rgb(221, 221, 221)',
-                              padding: '10px 12px',
-                              verticalAlign: 'middle',
-                              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                              fontSize: '14px'
-                            }}
-                          >
-                            {renderCellWithInputs(cell, startBlank)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        );
-      })()}
-
-      {/* Questions list - only if NOT using table_data format */}
-      {!hasTableData && (
-        <div className="space-y-6 mt-6">
-          {groupQuestions.map((q) => {
-            const globalQNum = (sectionNumber - 1) * 10 + q.question_number;
-            const isInfoRow = q.is_info_row === true;
-            
-            // Info rows - display as simple info without question number or input
-            if (isInfoRow) {
-              return (
-                <div key={q.id} className="flex items-start gap-3 text-gray-600" style={{ fontSize: '14px', lineHeight: '21px' }}>
-                  <span className="min-w-[24px]">&nbsp;</span>
-                  <div className="flex-1">
-                    {q.label_text && (
-                      <span className="font-medium" dangerouslySetInnerHTML={{ __html: cleanHtml(q.label_text) }} />
-                    )}
-                    {q.label_text && q.info_text && ': '}
-                    {q.info_text && (
-                      <span dangerouslySetInnerHTML={{ __html: cleanHtml(q.info_text) }} />
-                    )}
-                  </div>
-                </div>
-              );
-            }
-            
-            return (
-              <div key={q.id} className="flex items-start gap-3" style={{ fontSize: '14px', lineHeight: '21px' }}>
-                {/* Question number with accent color circle */}
-                <span 
-                  className="w-7 h-7 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0"
-                  style={{ minWidth: '28px', minHeight: '28px', backgroundColor: 'rgb(50, 180, 200)' }}
-                >
-                  {globalQNum}
-                </span>
-                
-                <div className="flex-1">
-                  {/* Question text - render cleaned HTML */}
-                  {q.question_text && (
-                    <div 
-                      className="mb-2"
-                      style={{ color: 'rgb(40, 40, 40)' }}
-                      dangerouslySetInnerHTML={{ __html: cleanHtml(q.question_text) }}
-                    />
-                  )}
-                  
-                  {/* Input based on question type */}
-                  {renderQuestionInput(q, group, answers, setAnswers, isPreview)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Helper function to count words and numbers in text
-const countWordsAndNumbers = (text) => {
-  if (!text || !text.trim()) return { words: 0, numbers: 0, total: 0 };
-  const tokens = text.trim().split(/\s+/);
-  let words = 0;
-  let numbers = 0;
-  tokens.forEach(token => {
-    if (/^-?\d+(\.\d+)?$/.test(token)) {
-      numbers++;
-    } else {
-      words++;
-    }
-  });
-  return { words, numbers, total: words + numbers };
-};
-
-// Helper function to render the appropriate input based on question type
-const renderQuestionInput = (question, group, answers, setAnswers, isPreview) => {
-  const qType = group.question_type || question.question_type;
-  const inputFont = { fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' };
-  
-  // Parse options from question
-  let options = [];
-  if (question.options) {
-    options = Array.isArray(question.options) ? question.options : 
-              (typeof question.options === 'string' ? JSON.parse(question.options) : []);
-  }
-
-  switch (qType) {
-    case 'multiple_choice':
-      return (
-        <div className="space-y-2" style={inputFont}>
-          {options.map((opt, idx) => {
-            const letter = String.fromCharCode(65 + idx);
-            const optText = typeof opt === 'object' ? opt.text : opt;
-            return (
-              <label key={idx} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                <input
-                  type="radio"
-                  name={`q_${question.id}`}
-                  value={letter}
-                  checked={answers[question.id] === letter}
-                  onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
-                  disabled={isPreview}
-                  className="mt-1"
-                />
-                <span><strong>{letter}</strong> {optText}</span>
-              </label>
-            );
-          })}
-        </div>
-      );
-
-    case 'matching':
-      return (
-        <div className="flex items-center gap-2">
-          <select
-            className="border border-gray-300 rounded px-3 py-2 min-w-[80px] outline-none"
-            style={inputFont}
-            value={answers[question.id] || ''}
-            onChange={(e) => !isPreview && setAnswers({ ...answers, [question.id]: e.target.value })}
-            disabled={isPreview}
-          >
-            <option value="">—</option>
-            {(group.shared_options || []).map((opt, idx) => (
-              <option key={idx} value={opt}>{opt}</option>
-            ))}
-          </select>
-        </div>
-      );
-
-    case 'form_completion':
-    case 'note_completion':
-    case 'sentence_completion':
-    case 'summary_completion':
-    case 'short_answer':
-    default: {
-      const maxWords = group.max_words;
-      const maxNumbers = group.max_numbers;
-      const currentValue = answers[question.id] || '';
-      const { words, numbers } = countWordsAndNumbers(currentValue);
-      const isOverLimit = (maxWords && words > maxWords) || (maxNumbers && numbers > maxNumbers);
-      
-      const handleChange = (e) => {
-        if (isPreview) return;
-        const newValue = e.target.value;
-        const { words: newWords, numbers: newNumbers } = countWordsAndNumbers(newValue);
-        
-        // Allow typing but show visual feedback when over limit
-        setAnswers({ ...answers, [question.id]: newValue });
-      };
-      
-      const placeholderText = maxWords 
-        ? `Max ${maxWords} word${maxWords > 1 ? 's' : ''}${maxNumbers ? ` + ${maxNumbers} #` : ''}`
-        : '';
-      
-      return (
-        <input
-          type="text"
-          className="px-3 py-1.5 min-w-[150px] max-w-[300px] outline-none"
-          style={{
-            ...inputFont,
-            borderRadius: '12px',
-            border: isOverLimit ? '2px solid rgb(239, 68, 68)' : '1px solid rgb(209, 213, 219)'
-          }}
-          placeholder={placeholderText}
-          value={currentValue}
-          onChange={handleChange}
-          disabled={isPreview}
-          title={isOverLimit ? 'Too many words/numbers!' : placeholderText}
-        />
-      );
-    }
-  }
-};
-
-// Component to render listening content for a section
-const ListeningContent = ({ section, sectionNumber, questionGroups, questions, answers, setAnswers, isPreview }) => {
-  // Debug logging
-  console.log(`[ListeningContent] Section ${sectionNumber}:`, {
-    sectionId: section.id,
-    totalGroups: questionGroups?.length || 0,
-    totalQuestions: questions?.length || 0,
-    groupSectionIds: questionGroups?.map(g => g.section_id)
-  });
-
-  // Get groups for this section - check both section.id and by section order
-  const sectionGroups = (questionGroups || [])
-    .filter(g => {
-      // Match by exact section_id OR by section order (for fallback)
-      const matchById = g.section_id === section.id;
-      // Also check if this group's questions fall in this section's range (1-10 for section 1, etc.)
-      const expectedStart = (sectionNumber - 1) * 10 + 1;
-      const expectedEnd = sectionNumber * 10;
-      const matchByRange = g.question_range_start >= expectedStart && g.question_range_end <= expectedEnd;
-      
-      return matchById || matchByRange;
-    })
-    .sort((a, b) => (a.group_order || 0) - (b.group_order || 0));
-
-  console.log(`[ListeningContent] Found ${sectionGroups.length} groups for section ${sectionNumber}`);
-
-  // Get questions for this section
-  const sectionQuestions = (questions || []).filter(q => q.section_id === section.id);
-
-  // If no groups, show questions directly
-  if (sectionGroups.length === 0) {
-    return (
-      <div className="mb-12">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 pb-2 border-b">
-          Listening Section {sectionNumber}
-        </h2>
-        {sectionQuestions.length > 0 ? (
-          sectionQuestions.map((q, idx) => {
-            const globalQNum = (sectionNumber - 1) * 10 + (q.question_number || idx + 1);
-            return (
-              <div key={q.id} className="mb-4 flex items-start gap-3">
-                <span className="font-bold text-gray-700">{globalQNum}</span>
-                <div className="flex-1">
-                  <p className="text-gray-800 mb-2">{q.question_text}</p>
-                  <input
-                    type="text"
-                    className="border-b-2 border-gray-300 focus:border-blue-500 outline-none px-1 py-1 min-w-[150px]"
-                    value={answers[q.id] || ''}
-                    onChange={(e) => !isPreview && setAnswers({ ...answers, [q.id]: e.target.value })}
-                    disabled={isPreview}
-                  />
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <p className="text-gray-500">No questions in this section.</p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mb-12">
-      <h2 className="text-xl font-bold text-gray-800 mb-6 pb-2 border-b">
-        Listening Section {sectionNumber}
-      </h2>
-      
-      {sectionGroups.map((group) => (
-        <ListeningQuestionGroup
-          key={group.id}
-          group={group}
-          questions={sectionQuestions}
-          sectionNumber={sectionNumber}
-          answers={answers}
-          setAnswers={setAnswers}
-          isPreview={isPreview}
-        />
-      ))}
-    </div>
-  );
-};
-
-// ============================================
-// MAIN EXAM PLAYER COMPONENT
-// ============================================
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 export default function ExamPlayer() {
-  const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const isAdminPreview = searchParams.get('preview') === 'admin';
+  const { id: examId } = useParams();
   const { token, user } = useAuth();
   const navigate = useNavigate();
+
+  // Exam data
   const [exam, setExam] = useState(null);
+  const [sections, setSections] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [questionGroups, setQuestionGroups] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Exam State
+  const [error, setError] = useState(null);
+
+  // Exam state
   const [currentModule, setCurrentModule] = useState("listening"); // listening, reading, writing
-  const [timeLeft, setTimeLeft] = useState(0); // in seconds
   const [answers, setAnswers] = useState({});
-  const [violationCount, setViolationCount] = useState(0);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  
-  // Refs
-  const containerRef = useRef(null);
-  const audioRef = useRef(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [examSubmitted, setExamSubmitted] = useState(false);
 
-  // Constants
+  // Timer state
+  const [moduleTimeRemaining, setModuleTimeRemaining] = useState({
+    listening: 30 * 60,
+    reading: 60 * 60,
+    writing: 60 * 60
+  });
+  const [timeSpent, setTimeSpent] = useState({
+    listening: 0,
+    reading: 0,
+    writing: 0
+  });
+
+  // Fullscreen & violation state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [violations, setViolations] = useState([]);
+  const violationTimeoutRef = useRef(null);
+
+  // Auto-save state
+  const autoSaveTimeoutRef = useRef(null);
+  const lastSaveRef = useRef({});
+
+  // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
-  const MODULE_DURATIONS = { listening: 30, reading: 60, writing: 60 }; // minutes
+  const MODULE_DURATIONS = { listening: 30, reading: 60, writing: 60 };
 
-  const logViolation = useCallback(async (type) => {
-    setViolationCount((prev) => prev + 1);
-    try {
-      await apiLogViolation(token, id, type, { timestamp: new Date() });
-    } catch (err) {
-      console.error("Failed to log violation", err);
-    }
-  }, [token, id]);
-
+  // ============================================
+  // FETCH EXAM DATA
+  // ============================================
   useEffect(() => {
-    const fetchExam = async () => {
+    const fetchExamData = async () => {
       try {
-        const data = await apiGetExam(token, id);
-        
-        // Fallback: if questionGroups is empty, try modules_config
-        let questionGroups = data.questionGroups || [];
-        if (questionGroups.length === 0 && data.modules_config?.listening_question_groups) {
-          questionGroups = data.modules_config.listening_question_groups;
-          console.log('[ExamPlayer] Using questionGroups from modules_config fallback');
-        }
-        
-        console.log('[ExamPlayer] Loaded exam data:', {
-          id: data.id,
-          title: data.title,
-          sectionsCount: data.sections?.length,
-          questionsCount: data.questions?.length,
-          questionGroupsCount: questionGroups?.length,
-          questionGroups: questionGroups,
-          sections: data.sections?.map(s => ({ id: s.id, title: s.title, module_type: s.module_type }))
+        const response = await fetch(`${API_URL}/exams/${examId}`, {
+          headers: { "Authorization": `Bearer ${token}` }
         });
-        
-        // Merge the questionGroups back into data
-        setExam({ ...data, questionGroups });
-        // Start with Listening duration
-        setTimeLeft(MODULE_DURATIONS.listening * 60);
+
+        if (!response.ok) {
+          throw new Error("Failed to load exam");
+        }
+
+        const data = await response.json();
+        setExam(data);
+        setSections(data.sections || []);
+        setQuestions(data.questions || []);
+        setQuestionGroups(data.questionGroups || []);
       } catch (err) {
-        alert("Failed to load exam");
-        navigate("/student/dashboard");
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    fetchExam();
-  }, [id, token, navigate]);
 
-  // Timer Logic
+    if (token && examId) {
+      fetchExamData();
+    }
+  }, [token, examId]);
+
+  // ============================================
+  // FULLSCREEN ENFORCEMENT
+  // ============================================
+  const enterFullscreen = useCallback(async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } catch (err) {
+      console.error("Fullscreen error:", err);
+    }
+  }, []);
+
+  const handleFullscreenChange = useCallback(() => {
+    const isNowFullscreen = !!document.fullscreenElement;
+    setIsFullscreen(isNowFullscreen);
+
+    if (!isNowFullscreen && hasStarted && !examSubmitted) {
+      // User exited fullscreen during exam - log violation
+      logViolation("fullscreen_exit");
+    }
+  }, [hasStarted, examSubmitted]);
+
   useEffect(() => {
-    if (!exam || timeLeft <= 0) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleModuleComplete(); // Auto-advance when time is up
-          return 0;
-        }
-        return prev - 1;
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [handleFullscreenChange]);
+
+  // ============================================
+  // VIOLATION LOGGING
+  // ============================================
+  const logViolation = useCallback(async (type) => {
+    if (!hasStarted || examSubmitted) return;
+
+    const violation = {
+      type,
+      timestamp: new Date().toISOString(),
+      module: currentModule
+    };
+
+    setViolations(prev => [...prev, violation]);
+
+    try {
+      await fetch(`${API_URL}/exams/${examId}/violations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ type, metadata: { module: currentModule } })
       });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [exam, timeLeft]);
+    } catch (err) {
+      console.error("Failed to log violation:", err);
+    }
 
-  // Security Monitoring - Skip in admin preview mode
+    // Show warning
+    if (violationTimeoutRef.current) {
+      clearTimeout(violationTimeoutRef.current);
+    }
+    violationTimeoutRef.current = setTimeout(() => {
+      if (!document.fullscreenElement && hasStarted && !examSubmitted) {
+        enterFullscreen();
+      }
+    }, 5000);
+  }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen]);
+
+  // Tab visibility detection
   useEffect(() => {
-    if (isAdminPreview) return; // Skip security checks in preview mode
-    
-    const handleVisibilityChange = () => { if (document.hidden) logViolation("tab_switch"); };
-    const handleBlur = () => logViolation("window_blur");
-    const handleFullScreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsFullScreen(false);
-        logViolation("fullscreen_exit");
-      } else {
-        setIsFullScreen(true);
+    const handleVisibilityChange = () => {
+      if (document.hidden && hasStarted && !examSubmitted) {
+        logViolation("tab_switch");
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-    document.addEventListener("fullscreenchange", handleFullScreenChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [hasStarted, examSubmitted, logViolation]);
+
+  // ============================================
+  // MODULE TIMER
+  // ============================================
+  useEffect(() => {
+    if (!hasStarted || examSubmitted) return;
+
+    const interval = setInterval(() => {
+      setModuleTimeRemaining(prev => {
+        const newTime = Math.max(0, prev[currentModule] - 1);
+        
+        // Auto-redirect when time runs out
+        if (newTime === 0) {
+          const currentIndex = MODULE_ORDER.indexOf(currentModule);
+          if (currentIndex < MODULE_ORDER.length - 1) {
+            handleModuleSubmit(true); // Auto-submit and move to next
+          } else {
+            handleFinalSubmit(); // Time's up on last module
+          }
+        }
+
+        return { ...prev, [currentModule]: newTime };
+      });
+
+      setTimeSpent(prev => ({
+        ...prev,
+        [currentModule]: prev[currentModule] + 1
+      }));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [hasStarted, currentModule, examSubmitted]);
+
+  // ============================================
+  // AUTO-SAVE
+  // ============================================
+  const saveAnswers = useCallback(async (answerData = answers) => {
+    if (!hasStarted) return;
+
+    try {
+      await fetch(`${API_URL}/exams/${examId}/autosave`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          answers: answerData,
+          module: currentModule,
+          timestamp: new Date().toISOString()
+        })
+      });
+      lastSaveRef.current = { ...answerData };
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+    }
+  }, [hasStarted, answers, currentModule, examId, token]);
+
+  // Auto-save on answer change  useEffect(() => {
+    if (JSON.stringify(answers) === JSON.stringify(lastSaveRef.current)) return;
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveAnswers();
+    }, 2000); // Save 2 seconds after last change
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
     };
-  }, [logViolation, isAdminPreview]);
+  }, [answers, saveAnswers]);
 
-  const requestFullScreen = () => {
-    if (containerRef.current) {
-      containerRef.current.requestFullscreen().catch((err) => {
-        alert("Error: " + err.message);
+  // ============================================
+  // START EXAM
+  // ============================================
+  const handleStartExam = async () => {
+    await enterFullscreen();
+    setHasStarted(true);
+
+    // Log exam start
+    try {
+      await fetch(`${API_URL}/exams/${examId}/log`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          event_type: "exam_started",
+          metadata: { module: "listening" }
+        })
       });
-      setIsFullScreen(true);
+    } catch (err) {
+      console.error("Failed to log exam start:", err);
     }
   };
 
-  const handleModuleComplete = () => {
+  // ============================================
+  // MODULE SUBMISSION
+  // ============================================
+  const handleModuleSubmit = async (autoSubmit = false) => {
+    // Save answers before moving to next module
+    await saveAnswers();
+
     const currentIndex = MODULE_ORDER.indexOf(currentModule);
     if (currentIndex < MODULE_ORDER.length - 1) {
       const nextModule = MODULE_ORDER[currentIndex + 1];
       setCurrentModule(nextModule);
-      setTimeLeft(MODULE_DURATIONS[nextModule] * 60);
-      alert(`Time's up! Moving to ${nextModule} module.`);
-    } else {
-      handleSubmit();
+
+      // Log module completion
+      try {
+        await fetch(`${API_URL}/exams/${examId}/log`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            event_type: "module_completed",
+            metadata: { 
+              module: currentModule, 
+              auto_submit: autoSubmit,
+              time_spent: timeSpent[currentModule]
+            }
+          })
+        });
+      } catch (err) {
+        console.error("Failed to log module completion:", err);
+      }
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      await apiSubmitExam(token, id, { answers, time_spent_by_module: {} }); // TODO: track actual time
-      alert("Exam submitted successfully!");
-      if (document.fullscreenElement) document.exitFullscreen();
-      navigate("/student/dashboard");
-    } catch (err) {
-      alert("Failed to submit exam");
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center">Loading exam...</div>;
-
-  // Admin Preview Mode - Skip fullscreen requirement
-  if (isAdminPreview) {
-    const currentSections = exam?.sections?.filter(s => s.module_type === currentModule) || [];
-    const currentQuestions = exam?.questions?.filter(q => q.module_type === currentModule) || [];
+  // ============================================
+  // FINAL SUBMISSION
+  // ============================================
+  const handleFinalSubmit = async () => {
+    setIsSubmitting(true);
     
+    // Final save before submission
+    await saveAnswers();
+
+    try {
+      const response = await fetch(`${API_URL}/exams/${examId}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          answers,
+          time_spent_by_module: timeSpent,
+          violations: violations.length
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Submission failed");
+      }
+
+      setExamSubmitted(true);
+
+      // Exit fullscreen
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      alert("Submission failed: " + err.message);
+      setIsSubmitting(false);
+    }
+  };
+
+  // ============================================
+  // RENDER HELPERS
+  // ============================================
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const currentSections = sections.filter(s => s.module_type === currentModule);
+  const currentQuestions = questions.filter(q => {
+    const qSection = sections.find(s => s.id === q.section_id);
+    return qSection?.module_type === currentModule;
+  });
+
+  // ============================================
+  // LOADING & ERROR STATES
+  // ============================================
+  if (loading) {
     return (
-      <div ref={containerRef} className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-        {/* Admin Preview Banner */}
-        <div className="bg-purple-600 text-white px-4 py-2 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <Eye size={20} />
-            <span className="font-medium">Admin Preview Mode</span>
-            <span className="text-purple-200 text-sm">You are viewing this exam as a student would see it</span>
-          </div>
-          <button 
-            onClick={() => window.close()}
-            className="flex items-center space-x-1 bg-purple-500 hover:bg-purple-400 px-3 py-1 rounded text-sm"
-          >
-            <X size={16} />
-            <span>Close Preview</span>
-          </button>
-        </div>
-        
-        {/* Top Bar */}
-        <div className="bg-gray-900 text-white p-3 flex justify-between items-center shadow-md z-10 shrink-0">
-          <div className="flex items-center space-x-4">
-            <div className="text-xl font-bold uppercase tracking-wider text-blue-400">{currentModule} Module</div>
-            <span className="text-gray-400 text-sm">Preview Mode</span>
-          </div>
-          
-          <div className="flex items-center space-x-6">
-            <div className="text-2xl font-mono font-bold bg-gray-800 px-4 py-1 rounded text-white flex items-center space-x-2 border border-gray-700">
-              <Clock size={20} className="text-yellow-500" />
-              <span>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}</span>
-            </div>
-            
-            {/* Module Navigation for Preview */}
-            <div className="flex items-center space-x-2">
-              {MODULE_ORDER.map(mod => (
-                <button
-                  key={mod}
-                  onClick={() => {
-                    setCurrentModule(mod);
-                    setTimeLeft(MODULE_DURATIONS[mod] * 60);
-                  }}
-                  className={`px-3 py-1 rounded text-sm font-medium transition ${
-                    currentModule === mod
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {mod}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* LISTENING LAYOUT */}
-          {currentModule === 'listening' && (
-            <div className="flex flex-col w-full h-full">
-              <div className="bg-gray-800 p-4 border-b border-gray-700 flex justify-center shrink-0">
-                {currentSections.length > 0 && currentSections[0].audio_url ? (
-                  <audio controls controlsList="nodownload" ref={audioRef} className="w-full max-w-2xl">
-                    <source src={currentSections[0].audio_url} type="audio/mpeg" />
-                  </audio>
-                ) : (
-                  <div className="text-gray-400 flex items-center space-x-2">
-                    <Headphones size={20} /> <span>Audio will play for each section.</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 overflow-auto p-8 bg-white">
-                <div className="max-w-4xl mx-auto">
-                  {currentSections.map((section, idx) => (
-                    <ListeningContent
-                      key={section.id}
-                      section={section}
-                      sectionNumber={idx + 1}
-                      questionGroups={exam?.questionGroups || []}
-                      questions={exam?.questions?.filter(q => q.module_type === 'listening') || []}
-                      answers={answers}
-                      setAnswers={setAnswers}
-                      isPreview={true}
-                    />
-                  ))}
-                  {currentSections.length === 0 && (
-                    <div className="text-center text-gray-500 py-8">No listening sections available.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* READING LAYOUT */}
-          {currentModule === 'reading' && (
-            <div className="flex w-full h-full">
-              <div className="w-1/2 border-r overflow-auto p-8 bg-white">
-                {currentSections.map(section => (
-                  <div key={section.id} className="mb-8">
-                    <h3 className="text-lg font-bold mb-4">{section.title}</h3>
-                    <div className="prose max-w-none text-gray-700 leading-relaxed">
-                      {section.content}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="w-1/2 overflow-auto p-8 bg-gray-50">
-                {currentQuestions.map((q, idx) => (
-                  <div key={q.id} className="mb-6 p-4 border rounded-lg bg-white">
-                    <div className="font-medium mb-2">Q{idx + 1}. {q.question_text}</div>
-                    <div className="text-sm text-gray-500">(Preview - answers not recorded)</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* WRITING LAYOUT */}
-          {currentModule === 'writing' && (
-            <div className="flex w-full h-full">
-              <div className="w-1/2 border-r overflow-auto p-8 bg-white">
-                {currentSections.map(section => {
-                  let taskConfig;
-                  try {
-                    taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
-                  } catch {
-                    taskConfig = {};
-                  }
-                  return (
-                    <div key={section.id} className="mb-8">
-                      <h3 className="text-lg font-bold mb-4">{section.title || "Writing Task"}</h3>
-                      <div 
-                        className="prose max-w-none text-gray-700" 
-                        dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content || '' }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="w-1/2 p-8 bg-gray-50">
-                <div className="bg-white border rounded-lg p-4 h-full">
-                  <textarea
-                    className="w-full h-full resize-none outline-none"
-                    placeholder="(Preview mode - writing disabled)"
-                    disabled
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading exam...</p>
         </div>
       </div>
     );
   }
 
-  if (!isFullScreen) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded shadow-lg text-center max-w-md">
-          <ShieldAlert size={48} className="mx-auto text-blue-600 mb-4" />
-          <h2 className="text-2xl font-bold mb-4">Secure Exam Environment</h2>
-          <p className="mb-6 text-gray-600">
-            This exam requires full-screen mode. Violations such as switching tabs or exiting full-screen will be recorded.
-          </p>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Exam</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={requestFullScreen}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+            onClick={() => navigate("/student/dashboard")}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Enter Full Screen to Start
+            Back to Dashboard
           </button>
         </div>
       </div>
     );
   }
 
-  // Filter content for current module
-  const currentSections = exam.sections?.filter(s => s.module_type === currentModule) || [];
-  const currentQuestions = exam.questions?.filter(q => q.module_type === currentModule) || [];
+  // ============================================
+  // SUBMISSION COMPLETE
+  // ============================================
+  if (examSubmitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-2xl text-center">
+          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={48} className="text-green-600" />
+          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Exam Submitted!</h1>
+          <p className="text-lg text-gray-600 mb-8">
+            Your exam has been successfully submitted. Your instructor will review your responses and provide results.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-6 mb-8">
+            <h3 className="font-semibold text-gray-800 mb-4">Exam Summary</h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Listening</p>
+                <p className="font-bold text-gray-900">{Math.floor(timeSpent.listening / 60)} min</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Reading</p>
+                <p className="font-bold text-gray-900">{Math.floor(timeSpent.reading / 60)} min</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Writing</p>
+                <p className="font-bold text-gray-900">{Math.floor(timeSpent.writing / 60)} min</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate("/student/dashboard")}
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // START SCREEN
+  // ============================================
+  if (!hasStarted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
+            <h1 className="text-3xl font-bold mb-2">{exam?.title || "IELTS Exam"}</h1>
+            <p className="text-blue-100">{exam?.description}</p>
+          </div>
+
+          {/* Content */}
+          <div className="p-8">
+            <div className="space-y-6">
+              {/* Modules Info */}
+              <div>
+                <h3 className="font-bold text-gray-900 mb-4 text-lg">Exam Structure</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center space-x-3">
+                      <Volume2 size={24} className="text-blue-600" />
+                      <div>
+                        <p className="font-semibold text-gray-900">Listening</p>
+                        <p className="text-sm text-gray-600">4 sections, 40 questions</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-blue-600">{MODULE_DURATIONS.listening} min</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center space-x-3">
+                      <FileText size={24} className="text-green-600" />
+                      <div>
+                        <p className="font-semibold text-gray-900">Reading</p>
+                        <p className="text-sm text-gray-600">3 passages, 40 questions</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-green-600">{MODULE_DURATIONS.reading} min</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center space-x-3">
+                      <Edit3 size={24} className="text-purple-600" />
+                      <div>
+                        <p className="font-semibold text-gray-900">Writing</p>
+                        <p className="text-sm text-gray-600">2 tasks</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-purple-600">{MODULE_DURATIONS.writing} min</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Notes */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                <h4 className="font-bold text-amber-900 mb-3 flex items-center">
+                  <AlertTriangle size={20} className="mr-2" />
+                  Important Instructions
+                </h4>
+                <ul className="space-y-2 text-sm text-amber-900">
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>The exam will enter fullscreen mode. Do not exit or switch tabs.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>Each module has a time limit. You'll be automatically moved to the next module when time expires.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>Your answers are automatically saved. You cannot return to previous modules.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">•</span>
+                    <span>Violations (tab switches, exiting fullscreen) will be logged.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Start Button */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <button
+                onClick={handleStartExam}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg"
+              >
+                <Maximize2 size={24} />
+                <span>Start Exam (Fullscreen)</span>
+                <ArrowRight size={24} />
+              </button>
+              <p className="text-center text-xs text-gray-500 mt-3">
+                By starting, you agree to follow exam rules and regulations
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================
+  // MAIN EXAM INTERFACE
+  // ============================================
+  const timeColor = moduleTimeRemaining[currentModule] < 300 ? "text-red-600" : "text-gray-700";
+  const isLastModule = currentModule === MODULE_ORDER[MODULE_ORDER.length - 1];
 
   return (
-    <div ref={containerRef} className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Top Bar */}
-      <div className="bg-gray-900 text-white p-3 flex justify-between items-center shadow-md z-10 shrink-0">
-        <div className="flex items-center space-x-4">
-          <div className="text-xl font-bold uppercase tracking-wider text-blue-400">{currentModule} Module</div>
-          <span className="text-gray-400 text-sm">Student: {user?.first_name} {user?.last_name}</span>
+    <div className="h-screen flex flex-col bg-white">
+      {/* Header */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+        <div className="flex items-center space-x-6">
+          <h2 className="text-xl font-bold">{exam?.title}</h2>
+          <div className="flex items-center space-x-4 text-sm">
+            <span className="px-3 py-1 bg-white/10 rounded-full capitalize">{currentModule}</span>
+            {violations.length > 0 && (
+              <span className="px-3 py-1 bg-red-500/20 text-red-200 rounded-full flex items-center space-x-1">
+                <AlertTriangle size={14} />
+                <span>{violations.length} violations</span>
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center space-x-6">
-          <div className="text-2xl font-mono font-bold bg-gray-800 px-4 py-1 rounded text-white flex items-center space-x-2 border border-gray-700">
-            <Clock size={20} className="text-yellow-500" />
-            <span>{Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}</span>
+          <div className={`flex items-center space-x-2 font-bold text-lg ${timeColor}`}>
+            <Clock size={20} />
+            <span>{formatTime(moduleTimeRemaining[currentModule])}</span>
           </div>
           
           <button
-            onClick={handleModuleComplete}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center space-x-2 transition text-sm font-medium"
+            onClick={isLastModule ? handleFinalSubmit : handleModuleSubmit}
+            disabled={isSubmitting}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center space-x-2 transition disabled:opacity-50"
           >
-            <SkipForward size={16} />
-            <span>{currentModule === 'writing' ? 'Submit Exam' : 'Next Section'}</span>
+            <span>{isLastModule ? "Submit Exam" : `Submit ${currentModule}`}</span>
+            {isLastModule ? <Send size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* Module Specific Layouts */}
-        
-        {/* LISTENING LAYOUT */}
-        {currentModule === 'listening' && (
-          <div className="flex flex-col w-full h-full">
-            {/* Audio Player Bar */}
-            <div className="bg-gray-800 p-4 border-b border-gray-700 flex justify-center shrink-0">
-              {currentSections.length > 0 && currentSections[0].audio_url ? (
-                <audio controls controlsList="nodownload" ref={audioRef} className="w-full max-w-2xl">
-                  <source src={currentSections[0].audio_url} type="audio/mpeg" />
-                  Your browser does not support the audio element.
-                </audio>
-              ) : (
-                <div className="text-gray-400 flex items-center space-x-2">
-                  <Headphones size={20} /> <span>Audio will play automatically for each section.</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Questions Area */}
-            <div className="flex-1 overflow-auto p-8 bg-white">
-              <div className="max-w-4xl mx-auto">
-                {currentSections.map((section, idx) => (
-                  <ListeningContent
-                    key={section.id}
-                    section={section}
-                    sectionNumber={idx + 1}
-                    questionGroups={exam?.questionGroups || []}
-                    questions={exam?.questions?.filter(q => q.module_type === 'listening') || []}
-                    answers={answers}
-                    setAnswers={setAnswers}
-                    isPreview={false}
-                  />
-                ))}
-                {currentSections.length === 0 && (
-                  <div className="text-center text-gray-500 mt-20">No listening sections available.</div>
-                )}
+      {/* Module Content */}
+      <div className="flex-1 overflow-hidden">
+        {/* Listening Module */}
+        {currentModule === "listening" && (
+          <div className="h-full flex flex-col p-6">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module</h3>
+            <div className="flex-1 bg-gray-50 rounded-xl border-2 border-gray-200 p-8 flex items-center justify-center">
+              <div className="text-center">
+                <Volume2 size={64} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 text-lg mb-4">Audio player and questions would appear here</p>
+                <p className="text-sm text-gray-500">Answer the listening questions as you hear them</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* READING LAYOUT (Split Screen) */}
-        {currentModule === 'reading' && (
-          <div className="flex w-full h-full">
-            {/* Left: Passage */}
-            <div className="w-1/2 h-full overflow-auto border-r border-gray-200 bg-white p-8">
-              {currentSections.map((section, idx) => (
-                <div key={section.id} className="mb-12 max-w-[480px] mx-auto">
-                  {/* Section Title */}
-                  <div
-                    style={{
-                      boxSizing: 'border-box',
-                      color: 'rgb(41, 69, 99)',
-                      display: 'block',
-                      fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
-                      fontSize: '18px',
-                      fontWeight: 700,
-                      lineHeight: '21.6px',
-                      marginBottom: '10px',
-                      textAlign: 'left',
-                      textTransform: 'uppercase',
-                      width: '459px',
-                      padding: 0,
-                    }}
-                  >
-                    Reading Section {idx + 1}
-                  </div>
-
-                  {/* Instructions */}
-                  <div
-                    style={{
-                      boxSizing: 'border-box',
-                      color: 'rgb(40, 40, 40)',
-                      display: 'inline',
-                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                      fontSize: '16px',
-                      fontStyle: 'italic',
-                      lineHeight: '24px',
-                      width: 'auto',
-                      textAlign: 'left',
-                      padding: 0,
-                    }}
-                  >
-                    You should spend about 20 minutes on Questions {idx * 13 + 1} - {idx * 13 + 13}, which are based on Reading Passage {idx + 1} below.
-                  </div>
-
-                  {/* Passage Image */}
-                  {section.image_url && (
-                    <div style={{ margin: '20px 0' }}>
-                      <img
-                        src={section.image_url}
-                        alt={section.image_description || 'Passage image'}
-                        style={{
-                          aspectRatio: '647 / 338',
-                          maxWidth: '100%',
-                          width: '459px',
-                          height: 'auto',
-                          display: 'block',
-                          margin: 0,
-                          border: 0,
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Passage Title */}
-                  {section.title && (
-                    <div
-                      style={{
-                        boxSizing: 'border-box',
-                        color: 'rgb(41, 69, 99)',
-                        display: 'block',
-                        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
-                        fontSize: '26px',
-                        fontWeight: 700,
-                        lineHeight: '31.2px',
-                        textAlign: 'center',
-                        width: '459px',
-                        margin: '20px 0 10px 0',
-                        padding: 0,
-                      }}
-                    >
-                      {section.title}
-                    </div>
-                  )}
-
-                  {/* Passage Content */}
-                  <div
-                    style={{
-                      boxSizing: 'border-box',
-                      color: 'rgb(40, 40, 40)',
-                      display: 'block',
-                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                      fontSize: '16px',
-                      lineHeight: '24px',
-                      marginBottom: '20px',
-                      width: '459px',
-                      padding: 0,
-                    }}
-                    className="whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: section.content || 'Passage content will appear here...' }}
+        {/* Reading Module */}
+        {currentModule === "reading" && (
+          <div className="h-full flex">
+            <div className="w-1/2 p-6 overflow-y-auto border-r">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Reading Passages</h3>
+              {currentSections.map(section => (
+                <div key={section.id} className="mb-8 bg-white rounded-lg border p-6">
+                  <h4 className="font-bold text-lg mb-4">{section.title}</h4>
+                  <div 
+                    className="prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: section.content }}
                   />
                 </div>
               ))}
-              {currentSections.length === 0 && (
-                <div className="text-center text-gray-400 mt-20">No reading passages available.</div>
-              )}
             </div>
-
-            {/* Right: Questions */}
-            <div className="w-1/2 h-full overflow-auto bg-gray-50 p-8">
-              <div className="space-y-8">
+            <div className="w-1/2 p-6 overflow-y-auto bg-gray-50">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Questions</h3>
+              <div className="space-y-4">
                 {currentQuestions.map((q, idx) => (
-                  <div key={q.id} className="bg-white border rounded-lg p-6 shadow-sm">
-                    <div className="flex items-start space-x-3">
-                      <span className="font-bold text-gray-500 mt-1">Q{q.question_number}</span>
-                      <div className="flex-1">
-                        <p className="text-gray-900 font-medium mb-3">{q.question_text}</p>
-                        
-                        {/* Identify Question Type Logic could go here */}
-                        {/* For now, generic input */}
-                        <div className="mt-2">
-                          <label className="flex items-center space-x-2 text-sm text-gray-500 mb-1">
-                            <CheckSquare size={14} /> <span>Your Answer:</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="w-full p-2 border rounded focus:border-blue-500 outline-none"
-                            onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                            value={answers[q.id] || ""}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                  <div key={q.id} className="bg-white rounded-lg border p-4">
+                    <p className="font-semibold mb-2">{idx + 1}. {q.question_text}</p>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Your answer"
+                      value={answers[q.id] || ""}
+                      onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
+                    />
                   </div>
                 ))}
               </div>
@@ -1061,15 +621,12 @@ export default function ExamPlayer() {
           </div>
         )}
 
-        {/* WRITING LAYOUT */}
-        {currentModule === 'writing' && (
-          <div className="flex w-full h-full">
-            {/* Left: Prompt */}
-            <div className="w-1/3 h-full overflow-auto border-r border-gray-200 bg-gray-50 p-6">
-              <h3 className="text-lg font-bold uppercase text-gray-500 mb-4 flex items-center">
-                <FileText size={18} className="mr-2" /> Task Prompt
-              </h3>
-              {currentSections.map((section) => {
+        {/* Writing Module */}
+        {currentModule === "writing" && (
+          <div className="h-full flex">
+            <div className="w-1/3 p-6 overflow-y-auto border-r bg-gray-50">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Tasks</h3>
+              {currentSections.map((section, idx) => {
                 let taskConfig;
                 try {
                   taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
@@ -1077,41 +634,50 @@ export default function ExamPlayer() {
                   taskConfig = {};
                 }
                 return (
-                  <div key={section.id} className="bg-white p-6 rounded shadow-sm mb-6 border">
-                    <h4 className="font-bold text-gray-800 mb-2">{section.title}</h4>
+                  <div key={section.id} className="bg-white rounded-lg border p-6 mb-4">
+                    <h4 className="font-bold text-lg mb-2">Task {idx + 1}</h4>
                     <div 
-                      className="text-gray-700 prose prose-sm max-w-none" 
-                      dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content || '' }}
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
                     />
                   </div>
                 );
               })}
-              {currentSections.length === 0 && <p className="text-gray-500">No prompt available.</p>}
             </div>
-
-            {/* Right: Editor */}
-            <div className="w-2/3 h-full flex flex-col bg-white">
-              <div className="flex-1 p-6">
-                <textarea
-                  className="w-full h-full p-6 text-lg leading-relaxed border-none outline-none resize-none font-serif text-gray-800 placeholder-gray-300"
-                  placeholder="Start typing your essay here..."
-                  spellCheck="false"
-                  onChange={(e) => {
-                    // Assuming one main writing task answer for now, or use section ID as key
-                    const key = currentQuestions[0]?.id || 'writing_task';
-                    setAnswers({ ...answers, [key]: e.target.value });
-                  }}
-                />
-              </div>
-              <div className="bg-gray-100 p-3 border-t text-sm text-gray-600 flex justify-between items-center">
-                <span>Word Count: 0</span>
-                <span className="text-gray-400">Spell check disabled</span>
+            <div className="w-2/3 p-6 flex flex-col">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Your Response</h3>
+              <textarea
+                className="flex-1 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Write your response here..."
+                value={answers['writing_response'] || ""}
+                onChange={(e) => setAnswers({...answers, 'writing_response': e.target.value})}
+              />
+              <div className="mt-2 text-sm text-gray-600">
+                Word count: {(answers['writing_response'] || '').split(/\s+/).filter(Boolean).length}
               </div>
             </div>
           </div>
         )}
-
       </div>
+
+      {/* Fullscreen Exit Warning */}
+      {!isFullscreen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-8 max-w-md text-center">
+            <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Fullscreen Required</h2>
+            <p className="text-gray-600 mb-6">
+              You must remain in fullscreen mode during the exam. This violation has been logged.
+            </p>
+            <button
+              onClick={enterFullscreen}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            >
+              Return to Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
