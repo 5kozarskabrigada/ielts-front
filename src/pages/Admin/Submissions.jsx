@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
 import { FileText, User, Clock, CheckCircle, AlertCircle, Eye, Download, Filter } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 export default function SubmissionsPage() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState("all");
-  const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -50,19 +49,6 @@ export default function SubmissionsPage() {
       setExams([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const viewSubmissionDetails = async (submission) => {
-    try {
-      const response = await fetch(`${API_URL}/monitoring/submissions/${submission.id}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await response.json();
-      setSelectedSubmission(data);
-      setShowDetailModal(true);
-    } catch (err) {
-      console.error("Failed to fetch submission details:", err);
     }
   };
 
@@ -248,7 +234,7 @@ export default function SubmissionsPage() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
-                        onClick={() => viewSubmissionDetails(submission)}
+                        onClick={() => navigate(`/admin/submissions/${submission.id}`)}
                         className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm font-medium"
                       >
                         <Eye size={16} />
@@ -262,156 +248,6 @@ export default function SubmissionsPage() {
           </table>
         </div>
       </div>
-
-      {/* Detail Modal */}
-      {showDetailModal && selectedSubmission && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
-              <h2 className="text-xl font-bold text-gray-900">Submission Details</h2>
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-6">
-                {/* Student Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Student Information</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Name</p>
-                      <p className="font-medium text-gray-900">{selectedSubmission.user_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Email</p>
-                      <p className="font-medium text-gray-900">{selectedSubmission.user_email}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Submitted</p>
-                      <p className="font-medium text-gray-900">{formatDate(selectedSubmission.submitted_at)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Band Score</p>
-                      <p className="font-bold text-xl text-blue-600">{selectedSubmission.band_score?.toFixed(1) || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Module-Wise Band Scores */}
-                {selectedSubmission.scores_by_module && Object.keys(selectedSubmission.scores_by_module).length > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">Module-Wise Band Scores</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      {['listening', 'reading', 'writing'].map(module => {
-                        const score = selectedSubmission.scores_by_module[module];
-                        if (score === undefined) return null;
-                        return (
-                          <div key={module} className="bg-white rounded-lg p-3 border">
-                            <p className="text-xs text-gray-500 uppercase mb-1">{module}</p>
-                            <p className="text-2xl font-bold text-blue-600">{score.toFixed(1)}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Violations */}
-                {selectedSubmission.violations && selectedSubmission.violations.length > 0 && (
-                  <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <AlertCircle size={20} className="text-red-600" />
-                      <h3 className="font-semibold text-red-900">Violations ({selectedSubmission.violations.length})</h3>
-                    </div>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {selectedSubmission.violations.map((violation, idx) => (
-                        <div key={idx} className="bg-white rounded p-3 border border-red-200">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm text-red-900 capitalize">
-                                {violation.violation_type?.replace('_', ' ')}
-                              </p>
-                              {violation.metadata && Object.keys(violation.metadata).length > 0 && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  {JSON.stringify(violation.metadata)}
-                                </p>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                              {new Date(violation.occurred_at).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Answers by Module */}
-                {selectedSubmission.answers_by_module && (
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900">Detailed Answers</h3>
-                    
-                    {['listening', 'reading', 'writing'].map(module => {
-                      const moduleData = selectedSubmission.answers_by_module[module];
-                      if (!moduleData || moduleData.answers.length === 0) return null;
-
-                      return (
-                        <div key={module} className="border rounded-lg overflow-hidden">
-                          <div className="bg-gray-100 px-4 py-3 border-b">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-semibold text-gray-900 capitalize">{module}</h4>
-                              <div className="text-sm">
-                                <span className="text-green-600 font-semibold">{moduleData.correct} Correct</span>
-                                <span className="mx-2">|</span>
-                                <span className="text-red-600 font-semibold">{moduleData.wrong} Wrong</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="p-4 max-h-64 overflow-y-auto">
-                            <table className="w-full text-sm">
-                              <thead className="text-left text-xs text-gray-500 uppercase">
-                                <tr>
-                                  <th className="pb-2">Q#</th>
-                                  <th className="pb-2">Section</th>
-                                  <th className="pb-2">Your Answer</th>
-                                  <th className="pb-2">Correct Answer</th>
-                                  <th className="pb-2">Status</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {moduleData.answers.map(ans => (
-                                  <tr key={ans.question_id} className={ans.is_correct ? 'bg-green-50' : 'bg-red-50'}>
-                                    <td className="py-2 font-semibold">{ans.question_number}</td>
-                                    <td className="py-2 text-gray-600">{ans.section_title}</td>
-                                    <td className="py-2 font-medium">{ans.user_answer || <span className="text-gray-400 italic">No answer</span>}</td>
-                                    <td className="py-2 text-gray-700">{ans.correct_answer}</td>
-                                    <td className="py-2">
-                                      {ans.is_correct ? (
-                                        <span className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs font-semibold">✓ Correct</span>
-                                      ) : (
-                                        <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-semibold">✗ Wrong</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -143,13 +143,25 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           const qNum = globalOffset + group.question_range_start + startBlankNum + blankCount;
           const question = groupQuestions[startBlankNum + blankCount];
           blankCount++;
+          
+          if (!question) {
+            console.warn(`Question not found for blank ${blankCount} at position ${startBlankNum + blankCount - 1}`);
+            return <span key={idx} className="text-red-500">[Missing Question]</span>;
+          }
+          
           return (
             <BlankInput 
               key={idx}
               questionNumber={qNum}
-              questionId={question?.id}
-              value={answers[question?.id]}
-              onChange={(e) => setAnswers(prev => ({ ...prev, [question.id]: e.target.value }))}
+              questionId={question.id}
+              value={answers[question.id]}
+              onChange={(e) => {
+                try {
+                  setAnswers(prev => ({ ...prev, [question.id]: e.target.value }));
+                } catch (error) {
+                  console.error('Error updating answer:', error);
+                }
+              }}
             />
           );
         }

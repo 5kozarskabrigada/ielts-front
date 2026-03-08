@@ -583,16 +583,31 @@ export default function ExamPlayer() {
           <div className="h-full flex flex-col p-6">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module</h3>
             
-            {/* Audio Section (Placeholder) */}
-            <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
-              <div className="flex items-center justify-center space-x-4">
-                <Volume2 size={40} className="text-gray-400" />
-                <div className="text-center">
-                  <p className="text-gray-600 mb-2">Audio player would appear here</p>
-                  <p className="text-sm text-gray-500">Listen carefully and answer the questions</p>
+            {/* Audio Section */}
+            {currentSections[0]?.audio_url && (
+              <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <Volume2 size={24} className="text-blue-600" />
+                    <h4 className="font-semibold text-gray-900">Audio</h4>
+                  </div>
+                  <audio 
+                    controls 
+                    className="w-full max-w-2xl"
+                    src={currentSections[0].audio_url}
+                    style={{ outline: 'none' }}
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                  <p className="text-sm text-gray-600">Listen carefully to the audio before answering</p>
                 </div>
               </div>
-            </div>
+            )}
+            {!currentSections[0]?.audio_url && (
+              <div className="bg-yellow-50 rounded-xl border-2 border-yellow-200 p-4 mb-6">
+                <p className="text-yellow-800 text-sm">⚠️ No audio file attached for this section</p>
+              </div>
+            )}
 
             {/* Questions - Rendered like preview mode */}
             <div className="flex-1 overflow-y-auto">

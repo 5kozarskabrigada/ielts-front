@@ -14,6 +14,7 @@ import SettingsPage from "./pages/Admin/Settings";
 import ResultsPage from "./pages/Admin/Results";
 import RecycleBin from "./pages/Admin/RecycleBin";
 import SubmissionsPage from "./pages/Admin/Submissions";
+import SubmissionDetail from "./pages/Admin/SubmissionDetail";
 import LogsPage from "./pages/Admin/Logs";
 import StudentDashboard from "./pages/Student/Dashboard";
 import ExamCodeEntry from "./pages/Student/ExamCodeEntry";
@@ -62,6 +63,7 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="results" element={<ResultsPage />} />
             <Route path="submissions" element={<SubmissionsPage />} />
+            <Route path="submissions/:id" element={<SubmissionDetail />} />
             <Route path="logs" element={<LogsPage />} />
             <Route path="recycle-bin" element={<RecycleBin />} />
             <Route index element={<Navigate to="dashboard" replace />} />
