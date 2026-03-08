@@ -26,7 +26,9 @@ export default function SubmissionsPage() {
       });
       
       if (!subsResponse.ok) {
-        throw new Error(`Failed to fetch submissions: ${subsResponse.status}`);
+        const errorText = await subsResponse.text();
+        console.error("Submissions API error:", subsResponse.status, errorText);
+        throw new Error(`API returned ${subsResponse.status}: ${errorText}`);
       }
       
       const subsData = await subsResponse.json();
@@ -41,7 +43,9 @@ export default function SubmissionsPage() {
       setExams(Array.isArray(examsData) ? examsData : []);
     } catch (err) {
       console.error("Failed to fetch data:", err);
-      alert("Failed to load submissions. Please ensure database tables are created. See DATABASE_MIGRATION_INSTRUCTIONS.md");
+      // Show detailed error for debugging
+      const errorMsg = `Failed to load submissions: ${err.message}\n\nPossible causes:\n1. Database tables not created (run APPLY_MONITORING_TABLES.sql)\n2. RLS policies blocking access (run FIX_MONITORING_RLS_POLICIES.sql)\n3. Backend server not responding\n\nCheck browser console for details.`;
+      alert(errorMsg);
       setSubmissions([]);
       setExams([]);
     } finally {
