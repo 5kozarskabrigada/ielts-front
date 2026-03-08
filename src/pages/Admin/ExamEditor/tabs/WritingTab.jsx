@@ -1,6 +1,114 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useExamEditor } from "../ExamEditorContext";
+import { useAuth } from "../../../../authContext";
+import { API_URL } from "../../../../api";
 import { ChevronDown, ChevronUp, FileText, Image, Clock, Target, BookOpen, PenTool, AlertCircle, CheckCircle, Eye, EyeOff, Upload, Trash2, Plus, Info, Lightbulb, HelpCircle } from "lucide-react";
+
+// Image Uploader Component
+const ImageUploader = ({ imageUrl, onImageChange, token }) => {
+  const fileInputRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    console.log('Starting image upload:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      uploadUrl: `${API_URL}/upload/passage-image`
+    });
+    
+    setUploading(true);
+    setError("");
+    try {
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      const response = await fetch(`${API_URL}/upload/passage-image`, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error('Session expired. Please logout and login again.');
+        }
+        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const { url } = result;
+      onImageChange(url);
+    } catch (err) {
+      console.error('Image upload error:', err);
+      setError(err.message || "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <input 
+          className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:border-blue-400 outline-none" 
+          placeholder="https://example.com/image.png or click upload" 
+          value={imageUrl || ""} 
+          onChange={(e) => onImageChange(e.target.value)} 
+        />
+        <button 
+          type="button" 
+          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2" 
+          onClick={() => fileInputRef.current?.click()} 
+          disabled={uploading}
+        >
+          <Upload size={16} />
+          {uploading ? 'Uploading...' : 'Upload'}
+        </button>
+        <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+        {imageUrl && (
+          <button 
+            type="button"
+            onClick={() => onImageChange('')}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {imageUrl && (
+        <div className="bg-white rounded-lg border border-gray-200 p-2">
+          <img 
+            src={imageUrl} 
+            alt="Preview" 
+            className="max-h-48 mx-auto rounded" 
+            onError={(e) => { e.target.style.display = 'none'; }} 
+            style={{
+              maxWidth: '100%',
+              width: 'auto',
+              height: 'auto',
+              display: 'block',
+              verticalAlign: 'middle',
+              aspectRatio: 'auto'
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Task 1 types based on IELTS with detailed hints
 const TASK1_TYPES = [
@@ -257,7 +365,7 @@ function TypeInfoBox({ type, isTask1 }) {
   );
 }
 
-function TaskEditor({ section, taskNumber }) {
+function TaskEditor({ section, taskNumber, token }) {
   const { updateSection } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
   const [showModelAnswer, setShowModelAnswer] = useState(false);
@@ -387,44 +495,16 @@ function TaskEditor({ section, taskNumber }) {
               <label className="flex items-center text-sm font-bold text-gray-700 mb-2">
                 <Image size={16} className="mr-2" /> Visual Material
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition">
-                {taskConfig.imageUrl ? (
-                  <div className="space-y-3">
-                    <img 
-                      src={taskConfig.imageUrl} 
-                      alt="Task visual" 
-                      className="max-h-48 mx-auto rounded-lg shadow-sm"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    <div className="flex items-center justify-center space-x-2">
-                      <input 
-                        type="text" 
-                        className="flex-1 max-w-md text-sm border p-2 rounded-lg" 
-                        value={taskConfig.imageUrl}
-                        onChange={(e) => updateTaskConfig({ imageUrl: e.target.value })}
-                        placeholder="Image URL..."
-                      />
-                      <button 
-                        onClick={() => updateTaskConfig({ imageUrl: "" })}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <Upload size={32} className="mx-auto text-gray-400 mb-2" />
-                    <p className="text-gray-500 text-sm">Upload graph, chart, or diagram</p>
-                    <input 
-                      type="text" 
-                      className="mt-3 w-full max-w-md mx-auto text-sm border p-2 rounded-lg" 
-                      placeholder="Or paste image URL here..."
-                      onChange={(e) => updateTaskConfig({ imageUrl: e.target.value })}
-                    />
-                  </div>
-                )}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <ImageUploader 
+                  imageUrl={taskConfig.imageUrl} 
+                  onImageChange={(url) => updateTaskConfig({ imageUrl: url })}
+                  token={token}
+                />
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Upload a clear graph, chart, diagram, or map image for Task 1
+              </p>
             </div>
           )}
 
@@ -516,14 +596,22 @@ function TaskEditor({ section, taskNumber }) {
             >
               {showModelAnswer ? <EyeOff size={16} /> : <Eye size={16} />}
               <span>Model Answer {showModelAnswer ? '(Hide)' : '(Show)'}</span>
-              <span className="text-xs font-normal text-gray-400">For grading reference</span>
+              <span className="text-xs font-normal text-gray-400">For AI grading reference</span>
             </button>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3 flex items-start gap-2">
+              <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-blue-800">
+                <strong>AI Grading:</strong> Student responses are automatically graded using Google Gemini AI. 
+                The model answer helps the AI understand the expected quality and content. Grading follows official IELTS criteria with scores for Task Response, Coherence & Cohesion, Lexical Resource, and Grammatical Range.
+              </div>
+            </div>
             
             {showModelAnswer && (
               <div className="space-y-2">
                 <textarea
                   className="w-full h-48 p-4 border rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-green-50"
-                  placeholder="Write or paste a model answer here. This will be used as a reference for grading and will not be shown to students..."
+                  placeholder="Write or paste a Band 8-9 model answer here. This will be used by AI as a reference for grading quality. Not shown to students during exam..."
                   value={taskConfig.modelAnswer || ""}
                   onChange={(e) => updateTaskConfig({ modelAnswer: e.target.value })}
                 />
@@ -583,6 +671,7 @@ function TaskEditor({ section, taskNumber }) {
 
 export default function WritingTab() {
   const { sections, exam } = useExamEditor();
+  const { token } = useAuth();
   const writingSections = sections.filter(s => s.module_type === 'writing');
 
   // Sort by section_order to ensure Task 1 comes before Task 2
@@ -636,6 +725,7 @@ export default function WritingTab() {
               key={section.id} 
               section={section} 
               taskNumber={idx + 1}
+              token={token}
             />
           ))
         ) : (
