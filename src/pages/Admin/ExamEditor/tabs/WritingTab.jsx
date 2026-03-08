@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { useExamEditor } from "../ExamEditorContext";
 import { useAuth } from "../../../../authContext";
 import { API_URL } from "../../../../api";
+import RichTextEditor from "../../../../components/RichTextEditor/RichTextEditor";
 import { ChevronDown, ChevronUp, FileText, Image, Clock, Target, BookOpen, PenTool, AlertCircle, CheckCircle, Eye, EyeOff, Upload, Trash2, Plus, Info, Lightbulb, HelpCircle } from "lucide-react";
 
 // Image Uploader Component
@@ -512,15 +513,16 @@ function TaskEditor({ section, taskNumber, token }) {
           <div>
             <label className="flex items-center text-sm font-bold text-gray-700 mb-2">
               <FileText size={16} className="mr-2" /> Task Prompt
+              <span className="ml-2 text-xs font-normal text-gray-500">Use toolbar to format text</span>
             </label>
-            <textarea
-              className="w-full h-40 p-4 border rounded-lg text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            <RichTextEditor
+              content={taskConfig.prompt || ""}
+              onChange={(html) => updateTaskConfig({ prompt: html })}
               placeholder={isTask1 
                 ? "e.g., The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant."
                 : "e.g., Some people believe that unpaid community service should be a compulsory part of high school programmes (for example working for a charity, improving the neighbourhood or teaching sports to younger children).\n\nTo what extent do you agree or disagree?"
               }
-              value={taskConfig.prompt}
-              onChange={(e) => updateTaskConfig({ prompt: e.target.value })}
+              minHeight="200px"
             />
             <div className="flex justify-between items-center mt-2">
               <p className="text-xs text-gray-500">
@@ -528,7 +530,7 @@ function TaskEditor({ section, taskNumber, token }) {
                 Write clear instructions that students will see during the exam
               </p>
               <span className="text-xs text-gray-400">
-                {taskConfig.prompt ? taskConfig.prompt.trim().split(/\s+/).length : 0} words
+                {taskConfig.prompt ? taskConfig.prompt.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length : 0} words
               </span>
             </div>
           </div>
