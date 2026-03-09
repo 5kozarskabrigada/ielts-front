@@ -155,7 +155,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           if (!question) {
             console.error(`Table completion: Question not found for blank ${blankCount}`, {
               groupId: group.id,
-              sectionId: section.id,
+              sectionId: group.section_id,
               blankIndex: startBlankNum + blankCount - 1,
               totalGroupQuestions: groupQuestions.length,
               groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
@@ -312,15 +312,11 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               if (!question) {
                 console.error(`Summary completion: Question not found for blank ${blankCount}`, {
                   groupId: group.id,
-                  sectionId: section.id,
+                  sectionId: group.section_id,
                   blankIndex: blankCount - 1,
                   totalGroupQuestions: groupQuestions.length,
                   groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
-                  expectedRange: `${group.question_range_start}-${group.question_range_end}`,
-                  allMatchingQuestions: questions.filter(q => 
-                    (q.group_id === group.id || 
-                    (q.section_id === section.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end))
-                  ).map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id, type: q.question_type }))
+                  expectedRange: `${group.question_range_start}-${group.question_range_end}`
                 });
                 return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
               }

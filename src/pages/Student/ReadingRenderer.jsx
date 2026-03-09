@@ -321,9 +321,9 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 };
 
 export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers }) {
-  if (!section) return null;
-
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
+  
+  if (!section) return null;
 
   const sectionGroups = questionGroups
     .filter(g => g.section_id === section.id)
