@@ -6,6 +6,7 @@ import {
   Maximize2, Volume2, FileText, Edit3, Send 
 } from "lucide-react";
 import ListeningRenderer from "./ListeningRenderer";
+import ReadingRenderer from "./ReadingRenderer";
 import ErrorBoundary from "../../components/ErrorBoundary";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
@@ -25,6 +26,8 @@ export default function ExamPlayer() {
 
   // Exam state
   const [currentModule, setCurrentModule] = useState("listening"); // listening, reading, writing
+  const [currentPart, setCurrentPart] = useState(1); // Track which part of listening/reading is shown
+  const [currentWritingTask, setCurrentWritingTask] = useState(1); // 1 = Task 1, 2 = Task 2
   const [answers, setAnswers] = useState({});
   const [hasStarted, setHasStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -278,6 +281,8 @@ export default function ExamPlayer() {
     if (currentIndex < MODULE_ORDER.length - 1) {
       const nextModule = MODULE_ORDER[currentIndex + 1];
       setCurrentModule(nextModule);
+      setCurrentPart(1); // Reset to part 1 for new module
+      setCurrentWritingTask(1); // Reset to task 1 for writing
 
       // Log module completion
       try {
@@ -350,9 +355,22 @@ export default function ExamPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentSections = sections.filter(s => s.module_type === currentModule);
+  // Get all sections for current module
+  const allModuleSections = sections.filter(s => s.module_type === currentModule).sort((a, b) => a.section_order - b.section_order);
+  
+  // For listening and reading, only show current part
+  let currentSection = null;
+  if (currentModule === "listening" || currentModule === "reading") {
+    currentSection = allModuleSections[currentPart - 1];
+  }
+  
+  // Legacy computed values for compatibility
+  const currentSections = currentModule === "writing" ? allModuleSections : (currentSection ? [currentSection] : []);
   const currentQuestions = questions.filter(q => {
     const qSection = sections.find(s => s.id === q.section_id);
+    if (currentModule === "listening" || currentModule === "reading") {
+      return qSection?.id === currentSection?.id;
+    }
     return qSection?.module_type === currentModule;
   });
 
@@ -579,12 +597,12 @@ export default function ExamPlayer() {
       {/* Module Content */}
       <div className="flex-1 overflow-hidden">
         {/* Listening Module */}
-        {currentModule === "listening" && (
+        {currentModule === "listening" && currentSection && (
           <div className="h-full flex flex-col p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module - Part {currentPart}</h3>
             
             {/* Audio Section */}
-            {currentSections[0]?.audio_url && (
+            {currentSection.audio_url && (
               <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="flex items-center space-x-3">
@@ -594,7 +612,7 @@ export default function ExamPlayer() {
                   <audio 
                     controls 
                     className="w-full max-w-2xl"
-                    src={currentSections[0].audio_url}
+                    src={currentSection.audio_url}
                     style={{ outline: 'none' }}
                   >
                     Your browser does not support the audio element.
@@ -603,19 +621,19 @@ export default function ExamPlayer() {
                 </div>
               </div>
             )}
-            {!currentSections[0]?.audio_url && (
+            {!currentSection.audio_url && (
               <div className="bg-yellow-50 rounded-xl border-2 border-yellow-200 p-4 mb-6">
                 <p className="text-yellow-800 text-sm">⚠️ No audio file attached for this section</p>
               </div>
             )}
 
-            {/* Questions - Rendered like preview mode */}
+            {/* Questions - Show only current part */}
             <div className="flex-1 overflow-y-auto">
               <ErrorBoundary>
                 <ListeningRenderer 
-                  sections={sections}
-                  questions={questions}
-                  questionGroups={questionGroups}
+                  sections={[currentSection]}
+                  questions={currentQuestions}
+                  questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
                   setAnswers={setAnswers}
                 />
@@ -625,146 +643,19 @@ export default function ExamPlayer() {
         )}
 
         {/* Reading Module */}
-        {currentModule === "reading" && (
-          <div className="h-full flex">
-            <div className="w-1/2 p-6 overflow-y-auto border-r">
-              <div className="max-w-3xl mx-auto">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Reading Passages</h3>
-                {currentSections.map((section, idx) => (
-                  <div key={section.id} id={`part-${idx + 1}`} className="mb-8 bg-white rounded-lg border p-6 scroll-mt-20">
-                    <h4 className="font-bold text-xl mb-4"style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>{section.title}</h4>
-                    <div 
-                      className="prose max-w-none"
-                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
-                      dangerouslySetInnerHTML={{ __html: section.content }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="w-1/2 p-6 overflow-y-auto bg-gray-50">
-              <div className="max-w-2xl mx-auto">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Questions</h3>
-                <div className="space-y-6">
-                  {currentQuestions.sort((a, b) => a.question_number - b.question_number).map((q) => {
-                    const globalNum = Math.floor((sections.findIndex(s => s.id === q.section_id)) * 13.33) + q.question_number;
-                    return (
-                      <div key={q.id} id={`question-${globalNum}`} className="bg-white rounded-lg border p-4 scroll-mt-20">
-                        <p className="font-semibold mb-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-                          <span className="text-emerald-600">{globalNum}.</span> 
-                          <span className="ml-2" dangerouslySetInnerHTML={{ __html: q.question_text }} />
-                        </p>
-                    
-                    {/* Multiple Choice Single */}
-                    {q.question_type === "multiple_choice_single" && (
-                      <div className="space-y-2">
-                        {['A', 'B', 'C', 'D'].map(option => {
-                          const optionText = q[`option_${option.toLowerCase()}`];
-                          if (!optionText) return null;
-                          return (
-                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`question_${q.id}`}
-                                value={option}
-                                checked={answers[q.id] === option}
-                                onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                                className="mt-1"
-                              />
-                              <span className="text-sm">
-                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Multiple Choice Multiple */}
-                    {q.question_type === "multiple_choice_multiple" && (
-                      <div className="space-y-2">
-                        {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(option => {
-                          const optionText = q[`option_${option.toLowerCase()}`];
-                          if (!optionText) return null;
-                          const currentAnswers = (answers[q.id] || '').split('/').filter(Boolean);
-                          const isChecked = currentAnswers.includes(option);
-                          return (
-                            <label key={option} className="flex items-start space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                value={option}
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  let newAnswers = [...currentAnswers];
-                                  if (e.target.checked) {
-                                    newAnswers.push(option);
-                                  } else {
-                                    newAnswers = newAnswers.filter(a => a !== option);
-                                  }
-                                  setAnswers({...answers, [q.id]: newAnswers.sort().join('/')});
-                                }}
-                                className="mt-1"
-                              />
-                              <span className="text-sm">
-                                <strong>{option}.</strong> <span dangerouslySetInnerHTML={{ __html: optionText }} />
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* True/False/Not Given */}
-                    {q.question_type === "true_false_not_given" && (
-                      <div className="space-y-2">
-                        {['TRUE', 'FALSE', 'NOT GIVEN'].map(option => (
-                          <label key={option} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`question_${q.id}`}
-                              value={option}
-                              checked={answers[q.id] === option}
-                              onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                            />
-                            <span className="text-sm font-medium">{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Yes/No/Not Given */}
-                    {q.question_type === "yes_no_not_given" && (
-                      <div className="space-y-2">
-                        {['YES', 'NO', 'NOT GIVEN'].map(option => (
-                          <label key={option} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`question_${q.id}`}
-                              value={option}
-                              checked={answers[q.id] === option}
-                              onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                            />
-                            <span className="text-sm font-medium">{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Text Input (for all other types) */}
-                    {!['multiple_choice_single', 'multiple_choice_multiple', 'true_false_not_given', 'yes_no_not_given'].includes(q.question_type) && (
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                        placeholder="Type your answer here"
-                        value={answers[q.id] || ""}
-                        onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
-                      />
-                    )}
-                  </div>
-                  );
-                })}
-              </div>
-              </div>
+        {currentModule === "reading" && currentSection && (
+          <div className="h-full flex flex-col p-6 overflow-y-auto">
+            <div className="max-w-4xl mx-auto w-full">
+              <ErrorBoundary>
+                <ReadingRenderer 
+                  section={currentSection}
+                  partNumber={currentPart}
+                  questions={currentQuestions}
+                  questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
+                  answers={answers}
+                  setAnswers={setAnswers}
+                />
+              </ErrorBoundary>
             </div>
           </div>
         )}
@@ -827,19 +718,19 @@ export default function ExamPlayer() {
       {/* Progress Footer */}
       <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
         <div className="flex items-center justify-center space-x-8 flex-wrap">
-          {currentModule === "listening" && sections.filter(s => s.module_type === 'listening').map((section, partIdx) => {
+          {currentModule === "listening" && allModuleSections.map((section, partIdx) => {
             const partNumber = partIdx + 1;
             const globalOffset = (partNumber - 1) * 10;
-            const partQuestions = questions.filter(q => {
-              const qSection = sections.find(s => s.id === q.section_id);
-              return qSection?.module_type === 'listening' && q.section_id === section.id;
-            }).sort((a, b) => a.question_number - b.question_number);
+            const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+            const isCurrentPart = partNumber === currentPart;
 
             return (
               <div key={section.id} className="flex flex-col items-center space-y-2">
                 <button 
-                  onClick={() => document.getElementById(`part-${partNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition cursor-pointer"
+                  onClick={() => setCurrentPart(partNumber)}
+                  className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
+                    isCurrentPart ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                  }`}
                 >
                   Part {partNumber}
                 </button>
@@ -848,16 +739,15 @@ export default function ExamPlayer() {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <button
+                      <div
                         key={q.id}
-                        onClick={() => document.getElementById(`question-${globalNum}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors cursor-pointer hover:ring-2 hover:ring-blue-400 ${
-                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600 '
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
                         {globalNum}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -865,19 +755,19 @@ export default function ExamPlayer() {
             );
           })}
 
-          {currentModule === "reading" && sections.filter(s => s.module_type === 'reading').map((section, partIdx) => {
+          {currentModule === "reading" && allModuleSections.map((section, partIdx) => {
             const partNumber = partIdx + 1;
             const globalOffset = (partNumber - 1) * 13;
-            const partQuestions = questions.filter(q => {
-              const qSection = sections.find(s => s.id === q.section_id);
-              return qSection?.module_type === 'reading' && q.section_id === section.id;
-            }).sort((a, b) => a.question_number - b.question_number);
+            const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+            const isCurrentPart = partNumber === currentPart;
 
             return (
               <div key={section.id} className="flex flex-col items-center space-y-2">
                 <button 
-                  onClick={() => document.getElementById(`part-${partNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  className="text-sm font-semibold text-gray-700 hover:text-blue-600 transition cursor-pointer"
+                  onClick={() => setCurrentPart(partNumber)}
+                  className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
+                    isCurrentPart ? 'bg-emerald-100 text-emerald-700' : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-100'
+                  }`}
                 >
                   Part {partNumber}
                 </button>
@@ -886,16 +776,15 @@ export default function ExamPlayer() {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <button
+                      <div
                         key={q.id}
-                        onClick={() => document.getElementById(`question-${globalNum}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors cursor-pointer hover:ring-2 hover:ring-blue-400 ${
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
                           isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
                         {globalNum}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
