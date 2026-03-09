@@ -649,7 +649,7 @@ export default function ExamPlayer() {
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module - Part {currentPart}</h3>
             
             {/* Audio Section */}
-            {currentSection.audio_url && (
+            {(currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url) && (
               <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="flex items-center space-x-3">
@@ -659,7 +659,7 @@ export default function ExamPlayer() {
                   <audio 
                     controls 
                     className="w-full max-w-2xl"
-                    src={currentSection.audio_url}
+                    src={currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url}
                     style={{ outline: 'none' }}
                   >
                     Your browser does not support the audio element.
@@ -683,6 +683,7 @@ export default function ExamPlayer() {
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
                   setAnswers={setAnswers}
+                  partNumber={currentPart}
                 />
               </ErrorBoundary>
             </div>
@@ -692,7 +693,7 @@ export default function ExamPlayer() {
         {/* Reading Module */}
         {currentModule === "reading" && currentSection && (
           <div className="h-full flex flex-col p-6 overflow-y-auto">
-            <div className="max-w-4xl mx-auto w-full">
+            <div className="max-w-7xl mx-auto w-full">
               <ErrorBoundary>
                 <ReadingRenderer 
                   section={currentSection}

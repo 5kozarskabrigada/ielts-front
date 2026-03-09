@@ -491,7 +491,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers }) {
+export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers, partNumber }) {
   const listeningSections = sections
     .filter(s => s.module_type === 'listening')
     .sort((a, b) => a.section_order - b.section_order);
@@ -508,7 +508,8 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {listeningSections.map((section, partIdx) => {
-        const partNumber = partIdx + 1;
+        // Use passed partNumber if available, otherwise calculate from index
+        const displayPartNumber = partNumber || (partIdx + 1);
         const globalOffset = partOffsets[partIdx];
 
         const sectionGroups = questionGroups
@@ -516,7 +517,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
           .sort((a, b) => a.group_order - b.group_order);
 
         return (
-          <div key={section.id} id={`part-${partNumber}`} className="bg-white rounded-xl border-2 border-gray-200 p-6 scroll-mt-20">
+          <div key={section.id} id={`part-${displayPartNumber}`} className="bg-white rounded-xl border-2 border-gray-200 p-6 scroll-mt-20">
             {/* Part Header */}
             <h3 style={{
               color: 'rgb(41, 69, 99)',
@@ -525,7 +526,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
               fontWeight: 700,
               marginBottom: '20px'
             }}>
-              Part {partNumber}
+              Part {displayPartNumber}
             </h3>
 
             {/* Question Groups */}
