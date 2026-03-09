@@ -1,4 +1,4 @@
-git// Reading Module Renderer - Matches Preview Mode Format
+// Reading Module Renderer - Matches Preview Mode Format
 import React from "react";
 
 const accentColor = 'rgb(55, 133, 77)'; // Green for reading
