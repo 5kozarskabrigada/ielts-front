@@ -122,6 +122,45 @@ function ExamEditorContent() {
           });
         }
         
+        // Handle summary_completion questions (generate from summary_data.answers)
+        if (group.question_type === 'summary_completion' && group.summary_data?.answers) {
+          const startNum = group.question_range_start || 1;
+          const answers = group.summary_data.answers || {};
+          
+          // Count blanks in the summary text
+          const blankCount = (group.summary_data.text || '').match(/\[BLANK\]/g)?.length || 0;
+          
+          // Create a question for each blank
+          for (let i = 0; i < blankCount; i++) {
+            const questionNumber = startNum + i;
+            const answer = answers[i] || '';
+            // Split answer by / to separate main answer from alternatives
+            const answerParts = answer ? answer.split('/').map(a => a.trim()).filter(Boolean) : [];
+            const correctAnswer = answerParts[0] || '';
+            const alternatives = answerParts.length > 1 ? answerParts.slice(1).join('/') : '';
+            
+            const existingIdx = allQuestions.findIndex(q => 
+              q.section_id === group.section_id && q.question_number === questionNumber && q.question_type === 'summary_completion'
+            );
+            const questionData = {
+              section_id: group.section_id,
+              group_id: group.id,
+              question_number: questionNumber,
+              question_type: 'summary_completion',
+              question_text: `Summary blank ${i + 1}`,
+              correct_answer: correctAnswer,
+              answer_alternatives: alternatives || '',
+              points: group.points_per_question || 1
+            };
+            if (existingIdx >= 0) {
+              allQuestions[existingIdx] = { ...allQuestions[existingIdx], ...questionData };
+            } else {
+              allQuestions.push({ id: `temp_summary_${group.id}_${i}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, ...questionData });
+              questionsAdded = true;
+            }
+          }
+        }
+        
         // Handle multiple-answer multiple choice questions (split into individual questions)
         // E.g., "Choose 3 correct answers" creates 3 question records
         if ((group.question_type === 'multiple_choice' || group.question_type === 'multiple_choice_multiple') && 

@@ -566,7 +566,7 @@ export default function ExamPlayer() {
           </div>
           
           <button
-            onClick={isLastModule ? handleFinalSubmit : handleModuleSubmit}
+            onClick={isLastModule ? handleFinalSubmit : () => handleModuleSubmit(false)}
             disabled={isSubmitting}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center space-x-2 transition disabled:opacity-50"
           >
