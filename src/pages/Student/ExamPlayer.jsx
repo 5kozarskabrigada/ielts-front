@@ -789,7 +789,7 @@ export default function ExamPlayer() {
 
       {/* Progress Footer */}
       <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-center space-x-8 flex-wrap">
+        <div className="flex items-center justify-center space-x-6 flex-wrap gap-y-3">
           {currentModule === "listening" && allModuleSections.map((section, partIdx) => {
             const partNumber = partIdx + 1;
             const globalOffset = (partNumber - 1) * 10;
@@ -797,7 +797,7 @@ export default function ExamPlayer() {
             const isCurrentPart = partNumber === currentPart;
 
             return (
-              <div key={section.id} className="flex flex-col items-center space-y-2">
+              <div key={section.id} className="flex items-center space-x-2">
                 <button 
                   onClick={() => setCurrentPart(partNumber)}
                   className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
@@ -811,10 +811,20 @@ export default function ExamPlayer() {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <div
+                      <button
                         key={q.id}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600 '
+                        onClick={() => {
+                          setCurrentPart(partNumber);
+                          // Scroll to question after a brief delay to let the part render
+                          setTimeout(() => {
+                            const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 100);
+                        }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                          isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
@@ -834,7 +844,7 @@ export default function ExamPlayer() {
             const isCurrentPart = partNumber === currentPart;
 
             return (
-              <div key={section.id} className="flex flex-col items-center space-y-2">
+              <div key={section.id} className="flex items-center space-x-2">
                 <button 
                   onClick={() => setCurrentPart(partNumber)}
                   className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
@@ -848,10 +858,20 @@ export default function ExamPlayer() {
                     const globalNum = globalOffset + q.question_number;
                     const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <div
+                      <button
                         key={q.id}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                          isAnswered ? 'bg-green-400 text-white' : 'bg-white border border-gray-300 text-gray-600'
+                        onClick={() => {
+                          setCurrentPart(partNumber);
+                          // Scroll to question after a brief delay to let the part render
+                          setTimeout(() => {
+                            const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                            if (element) {
+                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 100);
+                        }}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                          isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
                         }`}
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >

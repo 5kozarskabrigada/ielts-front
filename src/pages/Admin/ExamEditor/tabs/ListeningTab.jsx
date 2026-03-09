@@ -2201,11 +2201,15 @@ const GlobalAudioSettings = () => {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const listeningConfig = exam.listening_config || {};
+  // Access listening config from modules_config
+  const listeningConfig = exam.modules_config?.listening || {};
 
   const updateConfig = (field, value) => {
     updateExam({
-      listening_config: { ...listeningConfig, [field]: value }
+      modules_config: {
+        ...exam.modules_config,
+        listening: { ...listeningConfig, [field]: value }
+      }
     });
   };
 

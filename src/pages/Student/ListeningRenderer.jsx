@@ -10,8 +10,11 @@ const RenderHtml = ({ html }) => {
 
 // Blank input component for fill-in questions
 const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
-  <span id={`question-${questionNumber}`} className="inline-flex items-center gap-2 mx-1 my-0.5 scroll-mt-20">
-    <span 
+  <span 
+    id={`question-${questionNumber}`} 
+    data-question-id={questionId}
+    className="inline-flex items-center gap-2 mx-1 my-0.5 scroll-mt-20"
+  >    <span 
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -59,8 +62,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map(q => {
       const globalNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} id={`question-${globalNum}`} className="py-4 scroll-mt-20" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-          <p style={{
+        <div 
+          key={q.id} 
+          id={`question-${globalNum}`} 
+          data-question-id={q.id}
+          className="py-4 scroll-mt-20" 
+          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+        >          <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
             fontSize: '16px',
@@ -435,31 +443,35 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     );
   }
 
-  // Short Answer
+  // Short Answer - Use inline [BLANK] style
   if (type === 'short_answer') {
-    return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset + q.question_number;
-      return (
-        <div key={q.id} className="py-3">
-          <p style={{
-            color: 'rgb(40, 40, 40)',
-            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-            fontSize: '14px',
-            fontWeight: 600,
-            marginBottom: '8px'
-          }}>
-            {globalNum}. <RenderHtml html={q.question_text || ''} />
-          </p>
-          <input 
-            type="text"
-            value={answers[q.id] || ''}
-            onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-            className="w-full px-3 py-2 border rounded-lg"
-            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px' }}
-          />
-        </div>
-      );
-    });
+    return (
+      <div className="space-y-3">
+        {groupQuestions.map((q, idx) => {
+          const globalNum = globalOffset + q.question_number;
+          return (
+            <div key={q.id} className="flex items-start gap-3" data-question-id={q.id}>
+              <p style={{
+                color: 'rgb(40, 40, 40)',
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                fontSize: '14px',
+                fontWeight: 600,
+                marginBottom: '8px',
+                flex: 1
+              }}>
+                <RenderHtml html={q.question_text || `Question ${globalNum}`} />
+              </p>
+              <BlankInput
+                questionNumber={globalNum}
+                questionId={q.id}
+                value={answers[q.id]}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
   }
 
   return null;
@@ -510,12 +522,20 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
                   sectionId: section.id,
                   range: `${group.question_range_start}-${group.question_range_end}`,
                   groupQuestions: groupQuestions.length,
-                  allQuestions: questions.filter(q => q.question_type === 'summary_completion').map(q => ({
+                  foundByGroupId: questions.filter(q => q.group_id === group.id).length,
+                  foundByRange: questions.filter(q => 
+                    q.section_id === section.id && 
+                    q.question_number >= group.question_range_start && 
+                    q.question_number <= group.question_range_end
+                  ).length,
+                  allSummaryQuestions: questions.filter(q => q.question_type === 'summary_completion').map(q => ({
                     id: q.id,
                     number: q.question_number,
                     groupId: q.group_id,
-                    sectionId: q.section_id
-                  }))
+                    sectionId: q.section_id,
+                    type: q.question_type
+                  })),
+                  summaryData: group.summary_data
                 });
               }
 
