@@ -618,6 +618,24 @@ export default function ExamPlayer() {
                 <span>{violations.length} violations</span>
               </span>
             )}
+            {/* Audio Player in Header - Listening Only */}
+            {currentModule === "listening" && (currentSection?.audio_url || exam?.modules_config?.listening?.global_audio_url) && (
+              <div className="flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full">
+                <Volume2 size={16} className="text-blue-300" />
+                <span className="text-xs">Audio Playing</span>
+                <audio 
+                  autoPlay
+                  loop={false}
+                  controlsList="nodownload nofullscreen noremoteplayback"
+                  disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
+                  src={currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url}
+                  style={{ display: 'none' }}
+                >
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            )}
           </div>
         </div>
         
@@ -646,35 +664,13 @@ export default function ExamPlayer() {
         {/* Listening Module */}
         {currentModule === "listening" && currentSection && (
           <div className="h-full flex flex-col p-6">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Listening Module - Part {currentPart}</h3>
-            
-            {/* Audio Section */}
-            {(currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url) && (
-              <div className="bg-gray-50 rounded-xl border-2 border-gray-200 p-6 mb-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <Volume2 size={24} className="text-blue-600" />
-                    <h4 className="font-semibold text-gray-900">Audio</h4>
-                  </div>
-                  <audio 
-                    controls 
-                    className="w-full max-w-2xl"
-                    src={currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url}
-                    style={{ outline: 'none' }}
-                  >
-                    Your browser does not support the audio element.
-                  </audio>
-                  <p className="text-sm text-gray-600">Listen carefully to the audio before answering</p>
-                </div>
-              </div>
-            )}
             {!currentSection.audio_url && !exam?.modules_config?.listening?.global_audio_url && (
               <div className="bg-yellow-50 rounded-xl border-2 border-yellow-200 p-4 mb-6">
                 <p className="text-yellow-800 text-sm">⚠️ No audio file attached for this section</p>
               </div>
             )}
 
-            {/* Questions - Show only current part */}
+            {/* Questions - Full height */}
             <div className="flex-1 overflow-y-auto">
               <ErrorBoundary>
                 <ListeningRenderer 
