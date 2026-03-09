@@ -143,63 +143,25 @@ export default function SubmissionDetail() {
       </div>
 
       {/* Module-Wise Scores */}
-      {submission.scores_by_module && Object.keys(submission.scores_by_module).length > 0 && (
+      {(submission.scores_by_module || submission.answers_by_module) && (
         <div className="bg-white rounded-xl border shadow-sm p-6">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Module-Wise Band Scores</h3>
           <div className="grid grid-cols-3 gap-4">
             {['listening', 'reading', 'writing'].map(module => {
-              const score = submission.scores_by_module[module];
-              if (score === undefined) return null;
+              const score = submission.scores_by_module?.[module] ?? 0;
+              const moduleAnswers = submission.answers_by_module?.[module];
+              const correct = moduleAnswers?.correct || 0;
+              const total = correct + (moduleAnswers?.wrong || 0);
               return (
                 <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
                   <p className="text-5xl font-bold">{score.toFixed(1)}</p>
-                  {submission.answers_by_module?.[module] && (
-                    <p className="text-sm mt-2">
-                      {submission.answers_by_module[module].correct} / 
-                      {submission.answers_by_module[module].correct + submission.answers_by_module[module].wrong} correct
-                    </p>
-                  )}
+                  <p className="text-sm mt-2">
+                    {correct} / {total} correct
+                  </p>
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Violations */}
-      {submission.violations && submission.violations.length > 0 && (
-        <div className="bg-white rounded-xl border border-red-200 shadow-sm p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle size={24} className="text-red-600" />
-            <h3 className="text-xl font-bold text-red-900">
-              Violations ({submission.violations.length})
-            </h3>
-          </div>
-          <div className="space-y-3">
-            {submission.violations.map((violation, idx) => (
-              <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-semibold text-red-900 capitalize mb-1">
-                      {violation.violation_type?.replace(/_/g, ' ')}
-                    </p>
-                    {violation.metadata && typeof violation.metadata === 'object' && Object.keys(violation.metadata).length > 0 && (
-                      <div className="text-sm text-red-700 mt-1">
-                        {Object.entries(violation.metadata).map(([key, value]) => (
-                          <div key={key}>
-                            <span className="font-medium">{key}:</span> {String(value)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 ml-4 whitespace-nowrap">
-                    {new Date(violation.occurred_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -210,6 +172,20 @@ export default function SubmissionDetail() {
           {['listening', 'reading', 'writing'].map(module => {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
+
+            // Group answers by section
+            const answersBySection = {};
+            moduleData.answers.forEach(ans => {
+              const sectionKey = ans.section_title || 'Unknown Section';
+              if (!answersBySection[sectionKey]) {
+                answersBySection[sectionKey] = { order: ans.section_order, answers: [] };
+              }
+              answersBySection[sectionKey].answers.push(ans);
+            });
+
+            // Sort sections by order
+            const sortedSections = Object.entries(answersBySection)
+              .sort(([, a], [, b]) => a.order - b.order);
 
             return (
               <div key={module} className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -231,55 +207,93 @@ export default function SubmissionDetail() {
                     </div>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-100 border-b">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Q#</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Section</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Your Answer</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Correct Answer</th>
-                        <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {moduleData.answers.map((ans, idx) => (
-                        <tr 
-                          key={idx} 
-                          className={ans.is_correct ? 'bg-green-50/30' : !ans.user_answer ? 'bg-gray-50' : 'bg-red-50/30'}
-                        >
-                          <td className="px-6 py-4 text-sm font-semibold text-gray-900">{ans.question_number}</td>
-                          <td className="px-6 py-4 text-sm text-gray-700">{ans.section_title}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                            {ans.user_answer ? (
-                              ans.user_answer
-                            ) : (
-                              <span className="text-gray-400 italic">Skipped</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-700">{ans.correct_answer}</td>
-                          <td className="px-6 py-4 text-center">
-                            {!ans.user_answer ? (
-                              <span className="inline-flex items-center px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">
-                                Skipped
-                              </span>
-                            ) : ans.is_correct ? (
-                              <span className="inline-flex items-center px-3 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">
-                                <CheckCircle size={14} className="mr-1" />
-                                Correct
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-3 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">
-                                <XCircle size={14} className="mr-1" />
-                                Wrong
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                
+                {sortedSections.map(([sectionTitle, sectionData], sIdx) => (
+                  <div key={sIdx}>
+                    <div className="px-6 py-2 bg-blue-50 border-b border-blue-100">
+                      <span className="text-sm font-semibold text-blue-800">
+                        Part {sIdx + 1}: {sectionTitle}
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {sectionData.answers
+                        .sort((a, b) => a.question_number - b.question_number)
+                        .map((ans, idx) => {
+                          const formatAnswer = (val) => {
+                            if (val === null || val === undefined || val === '') return null;
+                            if (typeof val === 'object') {
+                              return Array.isArray(val) ? val.join(', ') : JSON.stringify(val);
+                            }
+                            return String(val);
+                          };
+                          
+                          const userAnswer = formatAnswer(ans.user_answer);
+                          const correctAnswer = formatAnswer(ans.correct_answer);
+                          
+                          return (
+                            <div 
+                              key={idx}
+                              className={`px-6 py-3 flex items-center gap-4 ${
+                                !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
+                              }`}
+                            >
+                              {/* Question Number */}
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                                !userAnswer ? 'bg-gray-300 text-white' : ans.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                              }`}>
+                                {ans.question_number}
+                              </div>
+                              
+                              {/* Question Text */}
+                              <div className="flex-1 min-w-0">
+                                {ans.question_text && (
+                                  <p className="text-sm text-gray-700 truncate">{ans.question_text}</p>
+                                )}
+                                <span className="text-xs text-gray-400">{ans.question_type?.replace(/_/g, ' ')}</span>
+                              </div>
+                              
+                              {/* Student Answer */}
+                              <div className="w-40 text-sm">
+                                <span className="text-xs text-gray-500 block">Student:</span>
+                                {userAnswer ? (
+                                  <span className={`font-semibold ${ans.is_correct ? 'text-green-700' : 'text-red-700'}`}>
+                                    {userAnswer}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 italic">Skipped</span>
+                                )}
+                              </div>
+                              
+                              {/* Correct Answer */}
+                              <div className="w-40 text-sm">
+                                <span className="text-xs text-gray-500 block">Correct:</span>
+                                <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
+                              </div>
+                              
+                              {/* Status Badge */}
+                              <div className="w-24 flex-shrink-0 text-center">
+                                {!userAnswer ? (
+                                  <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
+                                    Skipped
+                                  </span>
+                                ) : ans.is_correct ? (
+                                  <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">
+                                    <CheckCircle size={12} className="mr-1" />
+                                    Correct
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">
+                                    <XCircle size={12} className="mr-1" />
+                                    Wrong
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ))}
               </div>
             );
           })}

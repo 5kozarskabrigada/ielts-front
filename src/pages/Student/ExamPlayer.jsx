@@ -680,6 +680,7 @@ export default function ExamPlayer() {
                   answers={answers}
                   setAnswers={setAnswers}
                   partNumber={currentPart}
+                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => sum + questions.filter(q => q.section_id === s.id).length, 0)}
                 />
               </ErrorBoundary>
             </div>

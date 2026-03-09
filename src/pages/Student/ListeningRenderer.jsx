@@ -491,13 +491,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers, partNumber }) {
+export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers, partNumber, globalOffset: externalOffset }) {
   const listeningSections = sections
     .filter(s => s.module_type === 'listening')
     .sort((a, b) => a.section_order - b.section_order);
 
-  // Calculate cumulative question offsets for each part
-  let cumulativeOffset = 0;
+  // Use external globalOffset if provided (from ExamPlayer), otherwise calculate internally
+  let cumulativeOffset = externalOffset || 0;
   const partOffsets = listeningSections.map((section) => {
     const offset = cumulativeOffset;
     const sectionQuestions = questions.filter(q => q.section_id === section.id);
