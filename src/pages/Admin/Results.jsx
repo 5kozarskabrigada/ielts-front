@@ -32,6 +32,9 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
     setLoading(true);
     try {
       const result = await apiGetSubmissionDetail(token, submissionId);
+      console.log('📊 Submission Detail Data:', result);
+      console.log('📝 Answers Count:', result?.answers?.length);
+      console.log('📋 First Answer Sample:', result?.answers?.[0]);
       setData(result);
     } catch (err) {
       setError(err.message);
@@ -91,6 +94,10 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
     acc[module].push(ans);
     return acc;
   }, {}) || {};
+
+  console.log('🗂️ Grouped Answers:', groupedAnswers);
+  console.log('🎯 Active Tab:', activeTab);
+  console.log('📊 Answers for Active Tab:', groupedAnswers[activeTab]?.length || 0);
 
   const moduleIcons = {
     listening: Headphones,
