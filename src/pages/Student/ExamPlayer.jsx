@@ -829,7 +829,7 @@ export default function ExamPlayer() {
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
                         {globalNum}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -876,7 +876,7 @@ export default function ExamPlayer() {
                         title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
                         {globalNum}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
