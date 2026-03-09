@@ -113,25 +113,70 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {data?.submission?.users?.name || "Student"}'s Submission
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {data?.submission?.users?.email} • Submitted {data?.submission?.submitted_at ? new Date(data.submission.submitted_at).toLocaleString() : 'N/A'}
-            </p>
+        <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                {data?.submission?.users?.name || "Student"}'s Submission
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {data?.submission?.users?.email} • Submitted {data?.submission?.submitted_at ? new Date(data.submission.submitted_at).toLocaleString() : 'N/A'}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-lg transition">
+              <X size={20} />
+            </button>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
+
+          {/* Score Summary */}
+          <div className="grid grid-cols-5 gap-3">
+            {/* Overall Score */}
+            <div className="bg-white rounded-lg p-3 border-2 border-blue-500">
               <div className="text-2xl font-bold text-blue-600">
                 {data?.submission?.overall_band_score?.toFixed(1) || '-'}
               </div>
-              <div className="text-xs text-gray-500">Overall Band</div>
+              <div className="text-xs text-gray-600 font-medium mt-1">Overall Band</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {data?.submission?.total_correct || 0} / {data?.submission?.total_questions || 0} correct
+              </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/50 rounded-lg">
-              <X size={20} />
-            </button>
+
+            {/* Module Scores */}
+            {['listening', 'reading', 'writing'].map(module => {
+              const moduleScore = data?.submission?.scores_by_module?.[module];
+              const Icon = moduleIcons[module];
+              const answersCount = groupedAnswers[module]?.length || 0;
+              const correctCount = groupedAnswers[module]?.filter(a => a.is_correct).length || 0;
+              
+              return (
+                <div key={module} className="bg-white rounded-lg p-3 border">
+                  <div className="flex items-center justify-between mb-1">
+                    <Icon size={16} className="text-gray-600" />
+                    <div className="text-lg font-bold text-gray-900">
+                      {moduleScore?.toFixed(1) || '-'}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600 font-medium capitalize">{module}</div>
+                  {module !== 'writing' && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {correctCount} / {answersCount}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Time Spent */}
+            <div className="bg-white rounded-lg p-3 border">
+              <div className="flex items-center justify-between mb-1">
+                <Clock size={16} className="text-gray-600" />
+                <div className="text-lg font-bold text-gray-900">
+                  {data?.submission?.time_spent ? Math.floor(data.submission.time_spent / 60) : '-'}
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Minutes</div>
+              <div className="text-xs text-gray-500 mt-1">Total Time</div>
+            </div>
           </div>
         </div>
 
@@ -171,58 +216,97 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
 
           {/* Listening/Reading Answers */}
           {(activeTab === 'listening' || activeTab === 'reading') && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {(groupedAnswers[activeTab] || []).length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   No {activeTab} answers found for this submission.
                 </div>
               ) : (
-                (groupedAnswers[activeTab] || []).map(answer => {
+                (groupedAnswers[activeTab] || []).sort((a, b) => 
+                  (a.questions?.question_number || 0) - (b.questions?.question_number || 0)
+                ).map(answer => {
                   const isEditing = editingAnswers[answer.id];
                   const currentCorrect = isEditing?.is_correct ?? answer.admin_override_correct ?? answer.is_correct;
                   const hasOverride = answer.admin_override_correct !== null;
 
+                  // Format user answer - handle different types
+                  let userAnswerDisplay = '-';
+                  if (answer.user_answer !== null && answer.user_answer !== undefined) {
+                    if (typeof answer.user_answer === 'object') {
+                      userAnswerDisplay = Array.isArray(answer.user_answer) 
+                        ? answer.user_answer.join(', ') 
+                        : JSON.stringify(answer.user_answer);
+                    } else {
+                      userAnswerDisplay = String(answer.user_answer);
+                    }
+                  }
+
                   return (
                     <div 
                       key={answer.id}
-                      className={`border rounded-lg p-4 ${
-                        currentCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                      className={`border rounded-lg p-3 transition ${
+                        currentCorrect ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'
                       }`}
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-xs font-medium text-gray-500">
-                              Q{answer.questions?.question_number || '?'}
-                            </span>
-                            <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">
-                              {answer.questions?.question_type}
+                      <div className="flex items-start gap-3">
+                        {/* Question Number & Status Icon */}
+                        <div className="flex-shrink-0">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
+                            currentCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                          }`}>
+                            {answer.questions?.question_number || '?'}
+                          </div>
+                        </div>
+
+                        {/* Question Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-xs font-medium bg-gray-200 px-2 py-0.5 rounded">
+                              {answer.questions?.question_type?.replace(/_/g, ' ').toUpperCase() || 'Question'}
                             </span>
                             {hasOverride && (
-                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
-                                Admin Override
+                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">
+                                ⚠️ Admin Override
                               </span>
                             )}
+                            {currentCorrect ? (
+                              <span className="text-xs text-green-700 font-medium">✓ Correct</span>
+                            ) : (
+                              <span className="text-xs text-red-700 font-medium">✗ Incorrect</span>
+                            )}
                           </div>
-                          <p className="text-sm text-gray-800 mb-2">
-                            {answer.questions?.question_text || 'Question text not available'}
-                          </p>
-                          <div className="flex items-center space-x-4 text-sm">
-                            <span className="text-gray-600">
-                              <strong>Student:</strong> {JSON.stringify(answer.user_answer) || '-'}
-                            </span>
-                            <span className="text-gray-600">
-                              <strong>Correct:</strong> {answer.questions?.correct_answer || '-'}
-                            </span>
-                          </div>
-                          {answer.admin_notes && (
-                            <p className="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                              <strong>Admin Note:</strong> {answer.admin_notes}
+                          
+                          {answer.questions?.question_text && (
+                            <p className="text-sm text-gray-800 mb-2 line-clamp-2">
+                              {answer.questions.question_text}
                             </p>
+                          )}
+                          
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className={`p-2 rounded ${currentCorrect ? 'bg-white' : 'bg-red-100'}`}>
+                              <span className="text-gray-600 font-medium">Student Answer:</span>
+                              <p className={`mt-1 font-semibold ${currentCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                                {userAnswerDisplay}
+                              </p>
+                            </div>
+                            <div className="p-2 bg-green-100 rounded">
+                              <span className="text-gray-600 font-medium">Correct Answer:</span>
+                              <p className="mt-1 font-semibold text-green-700">
+                                {answer.questions?.correct_answer || '-'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {answer.admin_notes && (
+                            <div className="mt-2 bg-amber-50 border border-amber-200 p-2 rounded text-xs">
+                              <strong className="text-amber-800">Admin Note:</strong>
+                              <span className="text-amber-700 ml-1">{answer.admin_notes}</span>
+                            </div>
                           )}
                         </div>
 
-                        <div className="flex items-center space-x-2 ml-4">
+                        {/* Actions */}
+                        <div className="flex-shrink-0 flex items-start gap-2">
                           {isEditing ? (
                             <>
                               <button
@@ -230,11 +314,12 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
                                   ...prev,
                                   [answer.id]: { ...prev[answer.id], is_correct: true }
                                 }))}
-                                className={`p-2 rounded-lg ${
+                                className={`p-1.5 rounded ${
                                   isEditing.is_correct 
-                                    ? 'bg-green-500 text-white' 
+                                    ? 'bg-green-600 text-white' 
                                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                                 }`}
+                                title="Mark Correct"
                               >
                                 <Check size={16} />
                               </button>
@@ -243,18 +328,19 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
                                   ...prev,
                                   [answer.id]: { ...prev[answer.id], is_correct: false }
                                 }))}
-                                className={`p-2 rounded-lg ${
+                                className={`p-1.5 rounded ${
                                   !isEditing.is_correct 
-                                    ? 'bg-red-500 text-white' 
+                                    ? 'bg-red-600 text-white' 
                                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                                 }`}
+                                title="Mark Incorrect"
                               >
                                 <X size={16} />
                               </button>
                               <input
                                 type="text"
-                                placeholder="Note..."
-                                className="text-xs border rounded px-2 py-1 w-32"
+                                placeholder="Add note..."
+                                className="text-xs border rounded px-2 py-1 w-24"
                                 value={isEditing.notes}
                                 onChange={(e) => setEditingAnswers(prev => ({
                                   ...prev,
@@ -264,30 +350,27 @@ function SubmissionDetailModal({ submissionId, token, onClose }) {
                               <button
                                 onClick={() => handleOverrideAnswer(answer.id)}
                                 disabled={savingAnswer === answer.id}
-                                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                title="Save"
                               >
                                 {savingAnswer === answer.id ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
                               </button>
                               <button
                                 onClick={() => cancelEditing(answer.id)}
-                                className="p-2 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                                className="p-1.5 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                                title="Cancel"
                               >
                                 <X size={16} />
                               </button>
                             </>
                           ) : (
-                            <>
-                              <div className={`p-2 rounded-lg ${currentCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                {currentCorrect ? <Check size={16} /> : <X size={16} />}
-                              </div>
-                              <button
-                                onClick={() => startEditing(answer)}
-                                className="p-2 bg-white border rounded-lg hover:bg-gray-50 text-gray-600"
-                                title="Override grade"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => startEditing(answer)}
+                              className="p-1.5 bg-white border rounded hover:bg-gray-50 text-gray-600"
+                              title="Override grade"
+                            >
+                              <Edit2 size={16} />
+                            </button>
                           )}
                         </div>
                       </div>
