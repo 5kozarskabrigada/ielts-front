@@ -563,11 +563,16 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
                 });
               }
 
-              const startNum = globalOffset + group.question_range_start;
-              const endNum = globalOffset + group.question_range_end;
-              const questionRangeText = startNum === endNum 
-                ? `Question ${startNum}`
-                : `Questions ${startNum}–${endNum}`;
+              // Calculate global question numbers for this group
+              // Count how many questions in this section came before this group
+              const previousQuestionsInSection = groupQuestions.length > 0 
+                ? groupQuestions[0].question_number - 1 
+                : group.question_range_start - 1;
+              const groupStartNum = globalOffset + previousQuestionsInSection + 1;
+              const groupEndNum = globalOffset + previousQuestionsInSection + groupQuestions.length;
+              const questionRangeText = groupStartNum === groupEndNum 
+                ? `Question ${groupStartNum}`
+                : `Questions ${groupStartNum}–${groupEndNum}`;
 
               return (
                 <div 
