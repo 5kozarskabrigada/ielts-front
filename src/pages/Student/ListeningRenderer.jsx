@@ -502,6 +502,22 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
                   q.question_number <= group.question_range_end
                 ))
                 .sort((a, b) => a.question_number - b.question_number);
+              
+              // Debug logging for summary completion
+              if (group.question_type === 'summary_completion') {
+                console.log('[ListeningRenderer] Summary completion group:', {
+                  groupId: group.id,
+                  sectionId: section.id,
+                  range: `${group.question_range_start}-${group.question_range_end}`,
+                  groupQuestions: groupQuestions.length,
+                  allQuestions: questions.filter(q => q.question_type === 'summary_completion').map(q => ({
+                    id: q.id,
+                    number: q.question_number,
+                    groupId: q.group_id,
+                    sectionId: q.section_id
+                  }))
+                });
+              }
 
               const startNum = globalOffset + group.question_range_start;
               const endNum = globalOffset + group.question_range_end;

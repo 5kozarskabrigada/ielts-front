@@ -124,11 +124,13 @@ function ExamEditorContent() {
         
         // Handle summary_completion questions (generate from summary_data.answers)
         if (group.question_type === 'summary_completion' && group.summary_data?.answers) {
+          console.log('[Summary Completion] Generating questions for group:', group.id, group.summary_data);
           const startNum = group.question_range_start || 1;
           const answers = group.summary_data.answers || {};
           
           // Count blanks in the summary text
           const blankCount = (group.summary_data.text || '').match(/\[BLANK\]/g)?.length || 0;
+          console.log(`[Summary Completion] Found ${blankCount} blanks, answers:`, answers);
           
           // Create a question for each blank
           for (let i = 0; i < blankCount; i++) {
@@ -153,9 +155,15 @@ function ExamEditorContent() {
               points: group.points_per_question || 1
             };
             if (existingIdx >= 0) {
+              console.log(`[Summary Completion] Updating question #${questionNumber} at index ${existingIdx}`);
               allQuestions[existingIdx] = { ...allQuestions[existingIdx], ...questionData };
             } else {
-              allQuestions.push({ id: `temp_summary_${group.id}_${i}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, ...questionData });
+              const newQuestion = { 
+                id: `temp_summary_${group.id}_${i}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, 
+                ...questionData 
+              };
+              console.log(`[Summary Completion] Adding new question #${questionNumber}:`, newQuestion);
+              allQuestions.push(newQuestion);
               questionsAdded = true;
             }
           }
@@ -256,6 +264,13 @@ function ExamEditorContent() {
 
       // Update context with corrected questions
       setQuestions(correctedQuestions);
+      
+      console.log('[Save] Sending to backend:', {
+        sections: sections.length,
+        questionGroups: questionGroups.length,
+        questions: correctedQuestions.length,
+        summaryQuestions: correctedQuestions.filter(q => q.question_type === 'summary_completion').length
+      });
       
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },

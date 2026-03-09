@@ -37,12 +37,14 @@ export default function ExamPlayer() {
   const [moduleTimeRemaining, setModuleTimeRemaining] = useState({
     listening: 30 * 60,
     reading: 60 * 60,
-    writing: 60 * 60
+    writing_task1: 20 * 60, // Task 1: 20 minutes
+    writing_task2: 40 * 60  // Task 2: 40 minutes
   });
   const [timeSpent, setTimeSpent] = useState({
     listening: 0,
     reading: 0,
-    writing: 0
+    writing_task1: 0,
+    writing_task2: 0
   });
 
   // Fullscreen & violation state
@@ -73,6 +75,14 @@ export default function ExamPlayer() {
         }
 
         const data = await response.json();
+        console.log('[ExamPlayer] Loaded exam data:', {
+          sections: data.sections?.length || 0,
+          questions: data.questions?.length || 0,
+          questionGroups: data.questionGroups?.length || 0,
+          summaryQuestions: data.questions?.filter(q => q.question_type === 'summary_completion').length || 0,
+          summaryGroups: data.questionGroups?.filter(g => g.question_type === 'summary_completion').length || 0
+        });
+        console.log('[ExamPlayer] Summary completion questions:', data.questions?.filter(q => q.question_type === 'summary_completion'));
         setExam(data);
         setSections(data.sections || []);
         setQuestions(data.questions || []);
@@ -173,30 +183,41 @@ export default function ExamPlayer() {
     if (!hasStarted || examSubmitted) return;
 
     const interval = setInterval(() => {
+      // Determine the timer key based on current module and task
+      const timerKey = currentModule === 'writing' 
+        ? `writing_task${currentWritingTask}` 
+        : currentModule;
+
       setModuleTimeRemaining(prev => {
-        const newTime = Math.max(0, prev[currentModule] - 1);
+        const newTime = Math.max(0, prev[timerKey] - 1);
         
         // Auto-redirect when time runs out
         if (newTime === 0) {
-          const currentIndex = MODULE_ORDER.indexOf(currentModule);
-          if (currentIndex < MODULE_ORDER.length - 1) {
-            handleModuleSubmit(true); // Auto-submit and move to next
+          // If in writing Task 1, move to Task 2
+          if (currentModule === 'writing' && currentWritingTask === 1) {
+            setCurrentWritingTask(2);
           } else {
-            handleFinalSubmit(); // Time's up on last module
+            // Move to next module or finish
+            const currentIndex = MODULE_ORDER.indexOf(currentModule);
+            if (currentIndex < MODULE_ORDER.length - 1) {
+              handleModuleSubmit(true); // Auto-submit and move to next
+            } else {
+              handleFinalSubmit(); // Time's up on last module
+            }
           }
         }
 
-        return { ...prev, [currentModule]: newTime };
+        return { ...prev, [timerKey]: newTime };
       });
 
       setTimeSpent(prev => ({
         ...prev,
-        [currentModule]: prev[currentModule] + 1
+        [timerKey]: prev[timerKey] + 1
       }));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasStarted, currentModule, examSubmitted]);
+  }, [hasStarted, currentModule, currentWritingTask, examSubmitted]);
 
   // ============================================
   // AUTO-SAVE
@@ -274,6 +295,15 @@ export default function ExamPlayer() {
   // MODULE SUBMISSION
   // ============================================
   const handleModuleSubmit = async (autoSubmit = false) => {
+    // If in writing module Task 1, warn and move to Task 2 instead  
+    if (currentModule === 'writing' && currentWritingTask === 1) {
+      const confirmMove = window.confirm('You are still on Task 1. Do you want to move to Task 2? (You can also click "Continue to Task 2" button)');
+      if (confirmMove) {
+        setCurrentWritingTask(2);
+      }
+      return;
+    }
+
     // Save answers before moving to next module
     await saveAnswers();
 
@@ -297,7 +327,11 @@ export default function ExamPlayer() {
             metadata: { 
               module: currentModule, 
               auto_submit: autoSubmit,
-              time_spent: timeSpent[currentModule]
+              time_spent_writing_task1: timeSpent.writing_task1 || 0,
+              time_spent_writing_task2: timeSpent.writing_task2 || 0,
+              time_spent: currentModule === 'writing' 
+                ? (timeSpent.writing_task1 || 0) + (timeSpent.writing_task2 || 0)
+                : timeSpent[currentModule]
             }
           })
         });
@@ -317,6 +351,13 @@ export default function ExamPlayer() {
     await saveAnswers();
 
     try {
+      // Aggregate writing task times into total writing time
+      const submissionTimeSpent = {
+        listening: timeSpent.listening,
+        reading: timeSpent.reading,
+        writing: (timeSpent.writing_task1 || 0) + (timeSpent.writing_task2 || 0)
+      };
+
       const response = await fetch(`${API_URL}/exams/${examId}/submit`, {
         method: "POST",
         headers: {
@@ -325,13 +366,14 @@ export default function ExamPlayer() {
         },
         body: JSON.stringify({
           answers,
-          time_spent_by_module: timeSpent,
+          time_spent_by_module: submissionTimeSpent,
           violations: violations.length
         })
       });
 
       if (!response.ok) {
-        throw new Error("Submission failed");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Submission failed");
       }
 
       setExamSubmitted(true);
@@ -557,8 +599,10 @@ export default function ExamPlayer() {
   // ============================================
   // MAIN EXAM INTERFACE
   // ============================================
-  const timeColor = moduleTimeRemaining[currentModule] < 300 ? "text-red-600" : "text-gray-700";
-  const isLastModule = currentModule === MODULE_ORDER[MODULE_ORDER.length - 1];
+  const timerKey = currentModule === 'writing' ? `writing_task${currentWritingTask}` : currentModule;
+  const timeColor = moduleTimeRemaining[timerKey] < 300 ? "text-red-600" : "text-gray-700";
+  const isLastModule = currentModule === MODULE_ORDER[MODULE_ORDER.length - 1] && 
+                       (currentModule !== 'writing' || currentWritingTask === 2);
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -580,7 +624,10 @@ export default function ExamPlayer() {
         <div className="flex items-center space-x-6">
           <div className={`flex items-center space-x-2 font-bold text-lg ${timeColor}`}>
             <Clock size={20} />
-            <span>{formatTime(moduleTimeRemaining[currentModule])}</span>
+            <span>{formatTime(moduleTimeRemaining[timerKey])}</span>
+            {currentModule === 'writing' && (
+              <span className="text-sm font-normal ml-2">Task {currentWritingTask}</span>
+            )}
           </div>
           
           <button
@@ -664,51 +711,76 @@ export default function ExamPlayer() {
         {currentModule === "writing" && (
           <div className="h-full flex flex-col p-6">
             <div className="max-w-4xl mx-auto w-full">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6" style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>Writing Module</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900" style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>
+                  Writing Module - Task {currentWritingTask}
+                </h3>
+                <div className="text-sm text-gray-600">
+                  {currentWritingTask === 1 ? '20 minutes' : '40 minutes'}
+                </div>
+              </div>
             
-            <div className="flex-1 overflow-y-auto space-y-6">
-              {currentSections.map((section, idx) => {
-                let taskConfig;
-                try {
-                  taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
-                } catch {
-                  taskConfig = {};
-                }
-                const taskKey = `writing_task_${idx + 1}`;
-                return (
-                  <div key={section.id} id={`task-${idx + 1}`} className="bg-white rounded-xl border-2 border-gray-200 p-6 scroll-mt-20">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="font-bold text-xl text-gray-900" style={{fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>Task {idx + 1}</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {idx === 0 ? 'Minimum 150 words' : 'Minimum 250 words'}
-                        </p>
+            <div className="flex-1 overflow-y-auto">
+              {currentSections
+                .filter((_, idx) => idx + 1 === currentWritingTask) // Show only current task
+                .map((section, idx) => {
+                  let taskConfig;
+                  try {
+                    taskConfig = section.task_config ? JSON.parse(section.task_config) : {};
+                  } catch {
+                    taskConfig = {};
+                  }
+                  const actualTaskNumber = currentWritingTask;
+                  const taskKey = `writing_task_${actualTaskNumber}`;
+                  return (
+                    <div key={section.id} className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="font-bold text-xl text-gray-900" style={{fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>
+                            Task {actualTaskNumber}
+                          </h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {actualTaskNumber === 1 ? 'Minimum 150 words' : 'Minimum 250 words'}
+                          </p>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Word count: {(answers[taskKey] || '').split(/\s+/).filter(Boolean).length}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        Word count: {(answers[taskKey] || '').split(/\s+/).filter(Boolean).length}
-                      </div>
-                    </div>
 
-                    {/* Task Prompt */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <div 
-                        className="prose prose-sm max-w-none"
+                      {/* Task Prompt */}
+                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <div 
+                          className="prose prose-sm max-w-none"
+                          style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                          dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
+                        />
+                      </div>
+
+                      {/* Response Area */}
+                      <textarea
+                        className="w-full h-64 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
                         style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
-                        dangerouslySetInnerHTML={{ __html: taskConfig.prompt || section.content }}
+                        placeholder={`Write your response for Task ${actualTaskNumber} here...`}
+                        value={answers[taskKey] || ""}
+                        onChange={(e) => setAnswers({...answers, [taskKey]: e.target.value})}
                       />
+                      
+                      {/* Task 1 -> Task 2 Navigation */}
+                      {currentWritingTask === 1 && (
+                        <div className="mt-6 flex justify-end">
+                          <button
+                            onClick={() => setCurrentWritingTask(2)}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center space-x-2 transition"
+                          >
+                            <span>Continue to Task 2</span>
+                            <ArrowRight size={20} />
+                          </button>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Response Area */}
-                    <textarea
-                      className="w-full h-48 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
-                      style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
-                      placeholder={`Write your response for Task ${idx + 1} here...`}
-                      value={answers[taskKey] || ""}
-                      onChange={(e) => setAnswers({...answers, [taskKey]: e.target.value})}
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
             </div>
           </div>
@@ -793,19 +865,33 @@ export default function ExamPlayer() {
           })}
 
           {currentModule === "writing" && currentSections.map((section, idx) => {
-            const taskKey = `writing_task_${idx + 1}`;
+            const taskNumber = idx + 1;
+            const taskKey = `writing_task_${taskNumber}`;
             const isAnswered = (answers[taskKey] || '').trim().length > 0;
+            const isCurrentTask = taskNumber === currentWritingTask;
+            const isAccessible = taskNumber <= currentWritingTask; // Can only access current or previous tasks
             
             return (
               <button 
                 key={section.id} 
-                onClick={() => document.getElementById(`task-${idx + 1}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition"
+                onClick={() => {
+                  if (isAccessible) {
+                    setCurrentWritingTask(taskNumber);
+                  }
+                }}
+                disabled={!isAccessible}
+                className={`flex items-center space-x-3 cursor-pointer transition ${
+                  isCurrentTask ? 'opacity-100' : isAccessible ? 'opacity-70 hover:opacity-100' : 'opacity-40 cursor-not-allowed'
+                }`}
               >
-                <span className="text-sm font-semibold text-gray-700 min-w-[60px]">Task {idx + 1}</span>
+                <span className={`text-sm font-semibold min-w-[60px] ${
+                  isCurrentTask ? 'text-blue-700' : 'text-gray-700'
+                }`}>
+                  Task {taskNumber}
+                </span>
                 <div 
                   className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isAnswered ? 'bg-green-100 border-green-400' : 'bg-white border-gray-300'
+                    isAnswered ? 'bg-green-100 border-green-400' : isCurrentTask ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-300'
                   }`}
                 >
                   {isAnswered && <span className="text-green-600 text-xs">✓</span>}
