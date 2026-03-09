@@ -668,7 +668,7 @@ export default function ExamPlayer() {
                 </div>
               </div>
             )}
-            {!currentSection.audio_url && (
+            {!currentSection.audio_url && !exam?.modules_config?.listening?.global_audio_url && (
               <div className="bg-yellow-50 rounded-xl border-2 border-yellow-200 p-4 mb-6">
                 <p className="text-yellow-800 text-sm">⚠️ No audio file attached for this section</p>
               </div>

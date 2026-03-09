@@ -107,12 +107,12 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             </tbody>
           </table>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
             const qNum = globalOffset + idx + 1;
             return (
-              <div key={q.id} className="flex items-center gap-3">
-                <span className="font-bold text-gray-700" style={{ minWidth: '30px', display: 'inline-block' }}>{qNum}.</span>
+              <div key={q.id} className="flex items-center gap-4 py-1">
+                <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex items-center gap-2 flex-1">
                   <select 
                     value={answers[q.id] || ''}
@@ -149,15 +149,15 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + idx + 1;
       return (
-        <div key={q.id} className="py-2" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+        <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-            fontSize: '16px',
+            fontSize: '17px',
             fontWeight: isMultiple ? 400 : 700,
-            lineHeight: '24px',
-            marginTop: '10px',
-            marginBottom: '10px'
+            lineHeight: '26px',
+            marginTop: '12px',
+            marginBottom: '12px'
           }}>
             {!isMultiple && `${qNum}. `}<RenderHtml html={q.question_text || ''} />
           </p>
@@ -218,13 +218,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Matching types with dropdowns
   if (type === 'matching_headings' || type === 'matching_information' || type === 'matching_features' || type === 'matching_sentence_endings') {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {groupQuestions.map((q, idx) => {
           const qNum = globalOffset + idx + 1;
           return (
-            <div key={q.id} className="flex items-center gap-3">
-              <span className="font-bold text-gray-700" style={{ minWidth: '30px' }}>{qNum}.</span>
-              <div className="flex-1 flex items-center gap-2">
+            <div key={q.id} className="flex items-center gap-4 py-1">
+              <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
+              <div className="flex-1 flex items-center gap-3">
                 <select 
                   value={answers[q.id] || ''}
                   onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
@@ -234,7 +234,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     padding: '0 20px 0 10px', 
                     border: '1px solid rgb(189, 197, 207)', 
                     borderRadius: '100px', 
-                    fontSize: '14px',
+                    fontSize: '15px',
                     fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
                   }}
                 >
@@ -243,7 +243,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     <option key={letter} value={letter}>{letter}</option>
                   ))}
                 </select>
-                <p className="flex-1"><RenderHtml html={q.question_text || ''} /></p>
+                <p className="flex-1" style={{ fontSize: '15px', lineHeight: '1.6' }}><RenderHtml html={q.question_text || ''} /></p>
               </div>
             </div>
           );
@@ -475,21 +475,21 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
             const questionRangeText = groupStartNum === groupEndNum ? `Question ${groupStartNum}` : `Questions ${groupStartNum}–${groupEndNum}`;
 
             return (
-              <div key={group.id} className="mb-10">
+              <div key={group.id} className="mb-12">
                 <h3 style={{ 
                   fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-                  fontSize: '20px', 
+                  fontSize: '22px', 
                   fontWeight: 700, 
                   color: accentColor, 
-                  marginTop: '20px', 
-                  marginBottom: '30px', 
-                  lineHeight: '24px' 
+                  marginTop: '24px', 
+                  marginBottom: '32px', 
+                  lineHeight: '28px' 
                 }}>
                   {questionRangeText}
                 </h3>
                 {group.instruction_text && (
                   <div 
-                    style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }}
+                    style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '17px', color: 'rgb(40, 40, 40)', marginBottom: '20px', lineHeight: '1.6' }}
                     dangerouslySetInnerHTML={{ __html: group.instruction_text }} 
                   />
                 )}
