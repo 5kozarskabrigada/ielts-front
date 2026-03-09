@@ -59,8 +59,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 
   // Multiple Choice
   if (type === 'multiple_choice') {
-    return groupQuestions.map(q => {
-      const globalNum = globalOffset + q.question_number;
+    return groupQuestions.map((q, idx) => {
+      const globalNum = globalOffset + idx + 1;
       return (
         <div 
           key={q.id} 
@@ -153,8 +153,15 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           blankCount++;
           
           if (!question) {
-            console.warn(`Question not found for blank ${blankCount} at position ${startBlankNum + blankCount - 1}`);
-            return <span key={idx} className="text-red-500">[Missing Question]</span>;
+            console.error(`Table completion: Question not found for blank ${blankCount}`, {
+              groupId: group.id,
+              sectionId: section.id,
+              blankIndex: startBlankNum + blankCount - 1,
+              totalGroupQuestions: groupQuestions.length,
+              groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
+              expectedRange: `${group.question_range_start}-${group.question_range_end}`
+            });
+            return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
           }
           
           return (
@@ -303,8 +310,19 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               
               // Safety check for missing question
               if (!question) {
-                console.warn(`Summary completion: Question not found for blank ${blankCount}`);
-                return <span key={idx} className="text-red-500">[Missing Question]</span>;
+                console.error(`Summary completion: Question not found for blank ${blankCount}`, {
+                  groupId: group.id,
+                  sectionId: section.id,
+                  blankIndex: blankCount - 1,
+                  totalGroupQuestions: groupQuestions.length,
+                  groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
+                  expectedRange: `${group.question_range_start}-${group.question_range_end}`,
+                  allMatchingQuestions: questions.filter(q => 
+                    (q.group_id === group.id || 
+                    (q.section_id === section.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end))
+                  ).map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id, type: q.question_type }))
+                });
+                return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
               }
               
               return (
@@ -337,7 +355,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset +  q.question_number;
+      const globalNum = globalOffset + idx + 1;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -370,7 +388,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Note Completion
   if (type === 'note_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset + q.question_number;
+      const globalNum = globalOffset + idx + 1;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -420,7 +438,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           </div>
         )}
         {groupQuestions.map((q, idx) => {
-          const globalNum = globalOffset + q.question_number;
+          const globalNum = globalOffset + idx + 1;
           return (
             <div key={q.id} className="py-3 flex items-start gap-3">
               <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
@@ -448,7 +466,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div className="space-y-3">
         {groupQuestions.map((q, idx) => {
-          const globalNum = globalOffset + q.question_number;
+          const globalNum = globalOffset + idx + 1;
           return (
             <div key={q.id} className="flex items-start gap-3" data-question-id={q.id}>
               <p style={{
@@ -482,11 +500,20 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
     .filter(s => s.module_type === 'listening')
     .sort((a, b) => a.section_order - b.section_order);
 
+  // Calculate cumulative question offsets for each part
+  let cumulativeOffset = 0;
+  const partOffsets = listeningSections.map((section) => {
+    const offset = cumulativeOffset;
+    const sectionQuestions = questions.filter(q => q.section_id === section.id);
+    cumulativeOffset += sectionQuestions.length;
+    return offset;
+  });
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {listeningSections.map((section, partIdx) => {
         const partNumber = partIdx + 1;
-        const globalOffset = (partNumber - 1) * 10;
+        const globalOffset = partOffsets[partIdx];
 
         const sectionGroups = questionGroups
           .filter(g => g.section_id === section.id)

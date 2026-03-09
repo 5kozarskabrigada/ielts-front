@@ -622,7 +622,7 @@ export default function ExamPlayer() {
         </div>
         
         <div className="flex items-center space-x-6">
-          <div className={`flex items-center space-x-2 font-bold text-lg ${timeColor}`}>
+          <div className={`flex items-center space-x-2 font-bold text-lg text-white`}>
             <Clock size={20} />
             <span>{formatTime(moduleTimeRemaining[timerKey])}</span>
             {currentModule === 'writing' && (
@@ -697,6 +697,7 @@ export default function ExamPlayer() {
                 <ReadingRenderer 
                   section={currentSection}
                   partNumber={currentPart}
+                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => sum + questions.filter(q => q.section_id === s.id).length, 0)}
                   questions={currentQuestions}
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
@@ -790,43 +791,101 @@ export default function ExamPlayer() {
       {/* Progress Footer */}
       <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
         <div className="flex items-center justify-center space-x-6 flex-wrap gap-y-3">
-          {currentModule === "listening" && allModuleSections.map((section, partIdx) => {
-            const partNumber = partIdx + 1;
-            const globalOffset = (partNumber - 1) * 10;
-            const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
-            const isCurrentPart = partNumber === currentPart;
+          {currentModule === "listening" && (() => {
+            let cumulativeOffset = 0;
+            return allModuleSections.map((section, partIdx) => {
+              const partNumber = partIdx + 1;
+              const globalOffset = cumulativeOffset;
+              const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+              const isCurrentPart = partNumber === currentPart;
+              
+              // Update offset for next part
+              cumulativeOffset += partQuestions.length;
 
-            return (
-              <div key={section.id} className="flex items-center space-x-2">
-                <button 
-                  onClick={() => setCurrentPart(partNumber)}
-                  className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
-                    isCurrentPart ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                  }`}
-                >
-                  Part {partNumber}
-                </button>
-                <div className="flex space-x-1">
-                  {partQuestions.map((q) => {
-                    const globalNum = globalOffset + q.question_number;
-                    const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                    return (
-                      <button
-                        key={q.id}
-                        onClick={() => {
-                          setCurrentPart(partNumber);
-                          // Scroll to question after a brief delay to let the part render
-                          setTimeout(() => {
-                            const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                            if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                          }, 100);
-                        }}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                          isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                        }`}
-                        title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+              return (
+                <div key={section.id} className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setCurrentPart(partNumber)}
+                    className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
+                      isCurrentPart ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Part {partNumber}
+                  </button>
+                  <div className="flex space-x-1">
+                    {partQuestions.map((q, qIdx) => {
+                      const globalNum = globalOffset + qIdx + 1;
+                      const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => {
+                            setCurrentPart(partNumber);
+                            // Scroll to question after a brief delay to let the part render
+                            setTimeout(() => {
+                              const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }, 100);
+                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                            isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                        >
+                          {globalNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+
+          {currentModule === "reading" && (() => {
+            let cumulativeOffset = 0;
+            return allModuleSections.map((section, partIdx) => {
+              const partNumber = partIdx + 1;
+              const globalOffset = cumulativeOffset;
+              const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+              const isCurrentPart = partNumber === currentPart;
+              
+              // Update offset for next part
+              cumulativeOffset += partQuestions.length;
+
+              return (
+                <div key={section.id} className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setCurrentPart(partNumber)}
+                    className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
+                      isCurrentPart ? 'bg-emerald-100 text-emerald-700' : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Part {partNumber}
+                  </button>
+                  <div className="flex space-x-1">
+                    {partQuestions.map((q, qIdx) => {
+                      const globalNum = globalOffset + qIdx + 1;
+                      const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => {
+                            setCurrentPart(partNumber);
+                            // Scroll to question after a brief delay to let the part render
+                            setTimeout(() => {
+                              const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }, 100);
+                          }}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                            isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
                       >
                         {globalNum}
                       </button>
@@ -835,54 +894,8 @@ export default function ExamPlayer() {
                 </div>
               </div>
             );
-          })}
-
-          {currentModule === "reading" && allModuleSections.map((section, partIdx) => {
-            const partNumber = partIdx + 1;
-            const globalOffset = (partNumber - 1) * 13;
-            const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
-            const isCurrentPart = partNumber === currentPart;
-
-            return (
-              <div key={section.id} className="flex items-center space-x-2">
-                <button 
-                  onClick={() => setCurrentPart(partNumber)}
-                  className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
-                    isCurrentPart ? 'bg-emerald-100 text-emerald-700' : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-100'
-                  }`}
-                >
-                  Part {partNumber}
-                </button>
-                <div className="flex space-x-1">
-                  {partQuestions.map((q) => {
-                    const globalNum = globalOffset + q.question_number;
-                    const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                    return (
-                      <button
-                        key={q.id}
-                        onClick={() => {
-                          setCurrentPart(partNumber);
-                          // Scroll to question after a brief delay to let the part render
-                          setTimeout(() => {
-                            const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                            if (element) {
-                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                          }, 100);
-                        }}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                          isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                        }`}
-                        title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
-                      >
-                        {globalNum}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+          });
+          })()}
 
           {currentModule === "writing" && currentSections.map((section, idx) => {
             const taskNumber = idx + 1;

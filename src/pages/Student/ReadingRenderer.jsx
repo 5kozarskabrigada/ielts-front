@@ -1,5 +1,5 @@
 // Reading Module Renderer - Matches Preview Mode Format
-import React from "react";
+import React, { useState } from "react";
 
 const accentColor = 'rgb(55, 133, 77)'; // Green for reading
 
@@ -108,8 +108,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           </table>
         </div>
         <div className="space-y-3">
-          {groupQuestions.map(q => {
-            const qNum = globalOffset + q.question_number;
+          {groupQuestions.map((q, idx) => {
+            const qNum = globalOffset + idx + 1;
             return (
               <div key={q.id} className="flex items-center gap-3">
                 <span className="font-bold text-gray-700" style={{ minWidth: '30px', display: 'inline-block' }}>{qNum}.</span>
@@ -146,8 +146,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   if (type === 'multiple_choice_single' || type === 'multiple_choice_multiple') {
     const isMultiple = type === 'multiple_choice_multiple';
     
-    return groupQuestions.map(q => {
-      const qNum = globalOffset + q.question_number;
+    return groupQuestions.map((q, idx) => {
+      const qNum = globalOffset + idx + 1;
       return (
         <div key={q.id} className="py-2" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
@@ -219,8 +219,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   if (type === 'matching_headings' || type === 'matching_information' || type === 'matching_features' || type === 'matching_sentence_endings') {
     return (
       <div className="space-y-3">
-        {groupQuestions.map(q => {
-          const qNum = globalOffset + q.question_number;
+        {groupQuestions.map((q, idx) => {
+          const qNum = globalOffset + idx + 1;
           return (
             <div key={q.id} className="flex items-center gap-3">
               <span className="font-bold text-gray-700" style={{ minWidth: '30px' }}>{qNum}.</span>
@@ -254,8 +254,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 
   // Sentence Completion - NO number, just template
   if (type === 'sentence_completion') {
-    return groupQuestions.map(q => {
-      const qNum = globalOffset + q.question_number;
+    return groupQuestions.map((q, idx) => {
+      const qNum = globalOffset + idx + 1;
       const template = q.question_template || q.question_text || '';
       const parts = template.split('[BLANK]');
       
@@ -281,8 +281,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 
   // Short Answer
   if (type === 'short_answer') {
-    return groupQuestions.map(q => {
-      const qNum = globalOffset + q.question_number;
+    return groupQuestions.map((q, idx) => {
+      const qNum = globalOffset + idx + 1;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
@@ -300,8 +300,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 
   // Other completion types
   if (['summary_completion', 'table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(type)) {
-    return groupQuestions.map(q => {
-      const qNum = globalOffset + q.question_number;
+    return groupQuestions.map((q, idx) => {
+      const qNum = globalOffset + idx + 1;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
@@ -320,10 +320,11 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ReadingRenderer({ section, partNumber, questions, questionGroups, answers, setAnswers }) {
+export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers }) {
   if (!section) return null;
 
-  const globalOffset = (partNumber - 1) * 13;
+  const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
+
   const sectionGroups = questionGroups
     .filter(g => g.section_id === section.id)
     .sort((a, b) => a.group_order - b.group_order);
@@ -331,131 +332,182 @@ export default function ReadingRenderer({ section, partNumber, questions, questi
   const paragraphLetters = detectParagraphLetters(section.content);
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="h-full flex flex-col">
       {/* IELTS-style headers */}
-      <h1 style={{ 
-        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-        fontSize: '24px', 
-        fontWeight: 700, 
-        textTransform: 'uppercase', 
-        color: 'rgb(41, 69, 99)', 
-        margin: '0 0 5px 0', 
-        padding: 0, 
-        lineHeight: '28.8px' 
-      }}>
-        PART {partNumber}
-      </h1>
-      <h2 style={{ 
-        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-        fontSize: '18px', 
-        fontWeight: 700, 
-        textTransform: 'uppercase', 
-        color: 'rgb(41, 69, 99)', 
-        margin: '0 0 10px 0', 
-        padding: 0, 
-        lineHeight: '21.6px' 
-      }}>
-        READING PASSAGE {partNumber}
-      </h2>
-      
-      {/* Instruction */}
-      {section.instruction && (
-        <div 
-          style={{ 
-            fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
-            fontSize: '14px', 
-            fontStyle: 'italic',
-            color: 'rgb(40, 40, 40)', 
-            marginBottom: '5px', 
-            lineHeight: '21px'
-          }}
-          dangerouslySetInnerHTML={{ __html: section.instruction }}
-        />
-      )}
-      
-      {/* Image */}
-      {section.image_url && (
-        <img 
-          src={section.image_url} 
-          alt={section.image_description || 'Passage image'} 
-          style={{ 
-            maxWidth: '100%', 
-            width: 'auto',
-            height: 'auto',
-            display: 'block', 
-            marginBottom: '16px'
-          }} 
-        />
-      )}
-      
-      {/* Title */}
-      <h3 style={{ 
-        fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-        fontSize: '26px', 
-        fontWeight: 700, 
-        textTransform: 'uppercase',
-        color: 'rgb(41, 69, 99)', 
-        marginBottom: '10px', 
-        lineHeight: '31.2px',
-        textAlign: 'center'
-      }}>
-        {section.title || `Passage ${partNumber}`}
-      </h3>
-      
-      {/* Content */}
-      <div 
-        style={{ 
-          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
-          fontSize: '16px', 
-          color: 'rgb(40, 40, 40)', 
-          lineHeight: '1.6',
-          marginBottom: '30px'
-        }}
-        dangerouslySetInnerHTML={{ __html: (section.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
-      />
-      
-      {/* Question Groups */}
-      {sectionGroups.map(group => {
-        const groupQuestions = questions
-          .filter(q => q.section_id === section.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end)
-          .sort((a, b) => a.question_number - b.question_number);
-        
-        const qStart = globalOffset + group.question_range_start;
-        const qEnd = globalOffset + group.question_range_end;
-        const questionRangeText = qStart === qEnd ? `Question ${qStart}` : `Questions ${qStart}–${qEnd}`;
+      <div className="mb-4">
+        <h1 style={{ 
+          fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+          fontSize: '24px', 
+          fontWeight: 700, 
+          textTransform: 'uppercase', 
+          color: 'rgb(41, 69, 99)', 
+          margin: '0 0 5px 0', 
+          padding: 0, 
+          lineHeight: '28.8px' 
+        }}>
+          PART {partNumber}
+        </h1>
+        <h2 style={{ 
+          fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+          fontSize: '18px', 
+          fontWeight: 700, 
+          textTransform: 'uppercase', 
+          color: 'rgb(41, 69, 99)', 
+          margin: '0 0 10px 0', 
+          padding: 0, 
+          lineHeight: '21.6px' 
+        }}>
+          READING PASSAGE {partNumber}
+        </h2>
+      </div>
 
-        return (
-          <div key={group.id} className="mb-10">
-            <h3 style={{ 
-              fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-              fontSize: '20px', 
-              fontWeight: 700, 
-              color: accentColor, 
-              marginTop: '20px', 
-              marginBottom: '30px', 
-              lineHeight: '24px' 
-            }}>
-              {questionRangeText}
-            </h3>
-            {group.instruction_text && (
-              <div 
-                style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }}
-                dangerouslySetInnerHTML={{ __html: group.instruction_text }} 
+      {/* Side-by-side layout */}
+      <div className="flex-1 flex gap-6 overflow-hidden">
+        {/* LEFT SIDE: Passage */}
+        <div 
+          className="overflow-y-auto pr-4"
+          style={{ 
+            width: `${textWidth}%`,
+            borderRight: '2px solid rgb(221, 221, 221)'
+          }}
+        >
+          {/* Instruction */}
+          {section.instruction && (
+            <div 
+              style={{ 
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+                fontSize: '14px', 
+                fontStyle: 'italic',
+                color: 'rgb(40, 40, 40)', 
+                marginBottom: '5px', 
+                lineHeight: '21px'
+              }}
+              dangerouslySetInnerHTML={{ __html: section.instruction }}
+            />
+          )}
+          
+          {/* Image */}
+          {section.image_url && (
+            <div className="flex justify-center mb-4">
+              <img 
+                src={section.image_url} 
+                alt={section.image_description || 'Passage image'} 
+                style={{ 
+                  maxWidth: '100%', 
+                  width: 'auto',
+                  height: 'auto',
+                  display: 'block'
+                }} 
               />
-            )}
-            {group.image_url && (
-              <div className="mb-4">
-                <img 
-                  src={group.image_url} 
-                  alt={group.image_description || 'Diagram'} 
-                  style={{ maxWidth: '100%', width: 'auto', height: 'auto', display: 'block', border: '1px solid rgb(221, 221, 221)' }} 
-                />
+            </div>
+          )}
+          
+          {/* Title */}
+          <h3 style={{ 
+            fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+            fontSize: '26px', 
+            fontWeight: 700, 
+            textTransform: 'uppercase',
+            color: 'rgb(41, 69, 99)', 
+            marginBottom: '10px', 
+            lineHeight: '31.2px',
+            textAlign: 'center'
+          }}>
+            {section.title || `Passage ${partNumber}`}
+          </h3>
+          
+          {/* Content */}
+          <div 
+            style={{ 
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+              fontSize: '16px', 
+              color: 'rgb(40, 40, 40)', 
+              lineHeight: '1.6',
+              marginBottom: '30px'
+            }}
+            dangerouslySetInnerHTML={{ __html: (section.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
+          />
+        </div>
+
+        {/* Resizer */}
+        <div 
+          className="cursor-col-resize w-1 bg-gray-300 hover:bg-blue-500 transition"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startWidth = textWidth;
+            const container = e.currentTarget.parentElement;
+            const containerWidth = container.offsetWidth;
+
+            const handleMouseMove = (e) => {
+              const deltaX = e.clientX - startX;
+              const deltaPercent = (deltaX / containerWidth) * 100;
+              const newWidth = Math.max(30, Math.min(70, startWidth + deltaPercent));
+              setTextWidth(newWidth);
+            };
+
+            const handleMouseUp = () => {
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+            };
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        />
+
+        {/* RIGHT SIDE: Questions */}
+        <div 
+          className="overflow-y-auto pl-4"
+          style={{ width: `${100 - textWidth}%` }}
+        >
+          {sectionGroups.map(group => {
+            const groupQuestions = questions
+              .filter(q => q.section_id === section.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end)
+              .sort((a, b) => a.question_number - b.question_number);
+            
+            // Calculate the starting index for this group (how many questions came before)
+            const previousQuestions = questions
+              .filter(q => q.section_id === section.id && q.question_number < group.question_range_start)
+              .length;
+            const groupStartNum = globalOffset + previousQuestions + 1;
+            const groupEndNum = globalOffset + previousQuestions + groupQuestions.length;
+            const questionRangeText = groupStartNum === groupEndNum ? `Question ${groupStartNum}` : `Questions ${groupStartNum}–${groupEndNum}`;
+
+            return (
+              <div key={group.id} className="mb-10">
+                <h3 style={{ 
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+                  fontSize: '20px', 
+                  fontWeight: 700, 
+                  color: accentColor, 
+                  marginTop: '20px', 
+                  marginBottom: '30px', 
+                  lineHeight: '24px' 
+                }}>
+                  {questionRangeText}
+                </h3>
+                {group.instruction_text && (
+                  <div 
+                    style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '16px', color: 'rgb(40, 40, 40)', marginBottom: '16px', lineHeight: '1.5' }}
+                    dangerouslySetInnerHTML={{ __html: group.instruction_text }} 
+                  />
+                )}
+                {group.image_url && (
+                  <div className="mb-4 flex justify-center">
+                    <img 
+                      src={group.image_url} 
+                      alt={group.image_description || 'Diagram'} 
+                      style={{ maxWidth: '100%', width: 'auto', height: 'auto', display: 'block', border: '1px solid rgb(221, 221, 221)' }} 
+                    />
+                  </div>
+                )}
+                <div>{renderQuestionGroup(group, groupQuestions, globalOffset + previousQuestions, answers, setAnswers, paragraphLetters)}</div>
               </div>
-            )}
-            <div>{renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters)}</div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
