@@ -66,7 +66,7 @@ export default function SubmissionDetail() {
   const handleAIGrade = async (wr) => {
     setGradingAI(wr.id);
     try {
-      await apiGradeWritingWithAI(token, {
+      const result = await apiGradeWritingWithAI(token, {
         submissionId: submission.id,
         sectionId: wr.section_id,
         taskNumber: wr.task_number,
@@ -74,6 +74,43 @@ export default function SubmissionDetail() {
         taskType: wr.task_number === 1 ? 'Academic Report' : 'Essay',
         taskPrompt: ''
       });
+
+      if (result.save_error) {
+        console.warn('AI grading succeeded but save failed:', result.save_error);
+      }
+
+      // Update local state immediately with the grading result
+      if (result.grading) {
+        setSubmission(prev => {
+          const updatedWriting = (prev.writing_responses || []).map(w => {
+            if ((w.id === wr.id) || (w.task_number === wr.task_number && String(w.id).startsWith('raw-'))) {
+              return {
+                ...w,
+                ai_overall_band: result.grading.overall_band,
+                ai_task_response_score: result.grading.task_response,
+                ai_coherence_score: result.grading.coherence_cohesion,
+                ai_lexical_score: result.grading.lexical_resource,
+                ai_grammar_score: result.grading.grammatical_range,
+                ai_feedback: JSON.stringify({
+                  feedback: result.grading.feedback,
+                  task_response_feedback: result.grading.task_response_feedback,
+                  coherence_feedback: result.grading.coherence_feedback,
+                  lexical_feedback: result.grading.lexical_feedback,
+                  grammar_feedback: result.grading.grammar_feedback,
+                  key_improvements: result.grading.key_improvements,
+                  word_count_penalty: result.grading.word_count_penalty
+                }),
+                final_band: result.grading.overall_band,
+                word_count: result.grading.word_count || w.word_count
+              };
+            }
+            return w;
+          });
+          return { ...prev, writing_responses: updatedWriting };
+        });
+      }
+
+      // Also refresh from server to get persisted data
       await fetchSubmissionDetails();
     } catch (err) {
       alert('AI grading failed: ' + err.message);
