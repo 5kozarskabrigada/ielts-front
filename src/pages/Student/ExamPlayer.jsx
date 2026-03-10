@@ -811,31 +811,88 @@ export default function ExamPlayer() {
                     Part {partNumber}
                   </button>
                   <div className="flex space-x-1">
-                    {partQuestions.map((q, qIdx) => {
-                      const globalNum = globalOffset + qIdx + 1;
-                      const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                      return (
-                        <button
-                          key={q.id}
-                          onClick={() => {
-                            setCurrentPart(partNumber);
-                            // Scroll to question after a brief delay to let the part render
-                            setTimeout(() => {
-                              const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                              if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }
-                            }, 100);
-                          }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                            isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                          }`}
-                          title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
-                        >
-                          {globalNum}
-                        </button>
-                      );
-                    })}
+                    {(() => {
+                      // Group questions by group_id for multiple-choice-multiple
+                      const groups = [];
+                      const groupMap = new Map();
+                      
+                      partQuestions.forEach((q, qIdx) => {
+                        if (q.group_id) {
+                          if (!groupMap.has(q.group_id)) {
+                            groupMap.set(q.group_id, []);
+                          }
+                          groupMap.get(q.group_id).push({ ...q, qIdx });
+                        } else {
+                          groups.push({ type: 'single', question: q, qIdx });
+                        }
+                      });
+
+                      // Add grouped questions
+                      groupMap.forEach((groupQuestions, groupId) => {
+                        groups.push({ type: 'group', questions: groupQuestions, groupId });
+                      });
+
+                      // Sort by first question index
+                      groups.sort((a, b) => {
+                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
+                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
+                        return aIdx - bIdx;
+                      });
+
+                      return groups.map((item, idx) => {
+                        if (item.type === 'single') {
+                          const q = item.question;
+                          const globalNum = q.question_number;
+                          const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                          return (
+                            <button
+                              key={q.id}
+                              onClick={() => {
+                                setCurrentPart(partNumber);
+                                setTimeout(() => {
+                                  const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 100);
+                              }}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                                isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                              }`}
+                              title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                            >
+                              {globalNum}
+                            </button>
+                          );
+                        } else {
+                          // Group of questions (show as range)
+                          const firstQ = item.questions[0];
+                          const lastQ = item.questions[item.questions.length - 1];
+                          const rangeText = `${firstQ.question_number}-${lastQ.question_number}`;
+                          const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
+                          return (
+                            <button
+                              key={`group-${item.groupId}`}
+                              onClick={() => {
+                                setCurrentPart(partNumber);
+                                setTimeout(() => {
+                                  const element = document.querySelector(`[data-question-id="${firstQ.id}"]`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 100);
+                              }}
+                              className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                                isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                              }`}
+                              title={`Questions ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
+                            >
+                              {rangeText}
+                            </button>
+                          );
+                        }
+                      });
+                    })()}
                   </div>
                 </div>
               );
@@ -864,35 +921,92 @@ export default function ExamPlayer() {
                     Part {partNumber}
                   </button>
                   <div className="flex space-x-1">
-                    {partQuestions.map((q, qIdx) => {
-                      const globalNum = globalOffset + qIdx + 1;
-                      const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                      return (
-                        <button
-                          key={q.id}
-                          onClick={() => {
-                            setCurrentPart(partNumber);
-                            // Scroll to question after a brief delay to let the part render
-                            setTimeout(() => {
-                              const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                              if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }
-                            }, 100);
-                          }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                            isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                          }`}
-                          title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
-                      >
-                        {globalNum}
-                      </button>
-                    );
-                  })}
+                    {(() => {
+                      // Group questions by group_id for multiple-choice-multiple
+                      const groups = [];
+                      const groupMap = new Map();
+                      
+                      partQuestions.forEach((q, qIdx) => {
+                        if (q.group_id) {
+                          if (!groupMap.has(q.group_id)) {
+                            groupMap.set(q.group_id, []);
+                          }
+                          groupMap.get(q.group_id).push({ ...q, qIdx });
+                        } else {
+                          groups.push({ type: 'single', question: q, qIdx });
+                        }
+                      });
+
+                      // Add grouped questions
+                      groupMap.forEach((groupQuestions, groupId) => {
+                        groups.push({ type: 'group', questions: groupQuestions, groupId });
+                      });
+
+                      // Sort by first question index
+                      groups.sort((a, b) => {
+                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
+                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
+                        return aIdx - bIdx;
+                      });
+
+                      return groups.map((item, idx) => {
+                        if (item.type === 'single') {
+                          const q = item.question;
+                          const globalNum = q.question_number;
+                          const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                          return (
+                            <button
+                              key={q.id}
+                              onClick={() => {
+                                setCurrentPart(partNumber);
+                                setTimeout(() => {
+                                  const element = document.querySelector(`[data-question-id="${q.id}"]`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 100);
+                              }}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                                isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                              }`}
+                              title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                            >
+                              {globalNum}
+                            </button>
+                          );
+                        } else {
+                          // Group of questions (show as range)
+                          const firstQ = item.questions[0];
+                          const lastQ = item.questions[item.questions.length - 1];
+                          const rangeText = `${firstQ.question_number}-${lastQ.question_number}`;
+                          const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
+                          return (
+                            <button
+                              key={`group-${item.groupId}`}
+                              onClick={() => {
+                                setCurrentPart(partNumber);
+                                setTimeout(() => {
+                                  const element = document.querySelector(`[data-question-id="${firstQ.id}"]`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 100);
+                              }}
+                              className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                                isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                              }`}
+                              title={`Questions ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
+                            >
+                              {rangeText}
+                            </button>
+                          );
+                        }
+                      });
+                    })()}
+                  </div>
                 </div>
-              </div>
-            );
-          });
+              );
+            });
           })()}
 
           {currentModule === "writing" && currentSections.map((section, idx) => {
