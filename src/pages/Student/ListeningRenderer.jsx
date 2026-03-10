@@ -60,7 +60,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Multiple Choice
   if (type === 'multiple_choice') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset + idx + 1;
+      const globalNum = q.question_number;
       return (
         <div 
           key={q.id} 
@@ -148,8 +148,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
 
       return parts.map((part, idx) => {
         if (part === '[BLANK]') {
-          const qNum = globalOffset + group.question_range_start + startBlankNum + blankCount;
           const question = groupQuestions[startBlankNum + blankCount];
+          const qNum = question ? question.question_number : (globalOffset + group.question_range_start + startBlankNum + blankCount);
           blankCount++;
           
           if (!question) {
@@ -304,8 +304,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         <div className="leading-relaxed">
           {parts.map((part, idx) => {
             if (part === '[BLANK]') {
-              const qNum = globalOffset + group.question_range_start + blankCount;
               const question = groupQuestions[blankCount];
+              const qNum = question ? question.question_number : (globalOffset + group.question_range_start + blankCount);
               blankCount++;
               
               // Safety check for missing question
@@ -351,7 +351,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset + idx + 1;
+      const globalNum = q.question_number;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -384,7 +384,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Note Completion
   if (type === 'note_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = globalOffset + idx + 1;
+      const globalNum = q.question_number;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -434,7 +434,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           </div>
         )}
         {groupQuestions.map((q, idx) => {
-          const globalNum = globalOffset + idx + 1;
+          const globalNum = q.question_number;
           return (
             <div key={q.id} className="py-3 flex items-start gap-3">
               <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
@@ -462,7 +462,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div className="space-y-3">
         {groupQuestions.map((q, idx) => {
-          const globalNum = globalOffset + idx + 1;
+          const globalNum = q.question_number;
           return (
             <div key={q.id} className="flex items-start gap-3" data-question-id={q.id}>
               <p style={{

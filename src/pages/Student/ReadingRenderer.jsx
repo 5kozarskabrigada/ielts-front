@@ -109,7 +109,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         </div>
         <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
-            const qNum = globalOffset + idx + 1;
+            const qNum = q.question_number;
             return (
               <div key={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
@@ -147,7 +147,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const isMultiple = type === 'multiple_choice_multiple';
     
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + idx + 1;
+      const qNum = q.question_number;
       return (
         <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
@@ -220,7 +220,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div className="space-y-4">
         {groupQuestions.map((q, idx) => {
-          const qNum = globalOffset + idx + 1;
+          const qNum = q.question_number;
           return (
             <div key={q.id} className="flex items-center gap-4 py-1">
               <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
@@ -255,7 +255,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion - NO number, just template
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + idx + 1;
+      const qNum = q.question_number;
       const template = q.question_template || q.question_text || '';
       const parts = template.split('[BLANK]');
       
@@ -282,7 +282,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Short Answer
   if (type === 'short_answer') {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + idx + 1;
+      const qNum = q.question_number;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
@@ -301,7 +301,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Other completion types
   if (['summary_completion', 'table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(type)) {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + idx + 1;
+      const qNum = q.question_number;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
