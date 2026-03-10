@@ -265,7 +265,18 @@ export default function SubmissionDetail() {
                             if (typeof val === 'object') {
                               return Array.isArray(val) ? val.join(', ') : JSON.stringify(val);
                             }
-                            return String(val);
+                            let str = String(val);
+                            // Normalize multi-choice: "CAEF" → "A, C, E, F" and "A/C/D" → "A, C, D"
+                            if (ans.question_type === 'multiple_choice_multiple') {
+                              let letters;
+                              if (str.includes('/')) {
+                                letters = str.split('/').map(s => s.trim()).filter(Boolean);
+                              } else if (/^[A-Za-z]+$/.test(str) && str.length > 1) {
+                                letters = str.toUpperCase().split('');
+                              }
+                              if (letters) return letters.sort().join(', ');
+                            }
+                            return str;
                           };
                           
                           const userAnswer = formatAnswer(ans.user_answer);
