@@ -341,9 +341,22 @@ export default function SubmissionDetail() {
         </div>
       )}
 
-      {/* Writing Responses Section */}
-      {submission.writing_responses && submission.writing_responses.length > 0 && (
-        <div className="space-y-6">
+      {/* Writing Module Section */}
+      {(() => {
+        const writingAnswers = submission.answers_by_module?.writing?.answers || [];
+        const writingResponses = submission.writing_responses || [];
+        if (writingAnswers.length === 0 && writingResponses.length === 0) return null;
+
+        // Group writing answers by section
+        const answersBySection = {};
+        writingAnswers.forEach(ans => {
+          const key = ans.section_title || 'Writing Task';
+          if (!answersBySection[key]) answersBySection[key] = { order: ans.section_order, answers: [] };
+          answersBySection[key].answers.push(ans);
+        });
+        const sortedSections = Object.entries(answersBySection).sort(([, a], [, b]) => a.order - b.order);
+
+        return (
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
@@ -352,190 +365,213 @@ export default function SubmissionDetail() {
               </h3>
             </div>
 
-            {submission.writing_responses.map((wr) => {
-              const aiFeedback = (() => {
-                try { return typeof wr.ai_feedback === 'string' ? JSON.parse(wr.ai_feedback) : wr.ai_feedback; }
-                catch { return null; }
-              })();
-              const override = writingOverrides[wr.id] || {};
-              const finalBand = wr.admin_override_band || wr.final_band || wr.ai_overall_band;
+            {sortedSections.map(([sectionTitle, sectionData], sIdx) => (
+              <div key={sIdx}>
+                <div className="px-6 py-2 bg-blue-50 border-b border-blue-100">
+                  <span className="text-sm font-semibold text-blue-800">
+                    Task {sIdx + 1}: {sectionTitle}
+                  </span>
+                </div>
 
-              return (
-                <div key={wr.id} className="border-b last:border-b-0">
-                  {/* Task Header */}
-                  <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-blue-800">
-                      Task {wr.task_number}
-                    </span>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xs text-gray-500">{wr.word_count || 0} words</span>
-                      {finalBand != null && (
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                          finalBand >= 7 ? 'bg-green-100 text-green-700' :
-                          finalBand >= 5 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          Band {typeof finalBand === 'number' ? finalBand.toFixed(1) : finalBand}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                {sectionData.answers
+                  .sort((a, b) => a.question_number - b.question_number)
+                  .map((ans, idx) => {
+                    const essayText = typeof ans.user_answer === 'string' ? ans.user_answer : (ans.user_answer ? JSON.stringify(ans.user_answer) : '');
+                    const wordCount = essayText.trim() ? essayText.trim().split(/\s+/).length : 0;
+                    
+                    // Try to find matching writing_response for AI grading data
+                    const wr = writingResponses.find(r => 
+                      r.section_id === ans.options?.section_id || r.task_number === (sIdx + 1)
+                    );
+                    const aiFeedback = (() => {
+                      if (!wr?.ai_feedback) return null;
+                      try { return typeof wr.ai_feedback === 'string' ? JSON.parse(wr.ai_feedback) : wr.ai_feedback; }
+                      catch { return null; }
+                    })();
+                    const override = wr ? (writingOverrides[wr.id] || {}) : {};
+                    const finalBand = wr ? (wr.admin_override_band || wr.final_band || wr.ai_overall_band) : null;
 
-                  <div className="p-6 space-y-6">
-                    {/* Student's Essay */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Student's Response</h4>
-                      <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto border">
-                        {wr.response_text || 'No response submitted'}
-                      </div>
-                    </div>
-
-                    {/* AI Grading Scores */}
-                    {wr.ai_overall_band != null ? (
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center space-x-2">
-                          <Star size={16} className="text-amber-500" />
-                          <span>AI Grading</span>
-                        </h4>
-                        <div className="grid grid-cols-5 gap-3 mb-4">
-                          {[
-                            { label: 'Task Response', score: wr.ai_task_response_score },
-                            { label: 'Coherence', score: wr.ai_coherence_score },
-                            { label: 'Lexical', score: wr.ai_lexical_score },
-                            { label: 'Grammar', score: wr.ai_grammar_score },
-                            { label: 'Overall', score: wr.ai_overall_band },
-                          ].map(({ label, score }) => (
-                            <div key={label} className={`rounded-lg p-3 text-center border ${
-                              score >= 7 ? 'bg-green-50 border-green-200' :
-                              score >= 5 ? 'bg-yellow-50 border-yellow-200' :
-                              'bg-red-50 border-red-200'
-                            }`}>
-                              <p className="text-xs text-gray-500 mb-1">{label}</p>
-                              <p className="text-xl font-bold">{score?.toFixed(1)}</p>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* AI Feedback */}
-                        {aiFeedback?.feedback && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-                            <p className="text-sm font-semibold text-blue-800 mb-2">AI Feedback</p>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiFeedback.feedback}</p>
+                    return (
+                      <div key={idx} className="p-6 border-b last:border-b-0 space-y-5">
+                        {/* Task prompt if available */}
+                        {ans.question_text && (
+                          <div className="bg-gray-100 rounded-lg p-4 border">
+                            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Task Prompt</p>
+                            <p className="text-sm text-gray-700">{ans.question_text}</p>
                           </div>
                         )}
 
-                        {/* Key Improvements */}
-                        {aiFeedback?.key_improvements?.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                            <p className="text-sm font-semibold text-amber-800 mb-2">Key Improvements</p>
-                            <ul className="text-sm text-gray-700 space-y-1">
-                              {aiFeedback.key_improvements.map((imp, i) => (
-                                <li key={i} className="flex items-start">
-                                  <span className="text-amber-600 mr-2">•</span>
-                                  {imp}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border">
-                        <p className="text-sm text-gray-500">No AI grading yet</p>
-                        <button
-                          onClick={() => handleAIGrade(wr)}
-                          disabled={gradingAI === wr.id}
-                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
-                        >
-                          {gradingAI === wr.id ? (
-                            <><Loader2 size={16} className="animate-spin" /><span>Grading...</span></>
-                          ) : (
-                            <><Star size={16} /><span>Grade with AI</span></>
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Admin Override Section */}
-                    <div className="border-t pt-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Admin Grade Override</h4>
-                      {wr.admin_override_band != null && !override.editing ? (
-                        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                          <div>
-                            <p className="text-sm text-indigo-800">
-                              <span className="font-semibold">Override Band: {wr.admin_override_band.toFixed(1)}</span>
-                              {wr.admin_graded_at && (
-                                <span className="text-xs text-indigo-500 ml-2">
-                                  (set {new Date(wr.admin_graded_at).toLocaleDateString()})
+                        {/* Student Essay */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-sm font-semibold text-gray-700">Student's Response</h4>
+                            <div className="flex items-center space-x-3">
+                              <span className="text-xs text-gray-500">{wordCount} words</span>
+                              {finalBand != null && (
+                                <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                                  finalBand >= 7 ? 'bg-green-100 text-green-700' :
+                                  finalBand >= 5 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  Band {typeof finalBand === 'number' ? finalBand.toFixed(1) : finalBand}
                                 </span>
                               )}
-                            </p>
-                            {wr.admin_feedback && (
-                              <p className="text-sm text-gray-600 mt-1">{wr.admin_feedback}</p>
+                            </div>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto border">
+                            {essayText || <span className="text-gray-400 italic">No response submitted</span>}
+                          </div>
+                        </div>
+
+                        {/* AI Grading */}
+                        {wr && wr.ai_overall_band != null ? (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center space-x-2">
+                              <Star size={16} className="text-amber-500" />
+                              <span>AI Grading</span>
+                            </h4>
+                            <div className="grid grid-cols-5 gap-3 mb-4">
+                              {[
+                                { label: 'Task Response', score: wr.ai_task_response_score },
+                                { label: 'Coherence', score: wr.ai_coherence_score },
+                                { label: 'Lexical', score: wr.ai_lexical_score },
+                                { label: 'Grammar', score: wr.ai_grammar_score },
+                                { label: 'Overall', score: wr.ai_overall_band },
+                              ].map(({ label, score }) => (
+                                <div key={label} className={`rounded-lg p-3 text-center border ${
+                                  score >= 7 ? 'bg-green-50 border-green-200' :
+                                  score >= 5 ? 'bg-yellow-50 border-yellow-200' :
+                                  'bg-red-50 border-red-200'
+                                }`}>
+                                  <p className="text-xs text-gray-500 mb-1">{label}</p>
+                                  <p className="text-xl font-bold">{score?.toFixed(1)}</p>
+                                </div>
+                              ))}
+                            </div>
+
+                            {aiFeedback?.feedback && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                                <p className="text-sm font-semibold text-blue-800 mb-2">AI Feedback</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiFeedback.feedback}</p>
+                              </div>
+                            )}
+
+                            {aiFeedback?.key_improvements?.length > 0 && (
+                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                <p className="text-sm font-semibold text-amber-800 mb-2">Key Improvements</p>
+                                <ul className="text-sm text-gray-700 space-y-1">
+                                  {aiFeedback.key_improvements.map((imp, i) => (
+                                    <li key={i} className="flex items-start">
+                                      <span className="text-amber-600 mr-2">•</span>
+                                      {imp}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: { band: wr.admin_override_band, feedback: wr.admin_feedback || '', editing: true } }))}
-                            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-end gap-3">
-                          <div className="flex-shrink-0">
-                            <label className="text-xs text-gray-500 block mb-1">Band Score</label>
-                            <input
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              max="9"
-                              value={override.band ?? ''}
-                              onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], band: e.target.value } }))}
-                              className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
-                              placeholder="0-9"
-                            />
+                        ) : (
+                          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border">
+                            <p className="text-sm text-gray-500">No AI grading yet</p>
+                            {essayText && (
+                              <button
+                                onClick={() => handleAIGrade({ id: `ans-${ans.question_id}`, section_id: ans.options?.id, task_number: sIdx + 1, response_text: essayText })}
+                                disabled={gradingAI === `ans-${ans.question_id}`}
+                                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
+                              >
+                                {gradingAI === `ans-${ans.question_id}` ? (
+                                  <><Loader2 size={16} className="animate-spin" /><span>Grading...</span></>
+                                ) : (
+                                  <><Star size={16} /><span>Grade with AI</span></>
+                                )}
+                              </button>
+                            )}
                           </div>
-                          <div className="flex-1">
-                            <label className="text-xs text-gray-500 block mb-1">Feedback (optional)</label>
-                            <input
-                              type="text"
-                              value={override.feedback ?? ''}
-                              onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], feedback: e.target.value } }))}
-                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                              placeholder="Admin feedback..."
-                            />
-                          </div>
-                          <button
-                            onClick={() => handleSaveOverride(wr.id)}
-                            disabled={!override.band || savingOverride === wr.id}
-                            className="flex items-center space-x-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex-shrink-0"
-                          >
-                            {savingOverride === wr.id ? (
-                              <Loader2 size={16} className="animate-spin" />
+                        )}
+
+                        {/* Admin Override */}
+                        {wr && (
+                          <div className="border-t pt-4">
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Admin Grade Override</h4>
+                            {wr.admin_override_band != null && !override.editing ? (
+                              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                                <div>
+                                  <p className="text-sm text-indigo-800">
+                                    <span className="font-semibold">Override Band: {wr.admin_override_band.toFixed(1)}</span>
+                                    {wr.admin_graded_at && (
+                                      <span className="text-xs text-indigo-500 ml-2">
+                                        (set {new Date(wr.admin_graded_at).toLocaleDateString()})
+                                      </span>
+                                    )}
+                                  </p>
+                                  {wr.admin_feedback && (
+                                    <p className="text-sm text-gray-600 mt-1">{wr.admin_feedback}</p>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: { band: wr.admin_override_band, feedback: wr.admin_feedback || '', editing: true } }))}
+                                  className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                                >
+                                  Edit
+                                </button>
+                              </div>
                             ) : (
-                              <Save size={16} />
+                              <div className="flex items-end gap-3">
+                                <div className="flex-shrink-0">
+                                  <label className="text-xs text-gray-500 block mb-1">Band Score</label>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    max="9"
+                                    value={override.band ?? ''}
+                                    onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], band: e.target.value } }))}
+                                    className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                                    placeholder="0-9"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-xs text-gray-500 block mb-1">Feedback (optional)</label>
+                                  <input
+                                    type="text"
+                                    value={override.feedback ?? ''}
+                                    onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], feedback: e.target.value } }))}
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                    placeholder="Admin feedback..."
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => handleSaveOverride(wr.id)}
+                                  disabled={!override.band || savingOverride === wr.id}
+                                  className="flex items-center space-x-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex-shrink-0"
+                                >
+                                  {savingOverride === wr.id ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : (
+                                    <Save size={16} />
+                                  )}
+                                  <span>Save</span>
+                                </button>
+                                {override.editing && (
+                                  <button
+                                    onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: undefined }))}
+                                    className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </div>
                             )}
-                            <span>Save</span>
-                          </button>
-                          {override.editing && (
-                            <button
-                              onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: undefined }))}
-                              className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm"
-                            >
-                              Cancel
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
