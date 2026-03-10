@@ -11,7 +11,6 @@ import ExamsPage from "./pages/Admin/Exams";
 import ExamDetail from "./pages/Admin/ExamDetail";
 import ExamEditor from "./pages/Admin/ExamEditor"; // New Editor
 import SettingsPage from "./pages/Admin/Settings";
-import ResultsPage from "./pages/Admin/Results";
 import RecycleBin from "./pages/Admin/RecycleBin";
 import SubmissionsPage from "./pages/Admin/Submissions";
 import SubmissionDetail from "./pages/Admin/SubmissionDetail";
@@ -61,7 +60,6 @@ function App() {
             <Route path="exams/editor/:id" element={<ExamEditor />} />
             <Route path="exams/:id" element={<ExamDetail />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="results" element={<ResultsPage />} />
             <Route path="submissions" element={<SubmissionsPage />} />
             <Route path="submissions/:id" element={<SubmissionDetail />} />
             <Route path="logs" element={<LogsPage />} />

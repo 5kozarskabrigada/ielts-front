@@ -16,7 +16,6 @@ export default function AdminDashboardLayout() {
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/classrooms", label: "Classrooms", icon: GraduationCap },
     { path: "/admin/exams", label: "Exams", icon: BookOpen },
-    { path: "/admin/results", label: "Results", icon: CheckCircle },
     { path: "/admin/submissions", label: "Submissions", icon: FileText },
     { path: "/admin/logs", label: "Activity Logs", icon: Activity },
     { path: "/admin/recycle-bin", label: "Recycle Bin", icon: Trash2 },

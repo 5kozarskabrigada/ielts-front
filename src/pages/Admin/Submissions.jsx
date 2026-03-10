@@ -181,7 +181,7 @@ export default function SubmissionsPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Exam</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Submitted</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Band Score</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Correct / Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">L / R / W</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Actions</th>
               </tr>
@@ -220,12 +220,21 @@ export default function SubmissionsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">
-                        {Object.keys(submission.answers || {}).length} answers
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Submitted
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        {['listening', 'reading', 'writing'].map(mod => {
+                          const score = submission.scores_by_module?.[mod] ?? '-';
+                          return (
+                            <span key={mod} className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              score === '-' ? 'bg-gray-100 text-gray-500' :
+                              score >= 7 ? 'bg-green-100 text-green-700' :
+                              score >= 5 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {mod[0].toUpperCase()}:{typeof score === 'number' ? score.toFixed(1) : score}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
