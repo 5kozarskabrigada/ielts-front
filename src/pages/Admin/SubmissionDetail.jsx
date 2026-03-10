@@ -433,15 +433,43 @@ export default function SubmissionDetail() {
                           ))}
                         </div>
 
+                        {/* Per-criteria feedback */}
+                        {(() => {
+                          const criteriaFeedback = [
+                            { label: 'Task Response', text: aiFeedback?.task_response_feedback, score: wr.ai_task_response_score, color: 'blue' },
+                            { label: 'Coherence & Cohesion', text: aiFeedback?.coherence_feedback, score: wr.ai_coherence_score, color: 'purple' },
+                            { label: 'Lexical Resource', text: aiFeedback?.lexical_feedback, score: wr.ai_lexical_score, color: 'teal' },
+                            { label: 'Grammatical Range & Accuracy', text: aiFeedback?.grammar_feedback, score: wr.ai_grammar_score, color: 'orange' },
+                          ].filter(c => c.text);
+                          if (criteriaFeedback.length === 0) return null;
+                          return (
+                            <div className="space-y-3 mb-4">
+                              {criteriaFeedback.map(({ label, text, score }) => (
+                                <div key={label} className="bg-gray-50 border rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-semibold text-gray-800">{label}</p>
+                                    <span className={`text-sm font-bold px-2 py-0.5 rounded ${
+                                      score >= 7 ? 'bg-green-100 text-green-700' :
+                                      score >= 5 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>{score?.toFixed(1)}</span>
+                                  </div>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{text}</p>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+
                         {aiFeedback?.feedback && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-                            <p className="text-sm font-semibold text-blue-800 mb-2">AI Feedback</p>
+                            <p className="text-sm font-semibold text-blue-800 mb-2">Overall Feedback</p>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiFeedback.feedback}</p>
                           </div>
                         )}
 
                         {aiFeedback?.key_improvements?.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-3">
                             <p className="text-sm font-semibold text-amber-800 mb-2">Key Improvements</p>
                             <ul className="text-sm text-gray-700 space-y-1">
                               {aiFeedback.key_improvements.map((imp, i) => (
@@ -452,6 +480,21 @@ export default function SubmissionDetail() {
                               ))}
                             </ul>
                           </div>
+                        )}
+
+                        {/* Re-grade button */}
+                        {essayText && (
+                          <button
+                            onClick={() => handleAIGrade({ id: wr.id, section_id: wr.section_id, task_number: wr.task_number, response_text: essayText })}
+                            disabled={gradingAI === wr.id}
+                            className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm"
+                          >
+                            {gradingAI === wr.id ? (
+                              <><Loader2 size={16} className="animate-spin" /><span>Re-grading...</span></>
+                            ) : (
+                              <><Star size={16} /><span>Re-grade with AI</span></>
+                            )}
+                          </button>
                         )}
                       </div>
                     ) : (
