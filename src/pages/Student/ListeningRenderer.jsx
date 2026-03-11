@@ -553,12 +553,12 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
               }
 
               // Calculate global question numbers for this group
-              // Count how many questions in this section came before this group
-              const previousQuestionsInSection = groupQuestions.length > 0 
-                ? groupQuestions[0].question_number - 1 
-                : group.question_range_start - 1;
-              const groupStartNum = globalOffset + previousQuestionsInSection + 1;
-              const groupEndNum = globalOffset + previousQuestionsInSection + groupQuestions.length;
+              const groupRangeStart = group.question_range_start || 1;
+              const groupRangeEnd = group.question_range_end || groupRangeStart;
+              const groupStartNum = globalOffset + groupRangeStart;
+              const groupEndNum = groupQuestions.length > 0
+                ? globalOffset + groupQuestions[groupQuestions.length - 1].question_number
+                : globalOffset + groupRangeEnd;
               const questionRangeText = groupStartNum === groupEndNum 
                 ? `Question ${groupStartNum}`
                 : `Questions ${groupStartNum}–${groupEndNum}`;

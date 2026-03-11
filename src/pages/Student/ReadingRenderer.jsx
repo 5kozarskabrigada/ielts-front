@@ -529,12 +529,8 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
               .filter(q => q.section_id === section.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end)
               .sort((a, b) => a.question_number - b.question_number);
             
-            // Calculate the starting index for this group (how many questions came before)
-            const previousQuestions = questions
-              .filter(q => q.section_id === section.id && q.question_number < group.question_range_start)
-              .length;
-            const groupStartNum = globalOffset + previousQuestions + 1;
-            const groupEndNum = globalOffset + previousQuestions + groupQuestions.length;
+            const groupStartNum = globalOffset + group.question_range_start;
+            const groupEndNum = globalOffset + group.question_range_end;
             const questionRangeText = groupStartNum === groupEndNum ? `Question ${groupStartNum}` : `Questions ${groupStartNum}–${groupEndNum}`;
 
             return (
