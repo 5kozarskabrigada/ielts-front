@@ -561,7 +561,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
                     />
                   </div>
                 )}
-                <div>{renderQuestionGroup(group, groupQuestions, globalOffset + previousQuestions, answers, setAnswers, paragraphLetters)}</div>
+                <div>{renderQuestionGroup(group, groupQuestions, globalOffset + group.question_range_start - 1, answers, setAnswers, paragraphLetters)}</div>
               </div>
             );
           })}
