@@ -902,8 +902,8 @@ export default function ExamPlayer() {
       </div>
 
       {/* Progress Footer */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-3 py-2">
-        <div className="flex items-center justify-center gap-x-3 gap-y-1 flex-wrap">
+      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-center gap-x-4 gap-y-2 flex-wrap">
           {(currentModule === "listening" || currentModule === "reading") && (() => {
             let cumulativeOffset = 0;
             const accentBg = currentModule === "listening" ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
@@ -912,51 +912,106 @@ export default function ExamPlayer() {
               const partNumber = partIdx + 1;
               const globalOffset = cumulativeOffset;
               const sectionGroups = questionGroups.filter(g => g.section_id === section.id).sort((a, b) => (a.question_range_start || 0) - (b.question_range_start || 0));
-              const partQuestions = questions.filter(q => q.section_id === section.id);
+              const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
               const isCurrentPart = partNumber === currentPart;
               
               const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
               cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
 
+              // Build footer items: individual buttons for most questions, range for multiple_choice_multiple groups
+              const items = [];
+              const mcmGroupIds = new Set();
+              sectionGroups.forEach(group => {
+                if (group.question_type === 'multiple_choice_multiple') {
+                  mcmGroupIds.add(group.id);
+                  const groupQs = partQuestions.filter(q => q.question_number >= group.question_range_start && q.question_number <= group.question_range_end);
+                  const start = globalOffset + group.question_range_start;
+                  const end = globalOffset + group.question_range_end;
+                  const isAnyAnswered = groupQs.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
+                  const firstQ = groupQs[0];
+                  items.push({ type: 'range', start, end, isAnyAnswered, firstQ, groupId: group.id, sortKey: group.question_range_start });
+                }
+              });
+
+              // Add individual question buttons (skip questions that belong to mcm groups)
+              partQuestions.forEach(q => {
+                const belongsToMcm = sectionGroups.some(g => mcmGroupIds.has(g.id) && q.question_number >= g.question_range_start && q.question_number <= g.question_range_end);
+                if (!belongsToMcm) {
+                  items.push({ type: 'single', question: q, sortKey: q.question_number });
+                }
+              });
+
+              // Add synthetic entries for summary_completion blanks not in partQuestions
+              sectionGroups.forEach(group => {
+                if (group.question_type === 'summary_completion' && group.summary_data?.text) {
+                  const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
+                  for (let i = 0; i < blankCount; i++) {
+                    const qNum = group.question_range_start + i;
+                    if (!partQuestions.find(q => q.question_number === qNum)) {
+                      const syntheticId = `summary_placeholder_${group.id}_${i}`;
+                      items.push({ type: 'single', question: { id: syntheticId, question_number: qNum }, sortKey: qNum });
+                    }
+                  }
+                }
+              });
+
+              items.sort((a, b) => a.sortKey - b.sortKey);
+
               return (
-                <div key={section.id} className="flex items-center gap-1">
+                <div key={section.id} className="flex items-center space-x-2">
                   <button 
                     onClick={() => setCurrentPart(partNumber)}
-                    className={`text-xs font-semibold transition cursor-pointer px-2 py-1 rounded ${
-                      isCurrentPart ? accentBg : `text-gray-600 ${accentHover}`
+                    className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
+                      isCurrentPart ? accentBg : `text-gray-700 ${accentHover}`
                     }`}
                   >
-                    P{partNumber}
+                    Part {partNumber}
                   </button>
-                  <div className="flex gap-0.5">
-                    {sectionGroups.map(group => {
-                      const start = globalOffset + group.question_range_start;
-                      const end = globalOffset + group.question_range_end;
-                      const rangeText = start === end ? `${start}` : `${start}-${end}`;
-                      
-                      // Check answered status from actual questions in this range
-                      const groupQs = partQuestions.filter(q => q.question_number >= group.question_range_start && q.question_number <= group.question_range_end);
-                      const isAnyAnswered = groupQs.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
-                      const firstQ = groupQs[0];
-                      
-                      return (
-                        <button
-                          key={group.id}
-                          onClick={() => {
-                            setCurrentPart(partNumber);
-                            setTimeout(() => {
-                              const el = firstQ && document.querySelector(`[data-question-id="${firstQ.id}"]`);
-                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 100);
-                          }}
-                          className={`h-6 px-1.5 rounded text-[10px] font-semibold cursor-pointer transition hover:scale-105 ${
-                            isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                          }`}
-                          title={`${start === end ? 'Question' : 'Questions'} ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
-                        >
-                          {rangeText}
-                        </button>
-                      );
+                  <div className="flex space-x-1">
+                    {items.map((item) => {
+                      if (item.type === 'single') {
+                        const q = item.question;
+                        const globalNum = globalOffset + q.question_number;
+                        const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+                        return (
+                          <button
+                            key={q.id}
+                            onClick={() => {
+                              setCurrentPart(partNumber);
+                              setTimeout(() => {
+                                const el = document.querySelector(`[data-question-id="${q.id}"]`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 100);
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                              isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                            }`}
+                            title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
+                          >
+                            {globalNum}
+                          </button>
+                        );
+                      } else {
+                        const rangeText = `${item.start}-${item.end}`;
+                        return (
+                          <button
+                            key={`group-${item.groupId}`}
+                            onClick={() => {
+                              setCurrentPart(partNumber);
+                              setTimeout(() => {
+                                const el = item.firstQ && document.querySelector(`[data-question-id="${item.firstQ.id}"]`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 100);
+                            }}
+                            className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
+                              item.isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                            }`}
+                            title={`Questions ${rangeText}${item.isAnyAnswered ? ' - Answered' : ''}`}
+                          >
+                            {rangeText}
+                          </button>
+                        );
+                      }
                     })}
                   </div>
                 </div>
