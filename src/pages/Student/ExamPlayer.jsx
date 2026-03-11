@@ -1073,21 +1073,6 @@ export default function ExamPlayer() {
                         const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
                         return aIdx - bIdx;
                       });
-                          groups.push({ type: 'single', question: q, qIdx });
-                        }
-                      });
-
-                      // Add grouped questions
-                      groupMap.forEach((groupQuestions, groupId) => {
-                        groups.push({ type: 'group', questions: groupQuestions, groupId });
-                      });
-
-                      // Sort by first question index
-                      groups.sort((a, b) => {
-                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
-                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
-                        return aIdx - bIdx;
-                      });
 
                       return groups.map((item, idx) => {
                         if (item.type === 'single') {
