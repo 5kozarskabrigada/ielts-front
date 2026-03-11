@@ -785,7 +785,12 @@ export default function ExamPlayer() {
                   answers={answers}
                   setAnswers={setAnswers}
                   partNumber={currentPart}
-                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => sum + questions.filter(q => q.section_id === s.id).length, 0)}
+                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
+                    const dbCount = questions.filter(q => q.section_id === s.id).length;
+                    const sGroups = questionGroups.filter(g => g.section_id === s.id);
+                    const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
+                    return sum + Math.max(dbCount, maxEnd);
+                  }, 0)}
                 />
               </ErrorBoundary>
             </div>
@@ -800,7 +805,12 @@ export default function ExamPlayer() {
                 <ReadingRenderer 
                   section={currentSection}
                   partNumber={currentPart}
-                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => sum + questions.filter(q => q.section_id === s.id).length, 0)}
+                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
+                    const dbCount = questions.filter(q => q.section_id === s.id).length;
+                    const sGroups = questionGroups.filter(g => g.section_id === s.id);
+                    const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
+                    return sum + Math.max(dbCount, maxEnd);
+                  }, 0)}
                   questions={currentQuestions}
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
@@ -899,11 +909,28 @@ export default function ExamPlayer() {
             return allModuleSections.map((section, partIdx) => {
               const partNumber = partIdx + 1;
               const globalOffset = cumulativeOffset;
-              const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+              let partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
               const isCurrentPart = partNumber === currentPart;
+
+              // Generate synthetic questions for summary_completion groups that have no DB rows
+              const sectionGroups = questionGroups.filter(g => g.section_id === section.id);
+              sectionGroups.forEach(group => {
+                if (group.question_type === 'summary_completion' && group.summary_data?.text) {
+                  const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
+                  for (let i = 0; i < blankCount; i++) {
+                    const qNum = group.question_range_start + i;
+                    const syntheticId = `summary_placeholder_${group.id}_${i}`;
+                    if (!partQuestions.find(q => q.question_number === qNum)) {
+                      partQuestions.push({ id: syntheticId, question_number: qNum, section_id: section.id, group_id: group.id, _synthetic: true });
+                    }
+                  }
+                  partQuestions = partQuestions.sort((a, b) => a.question_number - b.question_number);
+                }
+              });
               
-              // Update offset for next part
-              cumulativeOffset += partQuestions.length;
+              // Update offset for next part - use max question_range_end from groups or question count
+              const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
+              cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
 
               return (
                 <div key={section.id} className="flex items-center space-x-2">
@@ -1019,11 +1046,28 @@ export default function ExamPlayer() {
             return allModuleSections.map((section, partIdx) => {
               const partNumber = partIdx + 1;
               const globalOffset = cumulativeOffset;
-              const partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+              let partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
               const isCurrentPart = partNumber === currentPart;
+
+              // Generate synthetic questions for summary_completion groups that have no DB rows
+              const sectionGroups = questionGroups.filter(g => g.section_id === section.id);
+              sectionGroups.forEach(group => {
+                if (group.question_type === 'summary_completion' && group.summary_data?.text) {
+                  const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
+                  for (let i = 0; i < blankCount; i++) {
+                    const qNum = group.question_range_start + i;
+                    const syntheticId = `summary_placeholder_${group.id}_${i}`;
+                    if (!partQuestions.find(q => q.question_number === qNum)) {
+                      partQuestions.push({ id: syntheticId, question_number: qNum, section_id: section.id, group_id: group.id, _synthetic: true });
+                    }
+                  }
+                  partQuestions = partQuestions.sort((a, b) => a.question_number - b.question_number);
+                }
+              });
               
-              // Update offset for next part
-              cumulativeOffset += partQuestions.length;
+              // Update offset for next part - use max question_range_end from groups or question count
+              const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
+              cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
 
               return (
                 <div key={section.id} className="flex items-center space-x-2">
