@@ -262,20 +262,55 @@ function ExamEditorContent() {
         return q;
       });
 
-      // Update context with corrected questions
-      setQuestions(correctedQuestions);
+      // IMPORTANT: Renumber questions within each group to be sequential
+      // This prevents the footer navigation bug where all questions show same number (e.g., "5-5" instead of "5-9")
+      const normalizedQuestions = correctedQuestions.map(q => {
+        // Find the group this question belongs to
+        if (q.group_id) {
+          const group = listeningGroups.find(g => g.id === q.group_id);
+          if (group && group.question_range_start && group.question_range_end) {
+            // Get all questions in this group, sorted by ID (creation order)
+            const groupQuestions = correctedQuestions
+              .filter(gq => gq.group_id === q.group_id)
+              .sort((a, b) => {
+                // Sort by existing question_number, then by ID
+                if (a.question_number !== b.question_number) {
+                  return a.question_number - b.question_number;
+                }
+                // For temp IDs (strings), compare as strings; for real IDs (numbers), compare as numbers
+                const aId = typeof a.id === 'string' ? a.id : String(a.id);
+                const bId = typeof b.id === 'string' ? b.id : String(b.id);
+                return aId.localeCompare(bId);
+              });
+            
+            // Find this question's index in the sorted group
+            const indexInGroup = groupQuestions.findIndex(gq => gq.id === q.id);
+            if (indexInGroup >= 0) {
+              // Assign sequential number: start + index
+              const sequentialNumber = group.question_range_start + indexInGroup;
+              if (sequentialNumber <= group.question_range_end) {
+                return { ...q, question_number: sequentialNumber };
+              }
+            }
+          }
+        }
+        return q;
+      });
+
+      // Update context with normalized questions
+      setQuestions(normalizedQuestions);
       
       console.log('[Save] Sending to backend:', {
         sections: sections.length,
         questionGroups: questionGroups.length,
-        questions: correctedQuestions.length,
-        summaryQuestions: correctedQuestions.filter(q => q.question_type === 'summary_completion').length
+        questions: normalizedQuestions.length,
+        summaryQuestions: normalizedQuestions.filter(q => q.question_type === 'summary_completion').length
       });
       
       const response = await apiSaveExamStructure(token, examId, { 
         exam: { ...exam, access_code: exam.code },
         sections, 
-        questions: correctedQuestions,
+        questions: normalizedQuestions,
         questionGroups,
         deletedQuestionIds,
         deletedGroupIds
