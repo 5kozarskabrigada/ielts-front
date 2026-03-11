@@ -520,36 +520,32 @@ export default function SubmissionDetail() {
                         )}
 
                         {/* Re-grade button */}
-                        {essayText && (
-                          <button
-                            onClick={() => handleAIGrade({ id: wr.id, section_id: wr.section_id, task_number: wr.task_number, response_text: essayText })}
-                            disabled={gradingAI === wr.id}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm"
-                          >
-                            {gradingAI === wr.id ? (
-                              <><Loader2 size={16} className="animate-spin" /><span>Re-grading...</span></>
-                            ) : (
-                              <><Star size={16} /><span>Re-grade with AI</span></>
-                            )}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleAIGrade({ id: wr.id, section_id: wr.section_id, task_number: wr.task_number, response_text: essayText })}
+                          disabled={gradingAI === wr.id}
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm"
+                        >
+                          {gradingAI === wr.id ? (
+                            <><Loader2 size={16} className="animate-spin" /><span>Re-grading...</span></>
+                          ) : (
+                            <><Star size={16} /><span>Re-grade with AI</span></>
+                          )}
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border">
                         <p className="text-sm text-gray-500">No AI grading yet</p>
-                        {essayText && (
-                          <button
-                            onClick={() => handleAIGrade({ id: wr.id, section_id: wr.section_id, task_number: wr.task_number, response_text: essayText })}
-                            disabled={gradingAI === wr.id}
-                            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
-                          >
-                            {gradingAI === wr.id ? (
-                              <><Loader2 size={16} className="animate-spin" /><span>Grading...</span></>
-                            ) : (
-                              <><Star size={16} /><span>Grade with AI</span></>
-                            )}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleAIGrade({ id: wr.id, section_id: wr.section_id, task_number: wr.task_number, response_text: essayText })}
+                          disabled={gradingAI === wr.id}
+                          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
+                        >
+                          {gradingAI === wr.id ? (
+                            <><Loader2 size={16} className="animate-spin" /><span>Grading...</span></>
+                          ) : (
+                            <><Star size={16} /><span>Grade with AI</span></>
+                          )}
+                        </button>
                       </div>
                     )}
 
