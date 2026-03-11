@@ -231,13 +231,13 @@ export default function UsersPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email {formData.role === 'student' ? '(Optional)' : '(Required for Admin)'}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
             <input
               type="email"
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required={formData.role === 'admin'}
+
             />
           </div>
           <div>
