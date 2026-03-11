@@ -823,7 +823,7 @@ export default function ExamPlayer() {
 
         {/* Writing Module */}
         {currentModule === "writing" && (
-          <div className="h-full flex flex-col p-6">
+          <div className="h-full flex flex-col p-6 overflow-y-auto">
             <div className="max-w-4xl mx-auto w-full">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold text-gray-900" style={{color: 'rgb(41, 69, 99)', fontFamily: 'Montserrat, Helvetica, Arial, sans-serif'}}>
@@ -834,7 +834,7 @@ export default function ExamPlayer() {
                 </div>
               </div>
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1">
               {currentSections
                 .filter((_, idx) => idx + 1 === currentWritingTask) // Show only current task
                 .map((section, idx) => {
@@ -885,7 +885,7 @@ export default function ExamPlayer() {
 
                       {/* Response Area */}
                       <textarea
-                        className="w-full h-64 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full min-h-[250px] p-4 border-2 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 outline-none"
                         style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
                         placeholder={`Write your response for Task ${actualTaskNumber} here...`}
                         value={answers[taskKey] || ""}
@@ -1036,19 +1036,13 @@ export default function ExamPlayer() {
             const taskKey = `writing_task_${taskNumber}`;
             const isAnswered = (answers[taskKey] || '').trim().length > 0;
             const isCurrentTask = taskNumber === currentWritingTask;
-            const isAccessible = taskNumber <= currentWritingTask; // Can only access current or previous tasks
             
             return (
               <button 
                 key={section.id} 
-                onClick={() => {
-                  if (isAccessible) {
-                    setCurrentWritingTask(taskNumber);
-                  }
-                }}
-                disabled={!isAccessible}
+                onClick={() => setCurrentWritingTask(taskNumber)}
                 className={`flex items-center space-x-3 cursor-pointer transition ${
-                  isCurrentTask ? 'opacity-100' : isAccessible ? 'opacity-70 hover:opacity-100' : 'opacity-40 cursor-not-allowed'
+                  isCurrentTask ? 'opacity-100' : 'opacity-70 hover:opacity-100'
                 }`}
               >
                 <span className={`text-sm font-semibold min-w-[60px] ${
