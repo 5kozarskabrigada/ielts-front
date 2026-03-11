@@ -902,276 +902,62 @@ export default function ExamPlayer() {
       </div>
 
       {/* Progress Footer */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-center space-x-6 flex-wrap gap-y-3">
-          {currentModule === "listening" && (() => {
+      <div className="flex-shrink-0 bg-white border-t border-gray-200 px-3 py-2">
+        <div className="flex items-center justify-center gap-x-3 gap-y-1 flex-wrap">
+          {(currentModule === "listening" || currentModule === "reading") && (() => {
             let cumulativeOffset = 0;
+            const accentBg = currentModule === "listening" ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700';
+            const accentHover = currentModule === "listening" ? 'hover:text-blue-600 hover:bg-gray-100' : 'hover:text-emerald-600 hover:bg-gray-100';
             return allModuleSections.map((section, partIdx) => {
               const partNumber = partIdx + 1;
               const globalOffset = cumulativeOffset;
-              let partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
+              const sectionGroups = questionGroups.filter(g => g.section_id === section.id).sort((a, b) => (a.question_range_start || 0) - (b.question_range_start || 0));
+              const partQuestions = questions.filter(q => q.section_id === section.id);
               const isCurrentPart = partNumber === currentPart;
-
-              // Generate synthetic questions for summary_completion groups that have no DB rows
-              const sectionGroups = questionGroups.filter(g => g.section_id === section.id);
-              sectionGroups.forEach(group => {
-                if (group.question_type === 'summary_completion' && group.summary_data?.text) {
-                  const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
-                  for (let i = 0; i < blankCount; i++) {
-                    const qNum = group.question_range_start + i;
-                    const syntheticId = `summary_placeholder_${group.id}_${i}`;
-                    if (!partQuestions.find(q => q.question_number === qNum)) {
-                      partQuestions.push({ id: syntheticId, question_number: qNum, section_id: section.id, group_id: group.id, _synthetic: true });
-                    }
-                  }
-                  partQuestions = partQuestions.sort((a, b) => a.question_number - b.question_number);
-                }
-              });
               
-              // Update offset for next part - use max question_range_end from groups or question count
               const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
               cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
 
               return (
-                <div key={section.id} className="flex items-center space-x-2">
+                <div key={section.id} className="flex items-center gap-1">
                   <button 
                     onClick={() => setCurrentPart(partNumber)}
-                    className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
-                      isCurrentPart ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
+                    className={`text-xs font-semibold transition cursor-pointer px-2 py-1 rounded ${
+                      isCurrentPart ? accentBg : `text-gray-600 ${accentHover}`
                     }`}
                   >
-                    Part {partNumber}
+                    P{partNumber}
                   </button>
-                  <div className="flex space-x-1">
-                    {(() => {
-                      // Only group multiple_choice_multiple questions, show others individually
-                      const groups = [];
-                      const groupMap = new Map();
+                  <div className="flex gap-0.5">
+                    {sectionGroups.map(group => {
+                      const start = globalOffset + group.question_range_start;
+                      const end = globalOffset + group.question_range_end;
+                      const rangeText = start === end ? `${start}` : `${start}-${end}`;
                       
-                      partQuestions.forEach((q, qIdx) => {
-                        if (q.group_id) {
-                          // Find the group details to check question type
-                          const groupDetails = questionGroups.find(g => g.id === q.group_id);
-                          const isMultipleChoiceMultiple = groupDetails?.question_type === 'multiple_choice_multiple';
-                          
-                          if (isMultipleChoiceMultiple) {
-                            // Only group multiple_choice_multiple questions
-                            if (!groupMap.has(q.group_id)) {
-                              groupMap.set(q.group_id, []);
-                            }
-                            groupMap.get(q.group_id).push({ ...q, qIdx });
-                          } else {
-                            // Show as individual for other types
-                            groups.push({ type: 'single', question: q, qIdx });
-                          }
-                        } else {
-                          groups.push({ type: 'single', question: q, qIdx });
-                        }
-                      });
-
-                      // Add grouped multiple_choice_multiple questions
-                      groupMap.forEach((groupQuestions, groupId) => {
-                        groups.push({ type: 'group', questions: groupQuestions, groupId });
-                      });
-
-                      // Sort by first question index
-                      groups.sort((a, b) => {
-                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
-                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
-                        return aIdx - bIdx;
-                      });
-
-                      return groups.map((item, idx) => {
-                        if (item.type === 'single') {
-                          const q = item.question;
-                          const globalNum = globalOffset + q.question_number;
-                          const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                          return (
-                            <button
-                              key={q.id}
-                              onClick={() => {
-                                setCurrentPart(partNumber);
-                                setTimeout(() => {
-                                  const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                                  if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }
-                                }, 100);
-                              }}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                                isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                              title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
-                            >
-                              {globalNum}
-                            </button>
-                          );
-                        } else {
-                          // Group of questions (show as range)
-                          const firstQ = item.questions[0];
-                          const lastQ = item.questions[item.questions.length - 1];
-                          const rangeText = `${globalOffset + firstQ.question_number}-${globalOffset + lastQ.question_number}`;
-                          const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
-                          return (
-                            <button
-                              key={`group-${item.groupId}`}
-                              onClick={() => {
-                                setCurrentPart(partNumber);
-                                setTimeout(() => {
-                                  const element = document.querySelector(`[data-question-id="${firstQ.id}"]`);
-                                  if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }
-                                }, 100);
-                              }}
-                              className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                                isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                              title={`Questions ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
-                            >
-                              {rangeText}
-                            </button>
-                          );
-                        }
-                      });
-                    })()}
-                  </div>
-                </div>
-              );
-            });
-          })()}
-
-          {currentModule === "reading" && (() => {
-            let cumulativeOffset = 0;
-            return allModuleSections.map((section, partIdx) => {
-              const partNumber = partIdx + 1;
-              const globalOffset = cumulativeOffset;
-              let partQuestions = questions.filter(q => q.section_id === section.id).sort((a, b) => a.question_number - b.question_number);
-              const isCurrentPart = partNumber === currentPart;
-
-              // Generate synthetic questions for summary_completion groups that have no DB rows
-              const sectionGroups = questionGroups.filter(g => g.section_id === section.id);
-              sectionGroups.forEach(group => {
-                if (group.question_type === 'summary_completion' && group.summary_data?.text) {
-                  const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
-                  for (let i = 0; i < blankCount; i++) {
-                    const qNum = group.question_range_start + i;
-                    const syntheticId = `summary_placeholder_${group.id}_${i}`;
-                    if (!partQuestions.find(q => q.question_number === qNum)) {
-                      partQuestions.push({ id: syntheticId, question_number: qNum, section_id: section.id, group_id: group.id, _synthetic: true });
-                    }
-                  }
-                  partQuestions = partQuestions.sort((a, b) => a.question_number - b.question_number);
-                }
-              });
-              
-              // Update offset for next part - use max question_range_end from groups or question count
-              const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
-              cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
-
-              return (
-                <div key={section.id} className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setCurrentPart(partNumber)}
-                    className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
-                      isCurrentPart ? 'bg-emerald-100 text-emerald-700' : 'text-gray-700 hover:text-emerald-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    Part {partNumber}
-                  </button>
-                  <div className="flex space-x-1">
-                    {(() => {
-                      // Only group multiple_choice_multiple questions, show others individually
-                      const groups = [];
-                      const groupMap = new Map();
+                      // Check answered status from actual questions in this range
+                      const groupQs = partQuestions.filter(q => q.question_number >= group.question_range_start && q.question_number <= group.question_range_end);
+                      const isAnyAnswered = groupQs.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
+                      const firstQ = groupQs[0];
                       
-                      partQuestions.forEach((q, qIdx) => {
-                        if (q.group_id) {
-                          // Find the group details to check question type
-                          const groupDetails = questionGroups.find(g => g.id === q.group_id);
-                          const isMultipleChoiceMultiple = groupDetails?.question_type === 'multiple_choice_multiple';
-                          
-                          if (isMultipleChoiceMultiple) {
-                            // Only group multiple_choice_multiple questions
-                            if (!groupMap.has(q.group_id)) {
-                              groupMap.set(q.group_id, []);
-                            }
-                            groupMap.get(q.group_id).push({ ...q, qIdx });
-                          } else {
-                            // Show as individual for other types
-                            groups.push({ type: 'single', question: q, qIdx });
-                          }
-                        } else {
-                          groups.push({ type: 'single', question: q, qIdx });
-                        }
-                      });
-
-                      // Add grouped multiple_choice_multiple questions
-                      groupMap.forEach((groupQuestions, groupId) => {
-                        groups.push({ type: 'group', questions: groupQuestions, groupId });
-                      });
-
-                      // Sort by first question index
-                      groups.sort((a, b) => {
-                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
-                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
-                        return aIdx - bIdx;
-                      });
-
-                      return groups.map((item, idx) => {
-                        if (item.type === 'single') {
-                          const q = item.question;
-                          const globalNum = globalOffset + q.question_number;
-                          const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
-                          return (
-                            <button
-                              key={q.id}
-                              onClick={() => {
-                                setCurrentPart(partNumber);
-                                setTimeout(() => {
-                                  const element = document.querySelector(`[data-question-id="${q.id}"]`);
-                                  if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }
-                                }, 100);
-                              }}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                                isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                              title={`Question ${globalNum}${isAnswered ? ' - Answered' : ''}`}
-                            >
-                              {globalNum}
-                            </button>
-                          );
-                        } else {
-                          // Group of questions (show as range)
-                          const firstQ = item.questions[0];
-                          const lastQ = item.questions[item.questions.length - 1];
-                          const rangeText = `${globalOffset + firstQ.question_number}-${globalOffset + lastQ.question_number}`;
-                          const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
-                          return (
-                            <button
-                              key={`group-${item.groupId}`}
-                              onClick={() => {
-                                setCurrentPart(partNumber);
-                                setTimeout(() => {
-                                  const element = document.querySelector(`[data-question-id="${firstQ.id}"]`);
-                                  if (element) {
-                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                  }
-                                }, 100);
-                              }}
-                              className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
-                                isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                              title={`Questions ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
-                            >
-                              {rangeText}
-                            </button>
-                          );
-                        }
-                      });
-                    })()}
+                      return (
+                        <button
+                          key={group.id}
+                          onClick={() => {
+                            setCurrentPart(partNumber);
+                            setTimeout(() => {
+                              const el = firstQ && document.querySelector(`[data-question-id="${firstQ.id}"]`);
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 100);
+                          }}
+                          className={`h-6 px-1.5 rounded text-[10px] font-semibold cursor-pointer transition hover:scale-105 ${
+                            isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={`${start === end ? 'Question' : 'Questions'} ${rangeText}${isAnyAnswered ? ' - Answered' : ''}`}
+                        >
+                          {rangeText}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
