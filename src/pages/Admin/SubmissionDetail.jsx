@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Save, Loader2 } from "lucide-react";
 import { apiOverrideWritingGrade, apiGradeWritingWithAI } from "../../api";
+import NotificationModal from "../../components/NotificationModal/NotificationModal";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
@@ -16,6 +17,12 @@ export default function SubmissionDetail() {
   const [writingOverrides, setWritingOverrides] = useState({});
   const [savingOverride, setSavingOverride] = useState(null);
   const [gradingAI, setGradingAI] = useState(null);
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     fetchSubmissionDetails();
@@ -57,7 +64,12 @@ export default function SubmissionDetail() {
       await fetchSubmissionDetails();
       setWritingOverrides(prev => ({ ...prev, [responseId]: undefined }));
     } catch (err) {
-      alert('Failed to save override: ' + err.message);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Failed to Save Override',
+        message: `Unable to save the grade override: ${err.message}`
+      });
     } finally {
       setSavingOverride(null);
     }
@@ -113,7 +125,13 @@ export default function SubmissionDetail() {
       // Also refresh from server to get persisted data
       await fetchSubmissionDetails();
     } catch (err) {
-      alert('AI grading failed: ' + err.message);
+      console.error('AI grading error:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'AI Grading Failed',
+        message: `Unable to grade with AI: ${err.message}`
+      });
     } finally {
       setGradingAI(null);
     }
@@ -631,6 +649,15 @@ export default function SubmissionDetail() {
           </div>
         );
       })()}
+
+      {/* Notification Modal */}
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification(prev => ({ ...prev, isOpen: false }))}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+      />
     </div>
   );
 }

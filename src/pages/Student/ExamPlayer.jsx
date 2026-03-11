@@ -8,6 +8,7 @@ import {
 import ListeningRenderer from "./ListeningRenderer";
 import ReadingRenderer from "./ReadingRenderer";
 import ErrorBoundary from "../../components/ErrorBoundary";
+import NotificationModal from "../../components/NotificationModal/NotificationModal";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
@@ -32,6 +33,16 @@ export default function ExamPlayer() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examSubmitted, setExamSubmitted] = useState(false);
+
+  // Notification modal state
+  const [notification, setNotification] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: 'OK'
+  });
 
   // Timer state
   const [moduleTimeRemaining, setModuleTimeRemaining] = useState({
@@ -76,8 +87,14 @@ export default function ExamPlayer() {
           
           // If already submitted, redirect to dashboard
           if (statusData.submitted) {
-            alert("You have already submitted this exam. You cannot retake it.");
-            navigate("/student/dashboard");
+            setNotification({
+              isOpen: true,
+              type: 'warning',
+              title: 'Exam Already Submitted',
+              message: 'You have already submitted this exam. You cannot retake it.',
+              confirmText: 'Go to Dashboard',
+              onConfirm: () => navigate("/student/dashboard")
+            });
             return;
           }
 
@@ -455,8 +472,23 @@ export default function ExamPlayer() {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
       }
+
+      // Show success notification
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Exam Submitted Successfully!',
+        message: 'Your exam has been submitted. You will now be redirected to the results page.',
+        confirmText: 'Continue'
+      });
     } catch (err) {
-      alert("Submission failed: " + err.message);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Submission Failed',
+        message: `Failed to submit your exam: ${err.message}\n\nPlease try again or contact support if the issue persists.`,
+        confirmText: 'OK'
+      });
       setIsSubmitting(false);
     }
   };
@@ -1138,6 +1170,17 @@ export default function ExamPlayer() {
           </div>
         </div>
       )}
+
+      {/* Notification Modal */}
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification(prev => ({ ...prev, isOpen: false }))}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        onConfirm={notification.onConfirm}
+        confirmText={notification.confirmText}
+      />
     </div>
   );
 }
