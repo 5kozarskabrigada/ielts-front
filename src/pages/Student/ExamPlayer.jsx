@@ -917,22 +917,32 @@ export default function ExamPlayer() {
                   </button>
                   <div className="flex space-x-1">
                     {(() => {
-                      // Group questions by group_id for multiple-choice-multiple
+                      // Only group multiple_choice_multiple questions, show others individually
                       const groups = [];
                       const groupMap = new Map();
                       
                       partQuestions.forEach((q, qIdx) => {
                         if (q.group_id) {
-                          if (!groupMap.has(q.group_id)) {
-                            groupMap.set(q.group_id, []);
+                          // Find the group details to check question type
+                          const groupDetails = questionGroups.find(g => g.id === q.group_id);
+                          const isMultipleChoiceMultiple = groupDetails?.question_type === 'multiple_choice_multiple';
+                          
+                          if (isMultipleChoiceMultiple) {
+                            // Only group multiple_choice_multiple questions
+                            if (!groupMap.has(q.group_id)) {
+                              groupMap.set(q.group_id, []);
+                            }
+                            groupMap.get(q.group_id).push({ ...q, qIdx });
+                          } else {
+                            // Show as individual for other types
+                            groups.push({ type: 'single', question: q, qIdx });
                           }
-                          groupMap.get(q.group_id).push({ ...q, qIdx });
                         } else {
                           groups.push({ type: 'single', question: q, qIdx });
                         }
                       });
 
-                      // Add grouped questions
+                      // Add grouped multiple_choice_multiple questions
                       groupMap.forEach((groupQuestions, groupId) => {
                         groups.push({ type: 'group', questions: groupQuestions, groupId });
                       });
@@ -1027,17 +1037,42 @@ export default function ExamPlayer() {
                   </button>
                   <div className="flex space-x-1">
                     {(() => {
-                      // Group questions by group_id for multiple-choice-multiple
+                      // Only group multiple_choice_multiple questions, show others individually
                       const groups = [];
                       const groupMap = new Map();
                       
                       partQuestions.forEach((q, qIdx) => {
                         if (q.group_id) {
-                          if (!groupMap.has(q.group_id)) {
-                            groupMap.set(q.group_id, []);
+                          // Find the group details to check question type
+                          const groupDetails = questionGroups.find(g => g.id === q.group_id);
+                          const isMultipleChoiceMultiple = groupDetails?.question_type === 'multiple_choice_multiple';
+                          
+                          if (isMultipleChoiceMultiple) {
+                            // Only group multiple_choice_multiple questions
+                            if (!groupMap.has(q.group_id)) {
+                              groupMap.set(q.group_id, []);
+                            }
+                            groupMap.get(q.group_id).push({ ...q, qIdx });
+                          } else {
+                            // Show as individual for other types
+                            groups.push({ type: 'single', question: q, qIdx });
                           }
-                          groupMap.get(q.group_id).push({ ...q, qIdx });
                         } else {
+                          groups.push({ type: 'single', question: q, qIdx });
+                        }
+                      });
+
+                      // Add grouped multiple_choice_multiple questions
+                      groupMap.forEach((groupQuestions, groupId) => {
+                        groups.push({ type: 'group', questions: groupQuestions, groupId });
+                      });
+
+                      // Sort by first question index
+                      groups.sort((a, b) => {
+                        const aIdx = a.type === 'single' ? a.qIdx : a.questions[0].qIdx;
+                        const bIdx = b.type === 'single' ? b.qIdx : b.questions[0].qIdx;
+                        return aIdx - bIdx;
+                      });
                           groups.push({ type: 'single', question: q, qIdx });
                         }
                       });
