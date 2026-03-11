@@ -957,7 +957,7 @@ export default function ExamPlayer() {
                       return groups.map((item, idx) => {
                         if (item.type === 'single') {
                           const q = item.question;
-                          const globalNum = q.question_number;
+                          const globalNum = globalOffset + q.question_number;
                           const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                           return (
                             <button
@@ -983,7 +983,7 @@ export default function ExamPlayer() {
                           // Group of questions (show as range)
                           const firstQ = item.questions[0];
                           const lastQ = item.questions[item.questions.length - 1];
-                          const rangeText = `${firstQ.question_number}-${lastQ.question_number}`;
+                          const rangeText = `${globalOffset + firstQ.question_number}-${globalOffset + lastQ.question_number}`;
                           const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
                           return (
                             <button
@@ -1077,7 +1077,7 @@ export default function ExamPlayer() {
                       return groups.map((item, idx) => {
                         if (item.type === 'single') {
                           const q = item.question;
-                          const globalNum = q.question_number;
+                          const globalNum = globalOffset + q.question_number;
                           const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                           return (
                             <button
@@ -1103,7 +1103,7 @@ export default function ExamPlayer() {
                           // Group of questions (show as range)
                           const firstQ = item.questions[0];
                           const lastQ = item.questions[item.questions.length - 1];
-                          const rangeText = `${firstQ.question_number}-${lastQ.question_number}`;
+                          const rangeText = `${globalOffset + firstQ.question_number}-${globalOffset + lastQ.question_number}`;
                           const isAnyAnswered = item.questions.some(q => answers[q.id] !== undefined && answers[q.id] !== '');
                           return (
                             <button

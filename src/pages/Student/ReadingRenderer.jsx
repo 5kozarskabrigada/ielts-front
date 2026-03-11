@@ -109,7 +109,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         </div>
         <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
-            const qNum = q.question_number;
+            const qNum = globalOffset + q.question_number;
             return (
               <div key={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
@@ -147,7 +147,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const isMultiple = type === 'multiple_choice_multiple';
     
     return groupQuestions.map((q, idx) => {
-      const qNum = q.question_number;
+      const qNum = globalOffset + q.question_number;
       return (
         <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
@@ -220,7 +220,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div className="space-y-4">
         {groupQuestions.map((q, idx) => {
-          const qNum = q.question_number;
+          const qNum = globalOffset + q.question_number;
           return (
             <div key={q.id} className="flex items-center gap-4 py-1">
               <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
@@ -255,7 +255,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion - NO number, just template
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const qNum = q.question_number;
+      const qNum = globalOffset + q.question_number;
       const template = q.question_template || q.question_text || '';
       const parts = template.split('[BLANK]');
       
@@ -282,7 +282,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Short Answer
   if (type === 'short_answer') {
     return groupQuestions.map((q, idx) => {
-      const qNum = q.question_number;
+      const qNum = globalOffset + q.question_number;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
@@ -298,10 +298,73 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     });
   }
 
-  // Other completion types
-  if (['summary_completion', 'table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(type)) {
+  // Summary Completion - render summary text with inline blanks
+  if (type === 'summary_completion') {
+    const summaryData = group.summary_data || {};
+    const text = summaryData.text || '';
+    
+    if (text) {
+      const parts = text.split(/(\[BLANK\])/);
+      let blankCount = 0;
+
+      return (
+        <div style={{ 
+          border: '1px solid rgb(221, 221, 221)', 
+          borderRadius: '10px', 
+          padding: '16px',
+          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+          fontSize: '14px',
+          lineHeight: '24px',
+          color: 'rgb(40, 40, 40)'
+        }}>
+          {group.summary_title && (
+            <div 
+              style={{
+                color: 'rgb(41, 69, 99)',
+                fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                fontSize: '18px',
+                fontWeight: 700,
+                marginBottom: '12px'
+              }}
+              dangerouslySetInnerHTML={{ __html: group.summary_title }}
+            />
+          )}
+          <div className="leading-relaxed">
+            {parts.map((part, idx) => {
+              if (part === '[BLANK]') {
+                const question = groupQuestions[blankCount];
+                const qNum = question ? (globalOffset + question.question_number) : (globalOffset + group.question_range_start + blankCount);
+                const qId = question ? question.id : `summary_placeholder_${group.id}_${blankCount}`;
+                blankCount++;
+                
+                return (
+                  <BlankInput 
+                    key={idx}
+                    questionNumber={qNum}
+                    value={answers[qId] || ''}
+                    onChange={(e) => {
+                      setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
+                    }}
+                  />
+                );
+              }
+              return part.split('\n').map((line, lineIdx, arr) => (
+                <span key={`${idx}-${lineIdx}`}>
+                  {line}
+                  {lineIdx < arr.length - 1 && <br />}
+                </span>
+              ));
+            })}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Other completion types (table_completion, diagram_labeling, note_completion, form_completion)
+  if (['table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(type)) {
     return groupQuestions.map((q, idx) => {
-      const qNum = q.question_number;
+      const qNum = globalOffset + q.question_number;
       return (
         <div key={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>

@@ -60,7 +60,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Multiple Choice
   if (type === 'multiple_choice') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = q.question_number;
+      const globalNum = globalOffset + q.question_number;
       return (
         <div 
           key={q.id} 
@@ -149,7 +149,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       return parts.map((part, idx) => {
         if (part === '[BLANK]') {
           const question = groupQuestions[startBlankNum + blankCount];
-          const qNum = question ? question.question_number : (globalOffset + group.question_range_start + startBlankNum + blankCount);
+          const qNum = question ? (globalOffset + question.question_number) : (globalOffset + group.question_range_start + startBlankNum + blankCount);
           blankCount++;
           
           if (!question) {
@@ -305,30 +305,19 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           {parts.map((part, idx) => {
             if (part === '[BLANK]') {
               const question = groupQuestions[blankCount];
-              const qNum = question ? question.question_number : (globalOffset + group.question_range_start + blankCount);
+              const qNum = question ? (globalOffset + question.question_number) : (globalOffset + group.question_range_start + blankCount);
+              const qId = question ? question.id : `summary_placeholder_${group.id}_${blankCount}`;
               blankCount++;
-              
-              // Safety check for missing question
-              if (!question) {
-                console.error(`Summary completion: Question not found for blank ${blankCount}`, {
-                  groupId: group.id,
-                  sectionId: group.section_id,
-                  blankIndex: blankCount - 1,
-                  totalGroupQuestions: groupQuestions.length,
-                  groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
-                  expectedRange: `${group.question_range_start}-${group.question_range_end}`
-                });
-                return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
-              }
               
               return (
                 <BlankInput 
                   key={idx}
                   questionNumber={qNum}
-                  value={answers[question.id] || ''}
+                  questionId={qId}
+                  value={answers[qId] || ''}
                   onChange={(e) => {
                     try {
-                      setAnswers(prev => ({ ...prev, [question.id]: e.target.value }));
+                      setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
                     } catch (error) {
                       console.error('Error updating summary answer:', error);
                     }
@@ -351,7 +340,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = q.question_number;
+      const globalNum = globalOffset + q.question_number;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -384,7 +373,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Note Completion
   if (type === 'note_completion') {
     return groupQuestions.map((q, idx) => {
-      const globalNum = q.question_number;
+      const globalNum = globalOffset + q.question_number;
       const template = q.question_template || '';
       const parts = template.split('[BLANK]');
       
@@ -434,7 +423,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           </div>
         )}
         {groupQuestions.map((q, idx) => {
-          const globalNum = q.question_number;
+          const globalNum = globalOffset + q.question_number;
           return (
             <div key={q.id} className="py-3 flex items-start gap-3">
               <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
@@ -462,7 +451,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div className="space-y-3">
         {groupQuestions.map((q, idx) => {
-          const globalNum = q.question_number;
+          const globalNum = globalOffset + q.question_number;
           return (
             <div key={q.id} className="flex items-start gap-3" data-question-id={q.id}>
               <p style={{
