@@ -61,11 +61,62 @@ export default function ExamPlayer() {
   const MODULE_DURATIONS = { listening: 30, reading: 60, writing: 60 };
 
   // ============================================
-  // FETCH EXAM DATA
+  // FETCH EXAM DATA & CHECK STATUS
   // ============================================
   useEffect(() => {
     const fetchExamData = async () => {
       try {
+        // First, check if exam was already submitted or has autosave data
+        const statusResponse = await fetch(`${API_URL}/exams/${examId}/status`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          
+          // If already submitted, redirect to dashboard
+          if (statusData.submitted) {
+            alert("You have already submitted this exam. You cannot retake it.");
+            navigate("/student/dashboard");
+            return;
+          }
+
+          // If there's autosave data, restore it
+          if (statusData.has_autosave && statusData.autosave) {
+            const autosave = statusData.autosave;
+            console.log('[ExamPlayer] Restoring from autosave:', autosave);
+            
+            // Restore answers
+            if (autosave.answers_data) {
+              setAnswers(autosave.answers_data);
+              lastSaveRef.current = autosave.answers_data;
+            }
+
+            // Restore module position
+            if (autosave.current_module) {
+              setCurrentModule(autosave.current_module);
+            }
+
+            // Restore part and writing task
+            if (autosave.current_part) {
+              setCurrentPart(autosave.current_part);
+            }
+            if (autosave.current_writing_task) {
+              setCurrentWritingTask(autosave.current_writing_task);
+            }
+
+            // Restore time spent
+            if (autosave.time_spent && typeof autosave.time_spent === 'object') {
+              setTimeSpent(autosave.time_spent);
+            }
+
+            // Automatically start the exam (user is resuming)
+            setHasStarted(true);
+            await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+          }
+        }
+
+        // Fetch exam data
         const response = await fetch(`${API_URL}/exams/${examId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -97,7 +148,7 @@ export default function ExamPlayer() {
     if (token && examId) {
       fetchExamData();
     }
-  }, [token, examId]);
+  }, [token, examId, navigate]);
 
   // ============================================
   // FULLSCREEN ENFORCEMENT
@@ -235,6 +286,9 @@ export default function ExamPlayer() {
         body: JSON.stringify({
           answers: answerData,
           module: currentModule,
+          currentPart: currentPart,
+          currentWritingTask: currentWritingTask,
+          timeSpent: timeSpent,
           timestamp: new Date().toISOString()
         })
       });
@@ -242,7 +296,7 @@ export default function ExamPlayer() {
     } catch (err) {
       console.error("Auto-save failed:", err);
     }
-  }, [hasStarted, answers, currentModule, examId, token]);
+  }, [hasStarted, answers, currentModule, currentPart, currentWritingTask, timeSpent, examId, token]);
 
   // ============================================
   // AUTO-SAVE
@@ -265,6 +319,25 @@ export default function ExamPlayer() {
       }
     };
   }, [answers, saveAnswers]);
+
+  // Auto-save on module/part/task change
+  useEffect(() => {
+    if (!hasStarted) return;
+    
+    // Save immediately when navigation changes
+    saveAnswers();
+  }, [currentModule, currentPart, currentWritingTask]);
+
+  // Periodic auto-save (every 15 seconds) to ensure time spent is saved
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    const periodicSave = setInterval(() => {
+      saveAnswers();
+    }, 15000); // Save every 15 seconds
+
+    return () => clearInterval(periodicSave);
+  }, [hasStarted, saveAnswers]);
 
   // ============================================
   // START EXAM
