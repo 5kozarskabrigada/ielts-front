@@ -871,6 +871,18 @@ export default function ExamPlayer() {
                         />
                       </div>
 
+                      {/* Task 1 Image (graph/chart/map/process) */}
+                      {taskConfig.imageUrl && (
+                        <div className="mb-4 flex justify-center">
+                          <img 
+                            src={taskConfig.imageUrl} 
+                            alt="Task visual" 
+                            className="max-w-full rounded-lg border border-gray-200"
+                            style={{ maxHeight: '400px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      )}
+
                       {/* Response Area */}
                       <textarea
                         className="w-full h-64 p-4 border-2 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 outline-none"
