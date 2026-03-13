@@ -54,7 +54,7 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
 );
 
 // Render question group based on type
-const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers) => {
+const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, saveAnswers = null) => {
   const type = group.question_type;
 
   // Multiple Choice
@@ -490,7 +490,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers, partNumber, globalOffset: externalOffset }) {
+export default function ListeningRenderer({ sections, questions, questionGroups, answers, setAnswers, partNumber, globalOffset: externalOffset, saveAnswers = null }) {
   const listeningSections = sections
     .filter(s => s.module_type === 'listening')
     .sort((a, b) => a.section_order - b.section_order);
@@ -498,6 +498,67 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
   // Use external globalOffset if provided (from ExamPlayer), otherwise calculate internally
   let cumulativeOffset = externalOffset || 0;
   const partOffsets = listeningSections.map((section) => {
+    const offset = cumulativeOffset;
+    cumulativeOffset += questions.filter(q => q.section_id === section.id).length;
+    return { sectionId: section.id, offset };
+  });
+
+  const currentPartSection = listeningSections[partNumber - 1];
+  if (!currentPartSection) {
+    return <div>Part {partNumber} not found for Listening.</div>;
+  }
+
+  const sectionGroups = questionGroups
+    .filter(g => g.section_id === currentPartSection.id)
+    .sort((a, b) => a.group_order - b.group_order);
+
+  const globalOffset = partOffsets.find(p => p.sectionId === currentPartSection.id)?.offset ?? 0;
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Headers */}
+      <div className="mb-4">
+        <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 5px 0', padding: 0, lineHeight: '28.8px' }}>
+          PART {partNumber}
+        </h1>
+        {currentPartSection.title && (
+          <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, color: 'rgb(41, 69, 99)', margin: 0, padding: 0, lineHeight: '21.6px' }}
+              dangerouslySetInnerHTML={{ __html: currentPartSection.title }} />
+        )}
+      </div>
+
+      {/* Questions */}
+      <div className="overflow-y-auto pr-4 flex-1">
+        {sectionGroups.map(group => {
+          const groupQuestions = questions
+            .filter(q => q.group_id === group.id)
+            .sort((a, b) => a.question_number - b.question_number);
+          
+          return (
+            <div key={group.id} className="mb-8">
+              {group.group_title && (
+                <div 
+                  style={{ 
+                    fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+                    fontSize: '16px', 
+                    fontWeight: 700, 
+                    color: 'rgb(41, 69, 99)', 
+                    padding: '10px',
+                    backgroundColor: 'rgb(230, 230, 230)',
+                    borderRadius: '5px',
+                    marginBottom: '15px' 
+                  }}
+                  dangerouslySetInnerHTML={{ __html: group.group_title }}
+                />
+              )}
+              {renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, saveAnswers)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
     const offset = cumulativeOffset;
     const sectionQuestions = questions.filter(q => q.section_id === section.id);
     cumulativeOffset += sectionQuestions.length;
@@ -636,7 +697,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
 
                   {/* Questions */}
                   <div>
-                    {renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers)}
+                    {renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, saveAnswers)}
                   </div>
                 </div>
               );

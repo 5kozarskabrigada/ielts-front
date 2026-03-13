@@ -69,7 +69,7 @@ const detectParagraphLetters = (content) => {
 };
 
 // Render question group based on type
-const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters) => {
+const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters, saveAnswers = null) => {
   const type = group.question_type;
 
   // True/False/Not Given
@@ -613,7 +613,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
                     />
                   </div>
                 )}
-                <div>{renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters)}</div>
+                <div>                {renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters, saveAnswers)}</div>
               </div>
             );
           })}
