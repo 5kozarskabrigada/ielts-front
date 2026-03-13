@@ -107,7 +107,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     name={`q${q.id}`} 
                     className="w-4 h-4"
                     checked={answers[q.id] === letter}
-                    onChange={() => setAnswers(prev => ({ ...prev, [q.id]: letter }))}
+                    onChange={() => {
+                      setAnswers(prev => ({ ...prev, [q.id]: letter }));
+                      saveAnswers && saveAnswers();
+                    }}
                   />
                   <span style={{ marginLeft: '4px' }}><RenderHtml html={text} /></span>
                 </label>
@@ -173,6 +176,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               onChange={(e) => {
                 try {
                   setAnswers(prev => ({ ...prev, [question.id]: e.target.value }));
+                  saveAnswers && saveAnswers();
                 } catch (error) {
                   console.error('Error updating answer:', error);
                 }
@@ -433,7 +437,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               <input 
                 type="text"
                 value={answers[q.id] || ''}
-                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value.toUpperCase() }))}
+                onChange={(e) => {
+                  setAnswers(prev => ({ ...prev, [q.id]: e.target.value.toUpperCase() }));
+                  saveAnswers && saveAnswers();
+                }}
                 maxLength={1}
                 className="w-12 h-10 text-center border rounded font-bold text-lg"
                 placeholder="?"
@@ -468,7 +475,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 questionNumber={globalNum}
                 questionId={q.id}
                 value={answers[q.id]}
-                onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                onChange={(e) => {
+                  setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                  saveAnswers && saveAnswers();
+                }}
               />
             </div>
           );

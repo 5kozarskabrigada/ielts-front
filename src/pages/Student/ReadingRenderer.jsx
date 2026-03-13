@@ -116,7 +116,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 <div className="flex items-center gap-2 flex-1">
                   <select 
                     value={answers[q.id] || ''}
-                    onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                    onChange={(e) => {
+                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                      saveAnswers && saveAnswers();
+                    }}
                     style={{ 
                       width: '100px', 
                       height: '32px', 
@@ -202,6 +205,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       } else {
                         setAnswers(prev => ({ ...prev, [q.id]: letter }));
                       }
+                      saveAnswers && saveAnswers();
                     }}
                     className="w-4 h-4"
                   />
@@ -215,39 +219,77 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     });
   }
 
-  // Matching types with dropdowns
+  // Matching Headings and similar types
   if (type === 'matching_headings' || type === 'matching_information' || type === 'matching_features' || type === 'matching_sentence_endings') {
+    // Headings/People list and example
+    const toRoman = n => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
+    const headings = group.headings_list || [];
+    const people = group.people_list || [];
+    const example = group.example || { paragraph: '', answer: '' };
+
+    // Determine if this is a people-matching type
+    const isPeople = type === 'matching_features';
+
     return (
-      <div className="space-y-4">
-        {groupQuestions.map((q, idx) => {
-          const qNum = globalOffset + q.question_number;
-          return (
-            <div key={q.id} className="flex items-center gap-4 py-1">
-              <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
-              <div className="flex-1 flex items-center gap-3">
-                <select 
-                  value={answers[q.id] || ''}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-                  style={{ 
-                    width: '100px', 
-                    height: '32px', 
-                    padding: '0 20px 0 10px', 
-                    border: '1px solid rgb(189, 197, 207)', 
-                    borderRadius: '100px', 
-                    fontSize: '15px',
-                    fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
-                  }}
-                >
-                  <option value=""></option>
-                  {paragraphLetters.map(letter => (
-                    <option key={letter} value={letter}>{letter}</option>
-                  ))}
-                </select>
-                <p className="flex-1" style={{ fontSize: '15px', lineHeight: '1.6' }}><RenderHtml html={q.question_text || ''} /></p>
+      <div className="mb-6">
+        {/* Headings/People List */}
+        <div className="mb-4">
+          <div className="font-semibold text-gray-700 mb-1" style={{fontSize: '16px'}}>{isPeople ? 'List of People' : 'List of Headings'}</div>
+          <div className="border rounded-lg overflow-hidden">
+            {(isPeople ? people : headings).map((item, idx) => (
+              <div key={item.id || idx} style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}} className="flex items-center px-3 py-2">
+                <span className="w-10 text-center font-bold text-gray-700">{isPeople ? String.fromCharCode(65 + idx) : toRoman(idx + 1)}.</span>
+                <span className="flex-1 text-gray-800" style={{fontSize: '15px'}}>{item.value}</span>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
+        {/* Example */}
+        {example.paragraph && example.answer && (
+          <div className="mb-4 text-sm text-gray-600"><b>Example:</b> {example.paragraph}; Answer: {example.answer}</div>
+        )}
+        {/* Questions */}
+        <div className="space-y-4">
+          {groupQuestions.map((q, idx) => {
+            const qNum = globalOffset + q.question_number;
+            // For matching_headings, label as Paragraph B, C, ...
+            // For matching_features, label as Statement 27, 28, ...
+            const paraLabel = isPeople
+              ? `Statement ${qNum}`
+              : `Paragraph ${String.fromCharCode(66 + idx)}`;
+            return (
+              <div key={q.id} className="flex items-center gap-4 py-1">
+                <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
+                <div className="flex-1 flex items-center gap-3">
+                  <span className="text-gray-700" style={{minWidth: 110}}>{paraLabel}</span>
+                  <select
+                    value={answers[q.id] || ''}
+                    onChange={e => {
+                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                      saveAnswers && saveAnswers();
+                    }}
+                    style={{
+                      width: '100px',
+                      height: '32px',
+                      padding: '0 20px 0 10px',
+                      border: '1px solid rgb(189, 197, 207)',
+                      borderRadius: '100px',
+                      fontSize: '15px',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
+                    }}
+                  >
+                    <option value=""></option>
+                    {(isPeople ? people : headings).map((item, idx2) => (
+                      <option key={idx2} value={isPeople ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1)}>
+                        {isPeople ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -268,7 +310,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 <BlankInput 
                   questionNumber={qNum}
                   value={answers[q.id]}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  onChange={(e) => {
+                    setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                    saveAnswers && saveAnswers();
+                  }}
                 />
                 <RenderHtml html={parts[1]} />
               </>
@@ -289,7 +334,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           <input 
             type="text"
             value={answers[q.id] || ''}
-            onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+            onChange={(e) => {
+              setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+              saveAnswers && saveAnswers();
+            }}
             className="flex-1 px-3 py-2 border rounded-lg"
             style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
           />
@@ -344,6 +392,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     value={answers[qId] || ''}
                     onChange={(e) => {
                       setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
+                      saveAnswers && saveAnswers();
                     }}
                   />
                 );
@@ -371,7 +420,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           <input 
             type="text"
             value={answers[q.id] || ''}
-            onChange={(e) => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+            onChange={(e) => {
+              setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+              saveAnswers && saveAnswers();
+            }}
             className="flex-1 px-3 py-2 border rounded-lg"
             style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
           />
@@ -383,7 +435,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers }) {
+export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
   
   if (!section) return null;

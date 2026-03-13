@@ -855,6 +855,22 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
 
   const baseQuestionNumber = (passageNumber - 1) * 13 + group.question_range_start;
 
+    // Roman numerals helper
+    const toRoman = n => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
+    // Headings/People toolbox state
+    const [headings, setHeadings] = useState(group.headings_list || [{ value: '', id: 1 }]);
+    const [people, setPeople] = useState(group.people_list || [{ value: '', id: 1 }]);
+    const [example, setExample] = useState(group.example || { paragraph: '', answer: '' });
+
+    // Sync with group
+    useEffect(() => {
+      if (group.question_type === 'matching_headings') {
+        updateQuestionGroup(group.id, { headings_list: headings, example });
+      } else if (group.question_type === 'matching_features') {
+        updateQuestionGroup(group.id, { people_list: people, example });
+      }
+    }, [headings, people, example]);
+
   const addQuestion = () => {
     const nextNumber = groupQuestions.length > 0 ? Math.max(...groupQuestions.map(q => q.question_number)) + 1 : group.question_range_start;
     if (nextNumber > group.question_range_end) {
@@ -902,6 +918,68 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
 
       {isExpanded && (
         <div className="p-4 space-y-4">
+          {/* Headings Toolbox for matching_headings */}
+          {group.question_type === 'matching_headings' && (
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">List of Headings</label>
+              <div className="border rounded-lg overflow-hidden">
+                {headings.map((h, idx) => (
+                  <div key={h.id} className="flex items-center">
+                    <span className="w-10 text-center font-bold text-gray-700" style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}>
+                      {toRoman(idx + 1)}.
+                    </span>
+                    <input
+                      className="flex-1 px-3 py-2 bg-white border-b border-gray-200 text-sm focus:border-emerald-400 outline-none"
+                      style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}
+                      placeholder={`Heading ${idx + 1}`}
+                      value={h.value}
+                      onChange={e => setHeadings(headings.map((hh, i) => i === idx ? {...hh, value: e.target.value} : hh))}
+                    />
+                    <button type="button" className="px-2 text-red-500" onClick={() => setHeadings(headings.filter((_, i) => i !== idx))} disabled={headings.length <= 1}>×</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="mt-2 px-3 py-1 bg-emerald-500 text-white rounded" onClick={() => setHeadings([...headings, { value: '', id: Date.now() }])}>+ Add Heading</button>
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Example</label>
+                <div className="flex gap-2">
+                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Paragraph A" value={example.paragraph} onChange={e => setExample({...example, paragraph: e.target.value})} />
+                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Answer (e.g. viii)" value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
+                </div>
+              </div>
+            </div>
+          )}
+          {/* People Toolbox for matching_features (Match Each Statement with the Correct Person) */}
+          {group.question_type === 'matching_features' && (
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">List of People</label>
+              <div className="border rounded-lg overflow-hidden">
+                {people.map((p, idx) => (
+                  <div key={p.id} className="flex items-center">
+                    <span className="w-10 text-center font-bold text-gray-700" style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}>
+                      {String.fromCharCode(65 + idx)}.
+                    </span>
+                    <input
+                      className="flex-1 px-3 py-2 bg-white border-b border-gray-200 text-sm focus:border-emerald-400 outline-none"
+                      style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}
+                      placeholder={`Person ${String.fromCharCode(65 + idx)}`}
+                      value={p.value}
+                      onChange={e => setPeople(people.map((pp, i) => i === idx ? {...pp, value: e.target.value} : pp))}
+                    />
+                    <button type="button" className="px-2 text-red-500" onClick={() => setPeople(people.filter((_, i) => i !== idx))} disabled={people.length <= 1}>×</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="mt-2 px-3 py-1 bg-emerald-500 text-white rounded" onClick={() => setPeople([...people, { value: '', id: Date.now() }])}>+ Add Person</button>
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Example</label>
+                <div className="flex gap-2">
+                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Statement 27" value={example.paragraph} onChange={e => setExample({...example, paragraph: e.target.value})} />
+                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Answer (e.g. A)" value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
+                </div>
+              </div>
+            </div>
+          )}
           {/* Question Range */}
           <div className="grid grid-cols-2 gap-4">
             <Input

@@ -318,7 +318,7 @@ export default function ExamPlayer() {
   // ============================================
   // AUTO-SAVE
   // ============================================
-  // Auto-save on answer change
+  // Auto-save on answer change - immediate save
   useEffect(() => {
     if (JSON.stringify(answers) === JSON.stringify(lastSaveRef.current)) return;
 
@@ -326,9 +326,10 @@ export default function ExamPlayer() {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
+    // Immediate save for answer changes, with small debounce to prevent spam
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveAnswers();
-    }, 2000); // Save 2 seconds after last change
+    }, 100); // Save almost immediately after answer change
 
     return () => {
       if (autoSaveTimeoutRef.current) {
