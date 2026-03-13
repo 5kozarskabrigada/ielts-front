@@ -118,7 +118,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     value={answers[q.id] || ''}
                     onChange={(e) => {
                       setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-                      saveAnswers && saveAnswers();
+                      if (saveAnswers) saveAnswers();
                     }}
                     style={{ 
                       width: '100px', 
@@ -205,7 +205,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       } else {
                         setAnswers(prev => ({ ...prev, [q.id]: letter }));
                       }
-                      saveAnswers && saveAnswers();
+                      if (saveAnswers) saveAnswers();
                     }}
                     className="w-4 h-4"
                   />
@@ -266,7 +266,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     value={answers[q.id] || ''}
                     onChange={e => {
                       setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-                      saveAnswers && saveAnswers();
+                      if (saveAnswers) saveAnswers();
                     }}
                     style={{
                       width: '100px',
@@ -312,7 +312,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                   value={answers[q.id]}
                   onChange={(e) => {
                     setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-                    saveAnswers && saveAnswers();
+                    if (saveAnswers) saveAnswers();
                   }}
                 />
                 <RenderHtml html={parts[1]} />
@@ -336,7 +336,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             value={answers[q.id] || ''}
             onChange={(e) => {
               setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-              saveAnswers && saveAnswers();
+              if (saveAnswers) saveAnswers();
             }}
             className="flex-1 px-3 py-2 border rounded-lg"
             style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
@@ -392,7 +392,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     value={answers[qId] || ''}
                     onChange={(e) => {
                       setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
-                      saveAnswers && saveAnswers();
+                      if (saveAnswers) saveAnswers();
                     }}
                   />
                 );
@@ -422,7 +422,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             value={answers[q.id] || ''}
             onChange={(e) => {
               setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-              saveAnswers && saveAnswers();
+              if (saveAnswers) saveAnswers();
             }}
             className="flex-1 px-3 py-2 border rounded-lg"
             style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
@@ -435,7 +435,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers }) {
+export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
   
   if (!section) return null;

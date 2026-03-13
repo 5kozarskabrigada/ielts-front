@@ -109,7 +109,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     checked={answers[q.id] === letter}
                     onChange={() => {
                       setAnswers(prev => ({ ...prev, [q.id]: letter }));
-                      saveAnswers && saveAnswers();
+                      if (saveAnswers) saveAnswers();
                     }}
                   />
                   <span style={{ marginLeft: '4px' }}><RenderHtml html={text} /></span>
@@ -176,7 +176,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               onChange={(e) => {
                 try {
                   setAnswers(prev => ({ ...prev, [question.id]: e.target.value }));
-                  saveAnswers && saveAnswers();
+                  if (saveAnswers) saveAnswers();
                 } catch (error) {
                   console.error('Error updating answer:', error);
                 }
@@ -439,7 +439,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 value={answers[q.id] || ''}
                 onChange={(e) => {
                   setAnswers(prev => ({ ...prev, [q.id]: e.target.value.toUpperCase() }));
-                  saveAnswers && saveAnswers();
+                  if (saveAnswers) saveAnswers();
                 }}
                 maxLength={1}
                 className="w-12 h-10 text-center border rounded font-bold text-lg"
@@ -477,7 +477,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 value={answers[q.id]}
                 onChange={(e) => {
                   setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
-                  saveAnswers && saveAnswers();
+                  if (saveAnswers) saveAnswers();
                 }}
               />
             </div>
