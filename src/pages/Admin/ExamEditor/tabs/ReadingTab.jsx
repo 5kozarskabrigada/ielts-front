@@ -921,12 +921,23 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
           {/* Headings Toolbox for matching_headings */}
           {group.question_type === 'matching_headings' && (
             <div className="mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <Select
+                  label="Numbering Style"
+                  value={group.matching_style || 'roman'}
+                  onChange={(e) => updateQuestionGroup(group.id, { matching_style: e.target.value })}
+                  options={[
+                    { value: 'roman', label: 'Roman Numerals (i, ii, iii)' },
+                    { value: 'letters', label: 'Letters (A, B, C)' },
+                  ]}
+                />
+              </div>
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">List of Headings</label>
               <div className="border rounded-lg overflow-hidden">
                 {headings.map((h, idx) => (
                   <div key={h.id} className="flex items-center">
                     <span className="w-10 text-center font-bold text-gray-700" style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}>
-                      {toRoman(idx + 1)}.
+                      {group.matching_style === 'letters' ? String.fromCharCode(65 + idx) : toRoman(idx + 1)}.
                     </span>
                     <input
                       className="flex-1 px-3 py-2 bg-white border-b border-gray-200 text-sm focus:border-emerald-400 outline-none"
@@ -944,7 +955,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Example</label>
                 <div className="flex gap-2">
                   <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Paragraph A" value={example.paragraph} onChange={e => setExample({...example, paragraph: e.target.value})} />
-                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Answer (e.g. viii)" value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
+                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder={`Answer (e.g. ${group.matching_style === 'letters' ? 'C' : 'viii'})`} value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
                 </div>
               </div>
             </div>

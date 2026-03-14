@@ -227,6 +227,9 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const people = group.people_list || [];
     const example = group.example || { paragraph: '', answer: '' };
 
+    // Determine numbering style for headings
+    const useLettersForHeadings = group.matching_style === 'letters';
+
     // Determine if this is a people-matching type
     const isPeople = type === 'matching_features';
 
@@ -238,7 +241,9 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           <div className="border rounded-lg overflow-hidden">
             {(isPeople ? people : headings).map((item, idx) => (
               <div key={item.id || idx} style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}} className="flex items-center px-3 py-2">
-                <span className="w-10 text-center font-bold text-gray-700">{isPeople ? String.fromCharCode(65 + idx) : toRoman(idx + 1)}.</span>
+                <span className="w-10 text-center font-bold text-gray-700">
+                  {isPeople ? String.fromCharCode(65 + idx) : (useLettersForHeadings ? String.fromCharCode(65 + idx) : toRoman(idx + 1))}.
+                </span>
                 <span className="flex-1 text-gray-800" style={{fontSize: '15px'}}>{item.value}</span>
               </div>
             ))}
@@ -279,11 +284,16 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     }}
                   >
                     <option value=""></option>
-                    {(isPeople ? people : headings).map((item, idx2) => (
-                      <option key={idx2} value={isPeople ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1)}>
-                        {isPeople ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1)}
-                      </option>
-                    ))}
+                    {(isPeople ? people : headings).map((item, idx2) => {
+                      const optionValue = isPeople 
+                        ? String.fromCharCode(65 + idx2) 
+                        : (useLettersForHeadings ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1));
+                      return (
+                        <option key={idx2} value={optionValue}>
+                          {optionValue}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
