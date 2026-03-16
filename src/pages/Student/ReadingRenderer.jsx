@@ -1,5 +1,5 @@
 // Reading Module Renderer - Matches Preview Mode Format
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 const accentColor = 'rgb(55, 133, 77)'; // Green for reading
 
@@ -548,6 +548,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     x: 0,
     y: 0,
   });
+  const passageContentMarkup = useMemo(() => ({ __html: passageHtml }), [passageHtml]);
 
   const closeHighlightMenu = () => {
     setHighlightMenu((prev) => {
@@ -599,40 +600,41 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   }, [section?.id]);
 
   const handlePassageMouseUp = () => {
-    window.requestAnimationFrame(() => {
-      if (!passagePaneRef.current || !passageContentRef.current) {
-        closeSelectionAction();
-        return;
-      }
+    if (!passagePaneRef.current || !passageContentRef.current) {
+      closeSelectionAction();
+      return;
+    }
 
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-        return;
-      }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      closeSelectionAction();
+      return;
+    }
 
-      const range = selection.getRangeAt(0);
-      const anchorNode = range.commonAncestorContainer.nodeType === 3
-        ? range.commonAncestorContainer.parentNode
-        : range.commonAncestorContainer;
+    const range = selection.getRangeAt(0);
+    const anchorNode = range.commonAncestorContainer.nodeType === 3
+      ? range.commonAncestorContainer.parentNode
+      : range.commonAncestorContainer;
 
-      if (!passageContentRef.current.contains(anchorNode)) {
-        return;
-      }
+    if (!passageContentRef.current.contains(anchorNode)) {
+      closeSelectionAction();
+      return;
+    }
 
-      const rect = range.getBoundingClientRect();
-      if (!rect || (rect.width === 0 && rect.height === 0)) {
-        return;
-      }
+    const rect = range.getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      closeSelectionAction();
+      return;
+    }
 
-      pendingSelectionRangeRef.current = range.cloneRange();
-      const paneRect = passagePaneRef.current.getBoundingClientRect();
-      setSelectionAction({
-        visible: true,
-        x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
-        y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
-      });
-      closeHighlightMenu();
+    pendingSelectionRangeRef.current = range.cloneRange();
+    const paneRect = passagePaneRef.current.getBoundingClientRect();
+    setSelectionAction({
+      visible: true,
+      x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
+      y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
     });
+    closeHighlightMenu();
   };
 
   useEffect(() => {
@@ -684,23 +686,43 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       return;
     }
 
-    const highlightSpan = document.createElement('span');
-    highlightSpan.className = 'reading-user-highlight';
-    highlightSpan.style.backgroundColor = '#fff59d';
-    highlightSpan.style.cursor = 'pointer';
-    highlightSpan.style.padding = '0 1px';
+    const createHighlightSpan = () => {
+      const span = document.createElement('span');
+      span.className = 'reading-user-highlight';
+      span.style.backgroundColor = '#fff59d';
+      span.style.cursor = 'pointer';
+      span.style.padding = '0 1px';
+      return span;
+    };
 
+    let applied = false;
     try {
+      const highlightSpan = createHighlightSpan();
+      range.surroundContents(highlightSpan);
+      applied = true;
+    } catch {
       try {
-        range.surroundContents(highlightSpan);
-      } catch {
+        const highlightSpan = createHighlightSpan();
         const extracted = range.extractContents();
         highlightSpan.appendChild(extracted);
         range.insertNode(highlightSpan);
+        applied = true;
+      } catch {
+        try {
+          const text = range.toString();
+          if (!text || !text.trim()) return;
+          const highlightSpan = createHighlightSpan();
+          highlightSpan.textContent = text;
+          range.deleteContents();
+          range.insertNode(highlightSpan);
+          applied = true;
+        } catch {
+          return;
+        }
       }
-    } catch {
-      return;
     }
+
+    if (!applied) return;
 
     if (selection) {
       selection.removeAllRanges();
@@ -718,7 +740,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     const highlightedNode = event.target.closest('.reading-user-highlight');
     if (!highlightedNode || !passagePaneRef.current) {
       closeHighlightMenu();
-      closeSelectionAction();
       return;
     }
 
@@ -863,13 +884,13 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
               userSelect: 'text',
               WebkitUserSelect: 'text'
             }}
-            dangerouslySetInnerHTML={{ __html: passageHtml }}
+            dangerouslySetInnerHTML={passageContentMarkup}
           />
 
           {selectionAction.visible && (
             <div
               ref={selectionActionRef}
-              className="absolute z-20"
+              className="absolute z-50"
               style={{ left: selectionAction.x, top: selectionAction.y }}
             >
               <button
@@ -890,7 +911,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
           {highlightMenu.visible && (
             <div
               ref={highlightMenuRef}
-              className="absolute z-20"
+              className="absolute z-50"
               style={{ left: highlightMenu.x, top: highlightMenu.y }}
             >
               <button
