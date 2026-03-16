@@ -594,46 +594,48 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   }, [examId, section?.id, section?.content]);
 
   useEffect(() => {
-    const handleSelectionChange = () => {
-      if (!passagePaneRef.current || !passageContentRef.current) {
-        closeSelectionAction();
-        return;
-      }
+    if (!passageContentRef.current) return;
 
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-        closeSelectionAction();
-        return;
-      }
+    const handleMouseUp = () => {
+      window.requestAnimationFrame(() => {
+        if (!passagePaneRef.current || !passageContentRef.current) {
+          closeSelectionAction();
+          return;
+        }
 
-      const range = selection.getRangeAt(0);
-      const anchorNode = range.commonAncestorContainer.nodeType === 3
-        ? range.commonAncestorContainer.parentNode
-        : range.commonAncestorContainer;
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+          return;
+        }
 
-      if (!passageContentRef.current.contains(anchorNode)) {
-        closeSelectionAction();
-        return;
-      }
+        const range = selection.getRangeAt(0);
+        const anchorNode = range.commonAncestorContainer.nodeType === 3
+          ? range.commonAncestorContainer.parentNode
+          : range.commonAncestorContainer;
 
-      const rect = range.getBoundingClientRect();
-      if (!rect || (rect.width === 0 && rect.height === 0)) {
-        closeSelectionAction();
-        return;
-      }
+        if (!passageContentRef.current.contains(anchorNode)) {
+          return;
+        }
 
-      pendingSelectionRangeRef.current = range.cloneRange();
-      const paneRect = passagePaneRef.current.getBoundingClientRect();
-      setSelectionAction({
-        visible: true,
-        x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
-        y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+        const rect = range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+          return;
+        }
+
+        pendingSelectionRangeRef.current = range.cloneRange();
+        const paneRect = passagePaneRef.current.getBoundingClientRect();
+        setSelectionAction({
+          visible: true,
+          x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
+          y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+        });
+        closeHighlightMenu();
       });
-      closeHighlightMenu();
     };
 
-    document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    const node = passageContentRef.current;
+    node.addEventListener('mouseup', handleMouseUp);
+    return () => node.removeEventListener('mouseup', handleMouseUp);
   }, [section?.id]);
 
   useEffect(() => {
@@ -692,11 +694,15 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     highlightSpan.style.padding = '0 1px';
 
     try {
-      range.surroundContents(highlightSpan);
+      try {
+        range.surroundContents(highlightSpan);
+      } catch {
+        const extracted = range.extractContents();
+        highlightSpan.appendChild(extracted);
+        range.insertNode(highlightSpan);
+      }
     } catch {
-      const extracted = range.extractContents();
-      highlightSpan.appendChild(extracted);
-      range.insertNode(highlightSpan);
+      return;
     }
 
     if (selection) {
@@ -871,7 +877,10 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
               <button
                 type="button"
                 title="Highlight selection"
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   applyHighlightToSelection();
@@ -891,7 +900,10 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             >
               <button
                 type="button"
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   removeHighlight();
