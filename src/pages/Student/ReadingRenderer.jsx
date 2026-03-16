@@ -1,5 +1,5 @@
 // Reading Module Renderer - Matches Preview Mode Format
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const accentColor = 'rgb(55, 133, 77)'; // Green for reading
 
@@ -242,6 +242,57 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     // Determine if this is a people-matching type
     const isPeople = type === 'matching_features';
 
+    const passageLetterOptions = paragraphLetters && paragraphLetters.length > 0
+      ? paragraphLetters
+      : ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+    // Letters mode for matching_headings: no headings list, just pick passage letter + statement text
+    if (type === 'matching_headings' && useLettersForHeadings) {
+      return (
+        <div className="mb-6">
+          <div className="space-y-3">
+            {groupQuestions.map((q) => {
+              const qNum = globalOffset + q.question_number;
+              return (
+                <div key={q.id} className="flex items-center gap-3 py-1">
+                  <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
+                  <select
+                    value={answers[q.id] || ''}
+                    onChange={e => {
+                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                      if (saveAnswers) saveAnswers();
+                    }}
+                    onCopy={(e) => e.stopPropagation()}
+                    onCut={(e) => e.stopPropagation()}
+                    onPaste={(e) => e.stopPropagation()}
+                    style={{
+                      width: '100px',
+                      height: '32px',
+                      padding: '0 20px 0 10px',
+                      border: '1px solid rgb(189, 197, 207)',
+                      borderRadius: '100px',
+                      fontSize: '15px',
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      userSelect: 'text',
+                      WebkitUserSelect: 'text'
+                    }}
+                  >
+                    <option value=""></option>
+                    {passageLetterOptions.map((letter) => (
+                      <option key={letter} value={letter}>{letter}</option>
+                    ))}
+                  </select>
+                  <div className="flex-1 text-gray-800" style={{ fontSize: '15px' }}>
+                    <RenderHtml html={q.question_text || ''} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mb-6">
         {/* Headings/People List */}
@@ -476,8 +527,124 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null }) {
+export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
+  const passagePaneRef = useRef(null);
+  const passageContentRef = useRef(null);
+  const highlightMenuRef = useRef(null);
+  const [passageHtml, setPassageHtml] = useState((section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> '));
+  const [highlightMenu, setHighlightMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    target: null,
+  });
+
+  const closeHighlightMenu = () => {
+    setHighlightMenu({ visible: false, x: 0, y: 0, target: null });
+  };
+
+  const getPassageStorageKey = () => `reading_highlights_${examId || 'anonymous'}_${section?.id || 'unknown'}`;
+
+  const persistPassageHighlights = () => {
+    if (!passageContentRef.current) return;
+    const html = passageContentRef.current.innerHTML;
+    setPassageHtml(html);
+    try {
+      localStorage.setItem(getPassageStorageKey(), html);
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  useEffect(() => {
+    const baseHtml = (section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ');
+    try {
+      const savedHtml = localStorage.getItem(getPassageStorageKey());
+      setPassageHtml(savedHtml || baseHtml);
+    } catch {
+      setPassageHtml(baseHtml);
+    }
+    closeHighlightMenu();
+  }, [examId, section?.id, section?.content]);
+
+  const applyHighlightToSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !passageContentRef.current) return;
+
+    const range = selection.getRangeAt(0);
+    const anchorNode = range.commonAncestorContainer.nodeType === 3
+      ? range.commonAncestorContainer.parentNode
+      : range.commonAncestorContainer;
+
+    if (!passageContentRef.current.contains(anchorNode)) return;
+
+    const highlightSpan = document.createElement('span');
+    highlightSpan.className = 'reading-user-highlight';
+    highlightSpan.style.backgroundColor = '#fff59d';
+    highlightSpan.style.cursor = 'pointer';
+    highlightSpan.style.padding = '0 1px';
+
+    try {
+      range.surroundContents(highlightSpan);
+    } catch {
+      const extracted = range.extractContents();
+      highlightSpan.appendChild(extracted);
+      range.insertNode(highlightSpan);
+    }
+
+    selection.removeAllRanges();
+    persistPassageHighlights();
+  };
+
+  const handlePassageContentClick = (event) => {
+    const highlightedNode = event.target.closest('.reading-user-highlight');
+    if (!highlightedNode || !passagePaneRef.current) {
+      closeHighlightMenu();
+      return;
+    }
+
+    const paneRect = passagePaneRef.current.getBoundingClientRect();
+    const nodeRect = highlightedNode.getBoundingClientRect();
+    setHighlightMenu({
+      visible: true,
+      x: nodeRect.left - paneRect.left + passagePaneRef.current.scrollLeft,
+      y: nodeRect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+      target: highlightedNode,
+    });
+  };
+
+  const removeHighlight = () => {
+    const highlightNode = highlightMenu.target;
+    if (!highlightNode || !highlightNode.parentNode) {
+      closeHighlightMenu();
+      return;
+    }
+
+    const parent = highlightNode.parentNode;
+    while (highlightNode.firstChild) {
+      parent.insertBefore(highlightNode.firstChild, highlightNode);
+    }
+    parent.removeChild(highlightNode);
+    parent.normalize();
+    persistPassageHighlights();
+    closeHighlightMenu();
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!highlightMenu.visible) return;
+
+      const clickedHighlight = event.target.closest && event.target.closest('.reading-user-highlight');
+      const clickedMenu = highlightMenuRef.current && highlightMenuRef.current.contains(event.target);
+      if (!clickedHighlight && !clickedMenu) {
+        closeHighlightMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [highlightMenu.visible]);
   
   if (!section) return null;
 
@@ -521,14 +688,26 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
       <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
         {/* LEFT SIDE: Passage */}
         <div 
+          ref={passagePaneRef}
           className="overflow-y-auto pr-4 min-h-0"
           style={{ 
             width: `${textWidth}%`,
             borderRight: '2px solid rgb(221, 221, 221)',
             userSelect: 'text',
-            WebkitUserSelect: 'text'
+            WebkitUserSelect: 'text',
+            position: 'relative'
           }}
         >
+          <div className="flex justify-end mb-3 sticky top-0 z-10 bg-white/95 py-1">
+            <button
+              type="button"
+              onClick={applyHighlightToSelection}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition"
+            >
+              Highlight selection
+            </button>
+          </div>
+
           {/* Instruction */}
           {section.instruction && (
             <div 
@@ -576,6 +755,8 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           
           {/* Content */}
           <div 
+            ref={passageContentRef}
+            onClick={handlePassageContentClick}
             style={{ 
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
               fontSize: '16px', 
@@ -583,8 +764,24 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
               lineHeight: '1.6',
               marginBottom: '30px'
             }}
-            dangerouslySetInnerHTML={{ __html: (section.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ') }}
+            dangerouslySetInnerHTML={{ __html: passageHtml }}
           />
+
+          {highlightMenu.visible && (
+            <div
+              ref={highlightMenuRef}
+              className="absolute z-20"
+              style={{ left: highlightMenu.x, top: highlightMenu.y }}
+            >
+              <button
+                type="button"
+                onClick={removeHighlight}
+                className="px-2.5 py-1.5 text-xs font-semibold rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 transition"
+              >
+                Remove highlight
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Resizer */}

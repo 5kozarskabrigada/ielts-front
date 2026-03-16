@@ -434,7 +434,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
   const peopleOptions = (peopleList || []).map((_, idx) => String.fromCharCode(65 + idx));
   const answerOptions =
     groupType === 'matching_headings'
-      ? headingOptions
+      ? (matchingStyle === 'letters' ? passageLetters : headingOptions)
       : groupType === 'matching_features'
       ? peopleOptions
       : passageLetters;
@@ -565,7 +565,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-xs text-gray-500">
                       {groupType === 'matching_headings'
-                        ? `Available heading options (${matchingStyle === 'letters' ? 'letters' : 'roman numerals'}):`
+                        ? (matchingStyle === 'letters' ? 'Available passage letters:' : 'Available heading options (roman numerals):')
                         : groupType === 'matching_features'
                         ? 'Available people options:'
                         : 'Detected paragraph letters:'}
@@ -987,32 +987,42 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
                   ]}
                 />
               </div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">List of Headings</label>
-              <div className="border rounded-lg overflow-hidden">
-                {headings.map((h, idx) => (
-                  <div key={h.id} className="flex items-center">
-                    <span className="w-10 text-center font-bold text-gray-700" style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}>
-                      {group.matching_style === 'letters' ? String.fromCharCode(65 + idx) : toRoman(idx + 1)}.
-                    </span>
-                    <input
-                      className="flex-1 px-3 py-2 bg-white border-b border-gray-200 text-sm focus:border-emerald-400 outline-none"
-                      style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}
-                      placeholder={`Heading ${idx + 1}`}
-                      value={h.value}
-                      onChange={e => setHeadings(headings.map((hh, i) => i === idx ? {...hh, value: e.target.value} : hh))}
-                    />
-                    <button type="button" className="px-2 text-red-500" onClick={() => setHeadings(headings.filter((_, i) => i !== idx))} disabled={headings.length <= 1}>×</button>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="mt-2 px-3 py-1 bg-emerald-500 text-white rounded" onClick={() => setHeadings([...headings, { value: '', id: Date.now() }])}>+ Add Heading</button>
-              <div className="mt-4">
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Example</label>
-                <div className="flex gap-2">
-                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Paragraph A" value={example.paragraph} onChange={e => setExample({...example, paragraph: e.target.value})} />
-                  <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder={`Answer (e.g. ${group.matching_style === 'letters' ? 'C' : 'viii'})`} value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
+              {group.matching_style === 'letters' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                  Letter mode uses passage letters (A, B, C...) as answer options.
+                  <br />
+                  Add each statement in the questions below and choose the matching passage letter.
                 </div>
-              </div>
+              ) : (
+                <>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">List of Headings</label>
+                  <div className="border rounded-lg overflow-hidden">
+                    {headings.map((h, idx) => (
+                      <div key={h.id} className="flex items-center">
+                        <span className="w-10 text-center font-bold text-gray-700" style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}>
+                          {toRoman(idx + 1)}.
+                        </span>
+                        <input
+                          className="flex-1 px-3 py-2 bg-white border-b border-gray-200 text-sm focus:border-emerald-400 outline-none"
+                          style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}}
+                          placeholder={`Heading ${idx + 1}`}
+                          value={h.value}
+                          onChange={e => setHeadings(headings.map((hh, i) => i === idx ? {...hh, value: e.target.value} : hh))}
+                        />
+                        <button type="button" className="px-2 text-red-500" onClick={() => setHeadings(headings.filter((_, i) => i !== idx))} disabled={headings.length <= 1}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="mt-2 px-3 py-1 bg-emerald-500 text-white rounded" onClick={() => setHeadings([...headings, { value: '', id: Date.now() }])}>+ Add Heading</button>
+                  <div className="mt-4">
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Example</label>
+                    <div className="flex gap-2">
+                      <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Paragraph A" value={example.paragraph} onChange={e => setExample({...example, paragraph: e.target.value})} />
+                      <input className="px-2 py-1 border rounded text-sm" style={{width: 120}} placeholder="Answer (e.g. viii)" value={example.answer} onChange={e => setExample({...example, answer: e.target.value})} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
           {/* People Toolbox for matching_features (Match Each Statement with the Correct Person) */}

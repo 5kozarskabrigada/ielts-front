@@ -827,7 +827,7 @@ export default function ExamPlayer() {
           </div>
           
           <button
-            onClick={isLastModule ? handleFinalSubmit : () => handleModuleSubmit(false)}
+            onClick={isLastModule ? () => handleFinalSubmit(false, false) : () => handleModuleSubmit(false)}
             disabled={isSubmitting}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center space-x-2 transition disabled:opacity-50"
           >
@@ -888,6 +888,7 @@ export default function ExamPlayer() {
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
                   setAnswers={setAnswersWithAutosave}
+                  examId={examId}
                 />
               </ErrorBoundary>
             </div>
