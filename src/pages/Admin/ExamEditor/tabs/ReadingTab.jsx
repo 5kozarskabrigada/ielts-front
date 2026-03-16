@@ -416,7 +416,7 @@ const ParagraphLetteringInfo = ({ content }) => {
 // ============================================
 // QUESTION EDITOR BY TYPE
 // ============================================
-const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [] }) => {
+const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [], matchingStyle = 'roman' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Strip HTML tags for display in collapsed view
@@ -538,7 +538,12 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
             <>
               <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
               <div>
-                <Input label="Correct Answer (Letter)" placeholder="C" value={question.correct_answer || ""} onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value.toUpperCase() })} />
+                <Input 
+                  label={`Correct Answer (${matchingStyle === 'letters' ? 'Letter' : 'Roman Numeral'})`} 
+                  placeholder={matchingStyle === 'letters' ? 'C' : 'iv'} 
+                  value={question.correct_answer || ""} 
+                  onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} 
+                />
                 {passageLetters.length > 0 && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-xs text-gray-500">Detected paragraph letters:</span>
@@ -869,7 +874,8 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
       } else if (group.question_type === 'matching_features') {
         updateQuestionGroup(group.id, { people_list: people, example });
       }
-    }, [headings, people, example]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [JSON.stringify(headings), JSON.stringify(people), JSON.stringify(example)]);
 
   const addQuestion = () => {
     const nextNumber = groupQuestions.length > 0 ? Math.max(...groupQuestions.map(q => q.question_number)) + 1 : group.question_range_start;
@@ -1098,13 +1104,13 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
             <div className="border-t border-gray-200 pt-4">
               <div className="flex items-center justify-between mb-3">
                 <h5 className="text-sm font-semibold text-gray-700">Questions in this Group</h5>
-                <button type="button" onClick={addQuestion} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg hover:bg-emerald-600 transition"><Plus size={14} /> Add Question</button>
+                <button type="button" onClick={addQuestion} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition"><Plus size={14} /> Add Question</button>
               </div>
 
               {groupQuestions.length > 0 ? (
                 <div className="space-y-3">
                   {groupQuestions.map((question, idx) => (
-                    <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} />
+                    <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} matchingStyle={group.matching_style} />
                   ))}
                 </div>
               ) : (
@@ -1560,7 +1566,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
       `}</style>
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-          <div><h2 className="text-xl font-bold text-gray-800">Preview Mode</h2><p className="text-sm text-gray-500">Student view of the reading section</p></div>
+          <div><h2 className="text-xl font-bold text-gray-800">Preview Mode</h2><p className="text-sm text-gray-500 mt-1">Student view of the reading section</p></div>
           <button type="button" onClick={onClose} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition"><EyeOff size={20} /></button>
         </div>
 
