@@ -116,11 +116,11 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 <div className="flex items-center gap-2 flex-1">
                   <select 
                     value={answers[q.id] || ''}
-                    onChange={(e) => {
+                    onChange={e => {
                       setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
                       if (saveAnswers) saveAnswers();
                     }}
-                    style={{ 
+                    style={{
                       width: '100px', 
                       height: '32px', 
                       padding: '0 20px 0 10px', 
@@ -470,7 +470,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           padding: 0, 
           lineHeight: '28.8px' 
         }}>
-          PART {partNumber}
+          part {partNumber}
         </h1>
         <h2 style={{ 
           fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
