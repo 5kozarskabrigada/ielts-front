@@ -66,6 +66,7 @@ export default function ExamPlayer() {
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
   const lastSaveRef = useRef({});
+  const answersRef = useRef({});
 
   // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
@@ -290,8 +291,14 @@ export default function ExamPlayer() {
   // ============================================
   // AUTO-SAVE
   // ============================================
-  const saveAnswers = useCallback(async (answerData = answers) => {
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  const saveAnswers = useCallback(async (answerData) => {
     if (!hasStarted) return;
+
+    const payloadAnswers = answerData ?? answersRef.current;
 
     try {
       await fetch(`${API_URL}/exams/${examId}/autosave`, {
@@ -301,7 +308,7 @@ export default function ExamPlayer() {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          answers: answerData,
+          answers: payloadAnswers,
           module: currentModule,
           currentPart: currentPart,
           currentWritingTask: currentWritingTask,
@@ -309,11 +316,22 @@ export default function ExamPlayer() {
           timestamp: new Date().toISOString()
         })
       });
-      lastSaveRef.current = { ...answerData };
+      lastSaveRef.current = { ...payloadAnswers };
     } catch (err) {
       console.error("Auto-save failed:", err);
     }
-  }, [hasStarted, answers, currentModule, currentPart, currentWritingTask, timeSpent, examId, token]);
+  }, [hasStarted, currentModule, currentPart, currentWritingTask, timeSpent, examId, token]);
+
+  const setAnswersWithAutosave = useCallback((updater) => {
+    setAnswers((previousAnswers) => {
+      const nextAnswers = typeof updater === 'function' ? updater(previousAnswers) : updater;
+      if (hasStarted) {
+        lastSaveRef.current = { ...nextAnswers };
+        saveAnswers(nextAnswers);
+      }
+      return nextAnswers;
+    });
+  }, [hasStarted, saveAnswers]);
 
   // ============================================
   // AUTO-SAVE
@@ -343,15 +361,15 @@ export default function ExamPlayer() {
     if (!hasStarted) return;
     
     // Save immediately when navigation changes
-    saveAnswers();
-  }, [currentModule, currentPart, currentWritingTask]);
+    saveAnswers(answersRef.current);
+  }, [hasStarted, currentModule, currentPart, currentWritingTask, saveAnswers]);
 
   // Periodic auto-save (every 15 seconds) to ensure time spent is saved
   useEffect(() => {
     if (!hasStarted) return;
 
     const periodicSave = setInterval(() => {
-      saveAnswers();
+      saveAnswers(answersRef.current);
     }, 15000); // Save every 15 seconds
 
     return () => clearInterval(periodicSave);
@@ -396,7 +414,7 @@ export default function ExamPlayer() {
     }
 
     // Save answers before moving to next module
-    await saveAnswers();
+    await saveAnswers(answersRef.current);
 
     const currentIndex = MODULE_ORDER.indexOf(currentModule);
     if (currentIndex < MODULE_ORDER.length - 1) {
@@ -437,9 +455,10 @@ export default function ExamPlayer() {
   // ============================================
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    const latestAnswers = answersRef.current;
     
     // Final save before submission
-    await saveAnswers();
+    await saveAnswers(latestAnswers);
 
     try {
       // Aggregate writing task times into total writing time
@@ -456,7 +475,7 @@ export default function ExamPlayer() {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          answers,
+          answers: latestAnswers,
           time_spent_by_module: submissionTimeSpent,
           violations: violations.length
         })
@@ -784,7 +803,7 @@ export default function ExamPlayer() {
                   questions={currentQuestions}
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
-                  setAnswers={setAnswers}
+                  setAnswers={setAnswersWithAutosave}
                   partNumber={currentPart}
                   globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
                     const dbCount = questions.filter(q => q.section_id === s.id).length;
@@ -815,7 +834,7 @@ export default function ExamPlayer() {
                   questions={currentQuestions}
                   questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
                   answers={answers}
-                  setAnswers={setAnswers}
+                  setAnswers={setAnswersWithAutosave}
                 />
               </ErrorBoundary>
             </div>
@@ -890,7 +909,7 @@ export default function ExamPlayer() {
                         style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
                         placeholder={`Write your response for Task ${actualTaskNumber} here...`}
                         value={answers[taskKey] || ""}
-                        onChange={(e) => setAnswers({...answers, [taskKey]: e.target.value})}
+                        onChange={(e) => setAnswersWithAutosave(prev => ({ ...prev, [taskKey]: e.target.value }))}
                       />
                       
                       {/* Task 1 -> Task 2 Navigation */}

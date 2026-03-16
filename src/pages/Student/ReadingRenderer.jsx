@@ -223,12 +223,16 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   if (type === 'matching_headings' || type === 'matching_information' || type === 'matching_features' || type === 'matching_sentence_endings') {
     // Headings/People list and example
     const toRoman = n => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
-    const headings = group.headings_list || [];
-    const people = group.people_list || [];
+    const normalizeOptionItems = (optionList = []) => optionList
+      .map((item) => (typeof item === 'string' ? { value: item } : item))
+      .filter(item => item && String(item.value || '').trim() !== '');
+
+    const headings = normalizeOptionItems(group.headings_list || []);
+    const people = normalizeOptionItems(group.people_list || []);
     const example = group.example || { paragraph: '', answer: '' };
 
     // Determine numbering style for headings
-    const useLettersForHeadings = group.matching_style === 'letters';
+    const useLettersForHeadings = String(group.matching_style || 'roman').toLowerCase() === 'letters';
 
     // Determine if this is a people-matching type
     const isPeople = type === 'matching_features';
@@ -473,7 +477,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           padding: 0, 
           lineHeight: '28.8px' 
         }}>
-          part {partNumber}
+          PART {partNumber}
         </h1>
         <h2 style={{ 
           fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 

@@ -416,7 +416,7 @@ const ParagraphLetteringInfo = ({ content }) => {
 // ============================================
 // QUESTION EDITOR BY TYPE
 // ============================================
-const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [], matchingStyle = 'roman' }) => {
+const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion, passageLetters = [], matchingStyle = 'roman', headingsList = [], peopleList = [] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Strip HTML tags for display in collapsed view
@@ -426,6 +426,18 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
   };
+
+  const toRoman = (n) => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
+  const headingOptions = (headingsList || []).map((_, idx) => (
+    matchingStyle === 'letters' ? String.fromCharCode(65 + idx) : toRoman(idx + 1)
+  ));
+  const peopleOptions = (peopleList || []).map((_, idx) => String.fromCharCode(65 + idx));
+  const answerOptions =
+    groupType === 'matching_headings'
+      ? headingOptions
+      : groupType === 'matching_features'
+      ? peopleOptions
+      : passageLetters;
 
   return (
     <div className="border rounded-lg overflow-hidden bg-white border-gray-200">
@@ -539,27 +551,38 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
               <div>
                 <Input 
-                  label={`Correct Answer (${matchingStyle === 'letters' ? 'Letter' : 'Roman Numeral'})`} 
-                  placeholder={matchingStyle === 'letters' ? 'C' : 'iv'} 
+                  label={groupType === 'matching_headings' ? `Correct Answer (${matchingStyle === 'letters' ? 'Letter' : 'Roman Numeral'})` : 'Correct Answer (Letter)'} 
+                  placeholder={groupType === 'matching_headings' ? (matchingStyle === 'letters' ? 'C' : 'iv') : 'C'} 
                   value={question.correct_answer || ""} 
-                  onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })} 
+                  onChange={(e) => {
+                    const normalizedValue = groupType === 'matching_headings' && matchingStyle !== 'letters'
+                      ? e.target.value.toLowerCase()
+                      : e.target.value.toUpperCase();
+                    updateQuestion(question.id, { correct_answer: normalizedValue });
+                  }} 
                 />
-                {passageLetters.length > 0 && (
+                {answerOptions.length > 0 && (
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Detected paragraph letters:</span>
+                    <span className="text-xs text-gray-500">
+                      {groupType === 'matching_headings'
+                        ? `Available heading options (${matchingStyle === 'letters' ? 'letters' : 'roman numerals'}):`
+                        : groupType === 'matching_features'
+                        ? 'Available people options:'
+                        : 'Detected paragraph letters:'}
+                    </span>
                     <div className="flex flex-wrap gap-1">
-                      {passageLetters.map(letter => (
+                      {answerOptions.map((optionValue) => (
                         <button
-                          key={letter}
+                          key={optionValue}
                           type="button"
-                          onClick={() => updateQuestion(question.id, { correct_answer: letter })}
+                          onClick={() => updateQuestion(question.id, { correct_answer: optionValue })}
                           className={`px-2 py-1 text-xs font-bold rounded transition ${
-                            question.correct_answer === letter
+                            (question.correct_answer || '').toString().toLowerCase() === optionValue.toString().toLowerCase()
                               ? 'bg-green-500 text-white'
                               : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                           }`}
                         >
-                          {letter}
+                          {optionValue}
                         </button>
                       ))}
                     </div>
@@ -860,14 +883,40 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
 
   const baseQuestionNumber = (passageNumber - 1) * 13 + group.question_range_start;
 
+    const normalizeOptionList = (optionList) => {
+      if (!Array.isArray(optionList) || optionList.length === 0) {
+        return [{ value: '', id: 1 }];
+      }
+      const normalized = optionList
+        .map((item, index) => {
+          if (typeof item === 'string') {
+            return { value: item, id: index + 1 };
+          }
+          return {
+            value: item?.value || '',
+            id: item?.id || index + 1,
+          };
+        })
+        .filter(item => item && typeof item.value === 'string');
+
+      return normalized.length > 0 ? normalized : [{ value: '', id: 1 }];
+    };
+
     // Roman numerals helper
     const toRoman = n => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
     // Headings/People toolbox state
-    const [headings, setHeadings] = useState(group.headings_list || [{ value: '', id: 1 }]);
-    const [people, setPeople] = useState(group.people_list || [{ value: '', id: 1 }]);
+    const [headings, setHeadings] = useState(normalizeOptionList(group.headings_list));
+    const [people, setPeople] = useState(normalizeOptionList(group.people_list));
     const [example, setExample] = useState(group.example || { paragraph: '', answer: '' });
 
-    // Sync with group
+    // Keep local toolbox state in sync when group data changes externally (e.g. load/reload)
+    useEffect(() => {
+      setHeadings(normalizeOptionList(group.headings_list));
+      setPeople(normalizeOptionList(group.people_list));
+      setExample(group.example || { paragraph: '', answer: '' });
+    }, [group.id, group.headings_list, group.people_list, group.example]);
+
+    // Sync local toolbox edits back into group state for save payload
     useEffect(() => {
       if (group.question_type === 'matching_headings') {
         updateQuestionGroup(group.id, { headings_list: headings, example });
@@ -875,7 +924,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
         updateQuestionGroup(group.id, { people_list: people, example });
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [JSON.stringify(headings), JSON.stringify(people), JSON.stringify(example)]);
+    }, [group.id, group.question_type, JSON.stringify(headings), JSON.stringify(people), JSON.stringify(example)]);
 
   const addQuestion = () => {
     const nextNumber = groupQuestions.length > 0 ? Math.max(...groupQuestions.map(q => q.question_number)) + 1 : group.question_range_start;
@@ -1110,7 +1159,18 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
               {groupQuestions.length > 0 ? (
                 <div className="space-y-3">
                   {groupQuestions.map((question, idx) => (
-                    <QuestionEditor key={question.id} question={question} questionNumber={baseQuestionNumber + idx} groupType={group.question_type} updateQuestion={updateQuestion} deleteQuestion={deleteQuestion} passageLetters={passageLetters} matchingStyle={group.matching_style} />
+                    <QuestionEditor
+                      key={question.id}
+                      question={question}
+                      questionNumber={baseQuestionNumber + idx}
+                      groupType={group.question_type}
+                      updateQuestion={updateQuestion}
+                      deleteQuestion={deleteQuestion}
+                      passageLetters={passageLetters}
+                      matchingStyle={group.matching_style}
+                      headingsList={headings}
+                      peopleList={people}
+                    />
                   ))}
                 </div>
               ) : (
