@@ -534,12 +534,19 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   const passagePaneRef = useRef(null);
   const passageContentRef = useRef(null);
   const highlightMenuRef = useRef(null);
+  const selectionActionRef = useRef(null);
+  const pendingSelectionRangeRef = useRef(null);
   const [passageHtml, setPassageHtml] = useState((section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> '));
   const [highlightMenu, setHighlightMenu] = useState({
     visible: false,
     x: 0,
     y: 0,
     target: null,
+  });
+  const [selectionAction, setSelectionAction] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
   });
 
   const closeHighlightMenu = () => {
@@ -548,6 +555,16 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
         return prev;
       }
       return { visible: false, x: 0, y: 0, target: null };
+    });
+  };
+
+  const closeSelectionAction = () => {
+    pendingSelectionRangeRef.current = null;
+    setSelectionAction((prev) => {
+      if (!prev.visible && prev.x === 0 && prev.y === 0) {
+        return prev;
+      }
+      return { visible: false, x: 0, y: 0 };
     });
   };
 
@@ -573,6 +590,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       setPassageHtml(baseHtml);
     }
     closeHighlightMenu();
+    closeSelectionAction();
   }, [examId, section?.id, section?.content]);
 
   useEffect(() => {
@@ -594,15 +612,39 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   }, [passageHtml]);
 
   const applyHighlightToSelection = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !passageContentRef.current) return;
+    if (!passageContentRef.current) return;
 
-    const range = selection.getRangeAt(0);
+    const selection = window.getSelection();
+    let range = null;
+
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      const selectedRange = selection.getRangeAt(0);
+      const selectedAnchorNode = selectedRange.commonAncestorContainer.nodeType === 3
+        ? selectedRange.commonAncestorContainer.parentNode
+        : selectedRange.commonAncestorContainer;
+
+      if (passageContentRef.current.contains(selectedAnchorNode)) {
+        range = selectedRange;
+      }
+    }
+
+    if (!range && pendingSelectionRangeRef.current) {
+      range = pendingSelectionRangeRef.current;
+    }
+
+    if (!range || range.collapsed) {
+      closeSelectionAction();
+      return;
+    }
+
     const anchorNode = range.commonAncestorContainer.nodeType === 3
       ? range.commonAncestorContainer.parentNode
       : range.commonAncestorContainer;
 
-    if (!passageContentRef.current.contains(anchorNode)) return;
+    if (!passageContentRef.current.contains(anchorNode)) {
+      closeSelectionAction();
+      return;
+    }
 
     const highlightSpan = document.createElement('span');
     highlightSpan.className = 'reading-user-highlight';
@@ -618,8 +660,46 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       range.insertNode(highlightSpan);
     }
 
-    selection.removeAllRanges();
+    if (selection) {
+      selection.removeAllRanges();
+    }
+    closeSelectionAction();
     persistPassageHighlights();
+  };
+
+  const handlePassageSelectionMouseUp = () => {
+    window.requestAnimationFrame(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !passagePaneRef.current || !passageContentRef.current) {
+        closeSelectionAction();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const anchorNode = range.commonAncestorContainer.nodeType === 3
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+
+      if (!passageContentRef.current.contains(anchorNode)) {
+        closeSelectionAction();
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        closeSelectionAction();
+        return;
+      }
+
+      pendingSelectionRangeRef.current = range.cloneRange();
+      const paneRect = passagePaneRef.current.getBoundingClientRect();
+      setSelectionAction({
+        visible: true,
+        x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
+        y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+      });
+      closeHighlightMenu();
+    });
   };
 
   const handlePassageContentClick = (event) => {
@@ -631,9 +711,11 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     const highlightedNode = event.target.closest('.reading-user-highlight');
     if (!highlightedNode || !passagePaneRef.current) {
       closeHighlightMenu();
+      closeSelectionAction();
       return;
     }
 
+    closeSelectionAction();
     const paneRect = passagePaneRef.current.getBoundingClientRect();
     const nodeRect = highlightedNode.getBoundingClientRect();
     setHighlightMenu({
@@ -658,28 +740,30 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     parent.removeChild(highlightNode);
     parent.normalize();
     persistPassageHighlights();
+    closeSelectionAction();
     closeHighlightMenu();
   };
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
-      if (!highlightMenu.visible) return;
-
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) {
-        return;
-      }
+      if (!highlightMenu.visible && !selectionAction.visible) return;
 
       const clickedHighlight = event.target.closest && event.target.closest('.reading-user-highlight');
-      const clickedMenu = highlightMenuRef.current && highlightMenuRef.current.contains(event.target);
-      if (!clickedHighlight && !clickedMenu) {
+      const clickedRemoveMenu = highlightMenuRef.current && highlightMenuRef.current.contains(event.target);
+      const clickedSelectionAction = selectionActionRef.current && selectionActionRef.current.contains(event.target);
+      if (!clickedHighlight && !clickedRemoveMenu && !clickedSelectionAction) {
         closeHighlightMenu();
+
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          closeSelectionAction();
+        }
       }
     };
 
     document.addEventListener('click', handleOutsideClick);
     return () => document.removeEventListener('click', handleOutsideClick);
-  }, [highlightMenu.visible]);
+  }, [highlightMenu.visible, selectionAction.visible]);
   
   if (!section) return null;
 
@@ -733,17 +817,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             position: 'relative'
           }}
         >
-          <div className="flex justify-end mb-3 sticky top-0 z-10 bg-white/95 py-1">
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={applyHighlightToSelection}
-              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition"
-            >
-              Highlight selection
-            </button>
-          </div>
-
           {/* Instruction */}
           {section.instruction && (
             <div 
@@ -794,6 +867,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             ref={passageContentRef}
             className="select-text reading-passage-content"
             onClick={handlePassageContentClick}
+            onMouseUp={handlePassageSelectionMouseUp}
             style={{ 
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
               fontSize: '16px', 
@@ -805,6 +879,24 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             }}
             dangerouslySetInnerHTML={{ __html: passageHtml }}
           />
+
+          {selectionAction.visible && (
+            <div
+              ref={selectionActionRef}
+              className="absolute z-20"
+              style={{ left: selectionAction.x, top: selectionAction.y }}
+            >
+              <button
+                type="button"
+                title="Highlight selection"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={applyHighlightToSelection}
+                className="w-8 h-8 flex items-center justify-center text-sm rounded-full border border-yellow-300 bg-yellow-100 text-yellow-800 shadow-sm hover:bg-yellow-200 transition"
+              >
+                🖍
+              </button>
+            </div>
+          )}
 
           {highlightMenu.visible && (
             <div
