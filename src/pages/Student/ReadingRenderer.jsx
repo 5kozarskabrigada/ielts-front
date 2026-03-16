@@ -653,7 +653,65 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
         node.setAttribute('draggable', 'false');
       }
     });
+
+    const existingHighlights = root.querySelectorAll('.reading-user-highlight');
+    existingHighlights.forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      node.style.backgroundColor = '#fff59d';
+      node.style.cursor = 'pointer';
+      node.style.padding = '0';
+      node.style.margin = '0';
+      node.style.display = 'inline';
+    });
   }, [passageHtml]);
+
+  const normalizeHighlightMarkup = () => {
+    if (!passageContentRef.current) return;
+
+    const root = passageContentRef.current;
+    const highlights = Array.from(root.querySelectorAll('.reading-user-highlight'));
+
+    highlights.forEach((currentNode) => {
+      if (!(currentNode instanceof HTMLElement)) return;
+
+      currentNode.style.backgroundColor = '#fff59d';
+      currentNode.style.cursor = 'pointer';
+      currentNode.style.padding = '0';
+      currentNode.style.margin = '0';
+      currentNode.style.display = 'inline';
+
+      let nextNode = currentNode.nextSibling;
+
+      while (nextNode && nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '') {
+        const emptyTextNode = nextNode;
+        nextNode = nextNode.nextSibling;
+        emptyTextNode.parentNode?.removeChild(emptyTextNode);
+      }
+
+      while (
+        nextNode &&
+        nextNode.nodeType === Node.ELEMENT_NODE &&
+        nextNode.classList &&
+        nextNode.classList.contains('reading-user-highlight')
+      ) {
+        while (nextNode.firstChild) {
+          currentNode.appendChild(nextNode.firstChild);
+        }
+
+        const nodeToRemove = nextNode;
+        nextNode = nodeToRemove.nextSibling;
+        nodeToRemove.parentNode?.removeChild(nodeToRemove);
+
+        while (nextNode && nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '') {
+          const emptyTextNode = nextNode;
+          nextNode = nextNode.nextSibling;
+          emptyTextNode.parentNode?.removeChild(emptyTextNode);
+        }
+      }
+    });
+
+    root.normalize();
+  };
 
   const applyHighlightToSelection = () => {
     if (!passageContentRef.current) return;
@@ -727,6 +785,8 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     if (selection) {
       selection.removeAllRanges();
     }
+
+    normalizeHighlightMarkup();
     closeSelectionAction();
     persistPassageHighlights();
   };
@@ -767,6 +827,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     }
     parent.removeChild(highlightNode);
     parent.normalize();
+    normalizeHighlightMarkup();
     persistPassageHighlights();
     closeSelectionAction();
     closeHighlightMenu();
