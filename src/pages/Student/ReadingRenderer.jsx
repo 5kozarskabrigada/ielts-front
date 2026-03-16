@@ -529,7 +529,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-export default function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null }) {
+function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
   const passagePaneRef = useRef(null);
   const passageContentRef = useRef(null);
@@ -905,3 +905,5 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
     </div>
   );
 }
+
+export default React.memo(ReadingRenderer);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { 
@@ -68,6 +68,11 @@ export default function ExamPlayer() {
   const autoSaveTimeoutRef = useRef(null);
   const lastSaveRef = useRef({});
   const answersRef = useRef({});
+  const hasStartedRef = useRef(false);
+  const currentModuleRef = useRef("listening");
+  const currentPartRef = useRef(1);
+  const currentWritingTaskRef = useRef(1);
+  const timeSpentRef = useRef(timeSpent);
 
   // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
@@ -296,8 +301,28 @@ export default function ExamPlayer() {
     answersRef.current = answers;
   }, [answers]);
 
+  useEffect(() => {
+    hasStartedRef.current = hasStarted;
+  }, [hasStarted]);
+
+  useEffect(() => {
+    currentModuleRef.current = currentModule;
+  }, [currentModule]);
+
+  useEffect(() => {
+    currentPartRef.current = currentPart;
+  }, [currentPart]);
+
+  useEffect(() => {
+    currentWritingTaskRef.current = currentWritingTask;
+  }, [currentWritingTask]);
+
+  useEffect(() => {
+    timeSpentRef.current = timeSpent;
+  }, [timeSpent]);
+
   const saveAnswers = useCallback(async (answerData) => {
-    if (!hasStarted) return;
+    if (!hasStartedRef.current) return;
 
     const payloadAnswers = answerData ?? answersRef.current;
 
@@ -310,10 +335,10 @@ export default function ExamPlayer() {
         },
         body: JSON.stringify({
           answers: payloadAnswers,
-          module: currentModule,
-          currentPart: currentPart,
-          currentWritingTask: currentWritingTask,
-          timeSpent: timeSpent,
+          module: currentModuleRef.current,
+          currentPart: currentPartRef.current,
+          currentWritingTask: currentWritingTaskRef.current,
+          timeSpent: timeSpentRef.current,
           timestamp: new Date().toISOString()
         })
       });
@@ -321,18 +346,18 @@ export default function ExamPlayer() {
     } catch (err) {
       console.error("Auto-save failed:", err);
     }
-  }, [hasStarted, currentModule, currentPart, currentWritingTask, timeSpent, examId, token]);
+  }, [examId, token]);
 
   const setAnswersWithAutosave = useCallback((updater) => {
     setAnswers((previousAnswers) => {
       const nextAnswers = typeof updater === 'function' ? updater(previousAnswers) : updater;
-      if (hasStarted) {
+      if (hasStartedRef.current) {
         lastSaveRef.current = { ...nextAnswers };
         saveAnswers(nextAnswers);
       }
       return nextAnswers;
     });
-  }, [hasStarted, saveAnswers]);
+  }, [saveAnswers]);
 
   // ============================================
   // AUTO-SAVE
@@ -576,23 +601,46 @@ export default function ExamPlayer() {
   };
 
   // Get all sections for current module
-  const allModuleSections = sections.filter(s => s.module_type === currentModule).sort((a, b) => a.section_order - b.section_order);
-  
-  // For listening and reading, only show current part
-  let currentSection = null;
-  if (currentModule === "listening" || currentModule === "reading") {
-    currentSection = allModuleSections[currentPart - 1];
-  }
-  
-  // Legacy computed values for compatibility
-  const currentSections = currentModule === "writing" ? allModuleSections : (currentSection ? [currentSection] : []);
-  const currentQuestions = questions.filter(q => {
-    const qSection = sections.find(s => s.id === q.section_id);
+  const allModuleSections = useMemo(
+    () => sections.filter(s => s.module_type === currentModule).sort((a, b) => a.section_order - b.section_order),
+    [sections, currentModule]
+  );
+
+  const currentSection = useMemo(() => {
     if (currentModule === "listening" || currentModule === "reading") {
-      return qSection?.id === currentSection?.id;
+      return allModuleSections[currentPart - 1] || null;
     }
-    return qSection?.module_type === currentModule;
-  });
+    return null;
+  }, [currentModule, allModuleSections, currentPart]);
+
+  const currentSections = useMemo(
+    () => (currentModule === "writing" ? allModuleSections : (currentSection ? [currentSection] : [])),
+    [currentModule, allModuleSections, currentSection]
+  );
+
+  const currentQuestions = useMemo(() => {
+    return questions.filter(q => {
+      const qSection = sections.find(s => s.id === q.section_id);
+      if (currentModule === "listening" || currentModule === "reading") {
+        return qSection?.id === currentSection?.id;
+      }
+      return qSection?.module_type === currentModule;
+    });
+  }, [questions, sections, currentModule, currentSection?.id]);
+
+  const currentSectionQuestionGroups = useMemo(() => {
+    if (!currentSection) return [];
+    return questionGroups.filter(g => g.section_id === currentSection.id);
+  }, [questionGroups, currentSection?.id]);
+
+  const currentGlobalOffset = useMemo(() => {
+    return allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
+      const dbCount = questions.filter(q => q.section_id === s.id).length;
+      const sGroups = questionGroups.filter(g => g.section_id === s.id);
+      const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
+      return sum + Math.max(dbCount, maxEnd);
+    }, 0);
+  }, [allModuleSections, currentPart, questions, questionGroups]);
 
   // ============================================
   // LOADING & ERROR STATES
@@ -854,16 +902,11 @@ export default function ExamPlayer() {
                 <ListeningRenderer 
                   sections={[currentSection]}
                   questions={currentQuestions}
-                  questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
+                  questionGroups={currentSectionQuestionGroups}
                   answers={answers}
                   setAnswers={setAnswersWithAutosave}
                   partNumber={currentPart}
-                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
-                    const dbCount = questions.filter(q => q.section_id === s.id).length;
-                    const sGroups = questionGroups.filter(g => g.section_id === s.id);
-                    const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
-                    return sum + Math.max(dbCount, maxEnd);
-                  }, 0)}
+                  globalOffset={currentGlobalOffset}
                 />
               </ErrorBoundary>
             </div>
@@ -878,14 +921,9 @@ export default function ExamPlayer() {
                 <ReadingRenderer 
                   section={currentSection}
                   partNumber={currentPart}
-                  globalOffset={allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
-                    const dbCount = questions.filter(q => q.section_id === s.id).length;
-                    const sGroups = questionGroups.filter(g => g.section_id === s.id);
-                    const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
-                    return sum + Math.max(dbCount, maxEnd);
-                  }, 0)}
+                  globalOffset={currentGlobalOffset}
                   questions={currentQuestions}
-                  questionGroups={questionGroups.filter(g => g.section_id === currentSection.id)}
+                  questionGroups={currentSectionQuestionGroups}
                   answers={answers}
                   setAnswers={setAnswersWithAutosave}
                   examId={examId}
