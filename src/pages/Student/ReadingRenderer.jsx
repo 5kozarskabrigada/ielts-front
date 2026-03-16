@@ -594,49 +594,46 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   }, [examId, section?.id, section?.content]);
 
   useEffect(() => {
-    if (!passageContentRef.current) return;
-
-    const handleMouseUp = () => {
-      window.requestAnimationFrame(() => {
-        if (!passagePaneRef.current || !passageContentRef.current) {
-          closeSelectionAction();
-          return;
-        }
-
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-          return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const anchorNode = range.commonAncestorContainer.nodeType === 3
-          ? range.commonAncestorContainer.parentNode
-          : range.commonAncestorContainer;
-
-        if (!passageContentRef.current.contains(anchorNode)) {
-          return;
-        }
-
-        const rect = range.getBoundingClientRect();
-        if (!rect || (rect.width === 0 && rect.height === 0)) {
-          return;
-        }
-
-        pendingSelectionRangeRef.current = range.cloneRange();
-        const paneRect = passagePaneRef.current.getBoundingClientRect();
-        setSelectionAction({
-          visible: true,
-          x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
-          y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
-        });
-        closeHighlightMenu();
-      });
-    };
-
-    const node = passageContentRef.current;
-    node.addEventListener('mouseup', handleMouseUp);
-    return () => node.removeEventListener('mouseup', handleMouseUp);
+    closeHighlightMenu();
+    closeSelectionAction();
   }, [section?.id]);
+
+  const handlePassageMouseUp = () => {
+    window.requestAnimationFrame(() => {
+      if (!passagePaneRef.current || !passageContentRef.current) {
+        closeSelectionAction();
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const anchorNode = range.commonAncestorContainer.nodeType === 3
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+
+      if (!passageContentRef.current.contains(anchorNode)) {
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        return;
+      }
+
+      pendingSelectionRangeRef.current = range.cloneRange();
+      const paneRect = passagePaneRef.current.getBoundingClientRect();
+      setSelectionAction({
+        visible: true,
+        x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
+        y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+      });
+      closeHighlightMenu();
+    });
+  };
 
   useEffect(() => {
     if (!passageContentRef.current) return;
@@ -856,6 +853,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             ref={passageContentRef}
             className="select-text reading-passage-content"
             onClick={handlePassageContentClick}
+            onMouseUp={handlePassageMouseUp}
             style={{ 
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
               fontSize: '16px', 
@@ -880,9 +878,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
                   applyHighlightToSelection();
                 }}
                 className="w-8 h-8 flex items-center justify-center text-sm rounded-full border border-yellow-300 bg-yellow-100 text-yellow-800 shadow-sm hover:bg-yellow-200 transition"
@@ -902,9 +897,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
                 type="button"
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
                   e.stopPropagation();
                   removeHighlight();
                 }}
