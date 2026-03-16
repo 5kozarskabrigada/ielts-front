@@ -428,13 +428,14 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
   };
 
   const toRoman = (n) => ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv'][n] || n;
+  const isLetterMatchingStyle = String(matchingStyle || 'roman').trim().toLowerCase().startsWith('letter');
   const headingOptions = (headingsList || []).map((_, idx) => (
-    matchingStyle === 'letters' ? String.fromCharCode(65 + idx) : toRoman(idx + 1)
+    isLetterMatchingStyle ? String.fromCharCode(65 + idx) : toRoman(idx + 1)
   ));
   const peopleOptions = (peopleList || []).map((_, idx) => String.fromCharCode(65 + idx));
   const answerOptions =
     groupType === 'matching_headings'
-      ? (matchingStyle === 'letters' ? passageLetters : headingOptions)
+      ? (isLetterMatchingStyle ? passageLetters : headingOptions)
       : groupType === 'matching_features'
       ? peopleOptions
       : passageLetters;
@@ -551,11 +552,11 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
               <RichTextArea label="Item/Statement Text" placeholder="The historical development of the technique" rows={2} value={question.question_text || ""} onChange={(e) => updateQuestion(question.id, { question_text: e.target.value })} />
               <div>
                 <Input 
-                  label={groupType === 'matching_headings' ? `Correct Answer (${matchingStyle === 'letters' ? 'Letter' : 'Roman Numeral'})` : 'Correct Answer (Letter)'} 
-                  placeholder={groupType === 'matching_headings' ? (matchingStyle === 'letters' ? 'C' : 'iv') : 'C'} 
+                  label={groupType === 'matching_headings' ? `Correct Answer (${isLetterMatchingStyle ? 'Letter' : 'Roman Numeral'})` : 'Correct Answer (Letter)'} 
+                  placeholder={groupType === 'matching_headings' ? (isLetterMatchingStyle ? 'C' : 'iv') : 'C'} 
                   value={question.correct_answer || ""} 
                   onChange={(e) => {
-                    const normalizedValue = groupType === 'matching_headings' && matchingStyle !== 'letters'
+                    const normalizedValue = groupType === 'matching_headings' && !isLetterMatchingStyle
                       ? e.target.value.toLowerCase()
                       : e.target.value.toUpperCase();
                     updateQuestion(question.id, { correct_answer: normalizedValue });
@@ -565,7 +566,7 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-xs text-gray-500">
                       {groupType === 'matching_headings'
-                        ? (matchingStyle === 'letters' ? 'Available passage letters:' : 'Available heading options (roman numerals):')
+                        ? (isLetterMatchingStyle ? 'Available passage letters:' : 'Available heading options (roman numerals):')
                         : groupType === 'matching_features'
                         ? 'Available people options:'
                         : 'Detected paragraph letters:'}
@@ -873,6 +874,7 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
 const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, token }) => {
   const { questions, setQuestions, updateQuestionGroup, deleteQuestionGroup } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
+  const isLetterMatchingStyle = String(group.matching_style || 'roman').trim().toLowerCase().startsWith('letter');
 
   const selectedType = QUESTION_TYPES.find(t => t.value === group.question_type);
   const Icon = selectedType?.icon || HelpCircle;
@@ -979,7 +981,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <Select
                   label="Numbering Style"
-                  value={group.matching_style || 'roman'}
+                  value={isLetterMatchingStyle ? 'letters' : 'roman'}
                   onChange={(e) => updateQuestionGroup(group.id, { matching_style: e.target.value })}
                   options={[
                     { value: 'roman', label: 'Roman Numerals (i, ii, iii)' },
@@ -987,7 +989,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
                   ]}
                 />
               </div>
-              {group.matching_style === 'letters' ? (
+              {isLetterMatchingStyle ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                   Letter mode uses passage letters (A, B, C...) as answer options.
                   <br />

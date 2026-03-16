@@ -73,6 +73,8 @@ const detectParagraphLetters = (content) => {
   return [...new Set(letters)].sort();
 };
 
+const isLetterMatchingStyle = (styleValue) => String(styleValue || 'roman').trim().toLowerCase().startsWith('letter');
+
 // Render question group based on type
 const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters, saveAnswers = null) => {
   const type = group.question_type;
@@ -237,7 +239,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const example = group.example || { paragraph: '', answer: '' };
 
     // Determine numbering style for headings
-    const useLettersForHeadings = String(group.matching_style || 'roman').toLowerCase() === 'letters';
+    const useLettersForHeadings = isLetterMatchingStyle(group.matching_style);
 
     // Determine if this is a people-matching type
     const isPeople = type === 'matching_features';
@@ -541,7 +543,12 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
   });
 
   const closeHighlightMenu = () => {
-    setHighlightMenu({ visible: false, x: 0, y: 0, target: null });
+    setHighlightMenu((prev) => {
+      if (!prev.visible && prev.x === 0 && prev.y === 0 && !prev.target) {
+        return prev;
+      }
+      return { visible: false, x: 0, y: 0, target: null };
+    });
   };
 
   const getPassageStorageKey = () => `reading_highlights_${examId || 'anonymous'}_${section?.id || 'unknown'}`;
@@ -598,6 +605,11 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
   };
 
   const handlePassageContentClick = (event) => {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      return;
+    }
+
     const highlightedNode = event.target.closest('.reading-user-highlight');
     if (!highlightedNode || !passagePaneRef.current) {
       closeHighlightMenu();
@@ -701,6 +713,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           <div className="flex justify-end mb-3 sticky top-0 z-10 bg-white/95 py-1">
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={applyHighlightToSelection}
               className="px-3 py-1.5 text-xs font-semibold rounded-md border border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition"
             >
@@ -756,13 +769,16 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           {/* Content */}
           <div 
             ref={passageContentRef}
+            className="select-text"
             onClick={handlePassageContentClick}
             style={{ 
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
               fontSize: '16px', 
               color: 'rgb(40, 40, 40)', 
               lineHeight: '1.6',
-              marginBottom: '30px'
+              marginBottom: '30px',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
             }}
             dangerouslySetInnerHTML={{ __html: passageHtml }}
           />
