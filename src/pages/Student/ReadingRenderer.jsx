@@ -288,9 +288,12 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       const optionValue = isPeople 
                         ? String.fromCharCode(65 + idx2) 
                         : (useLettersForHeadings ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1));
+                      const displayValue = isPeople 
+                        ? String.fromCharCode(65 + idx2) 
+                        : (useLettersForHeadings ? String.fromCharCode(65 + idx2) : toRoman(idx2 + 1));
                       return (
                         <option key={idx2} value={optionValue}>
-                          {optionValue}
+                          {displayValue}
                         </option>
                       );
                     })}
