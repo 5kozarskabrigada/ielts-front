@@ -575,6 +575,24 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
     closeHighlightMenu();
   }, [examId, section?.id, section?.content]);
 
+  useEffect(() => {
+    if (!passageContentRef.current) return;
+
+    const root = passageContentRef.current;
+    root.style.setProperty('user-select', 'text', 'important');
+    root.style.setProperty('-webkit-user-select', 'text', 'important');
+
+    const descendants = root.querySelectorAll('*');
+    descendants.forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      node.style.setProperty('user-select', 'text', 'important');
+      node.style.setProperty('-webkit-user-select', 'text', 'important');
+      if (node.getAttribute('draggable') === 'true') {
+        node.setAttribute('draggable', 'false');
+      }
+    });
+  }, [passageHtml]);
+
   const applyHighlightToSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !passageContentRef.current) return;
@@ -647,6 +665,11 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
     const handleOutsideClick = (event) => {
       if (!highlightMenu.visible) return;
 
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+
       const clickedHighlight = event.target.closest && event.target.closest('.reading-user-highlight');
       const clickedMenu = highlightMenuRef.current && highlightMenuRef.current.contains(event.target);
       if (!clickedHighlight && !clickedMenu) {
@@ -654,8 +677,8 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
       }
     };
 
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
   }, [highlightMenu.visible]);
   
   if (!section) return null;
@@ -769,7 +792,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
           {/* Content */}
           <div 
             ref={passageContentRef}
-            className="select-text"
+            className="select-text reading-passage-content"
             onClick={handlePassageContentClick}
             style={{ 
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
