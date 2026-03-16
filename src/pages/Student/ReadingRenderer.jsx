@@ -34,6 +34,9 @@ const BlankInput = ({ questionNumber, value, onChange }) => (
       type="text" 
       value={value || ''}
       onChange={onChange}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
       style={{ 
         width: '200px',
         height: '32px',
@@ -44,7 +47,9 @@ const BlankInput = ({ questionNumber, value, onChange }) => (
         fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
         boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
         outline: 'none',
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        userSelect: 'text',
+        WebkitUserSelect: 'text'
       }}
     />
   </span>
@@ -270,13 +275,15 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               <div key={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex-1 flex items-center gap-3">
-                  <span className="text-gray-700" style={{minWidth: 110}}>{paraLabel}</span>
                   <select
                     value={answers[q.id] || ''}
                     onChange={e => {
                       setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
                       if (saveAnswers) saveAnswers();
                     }}
+                    onCopy={(e) => e.stopPropagation()}
+                    onCut={(e) => e.stopPropagation()}
+                    onPaste={(e) => e.stopPropagation()}
                     style={{
                       width: '100px',
                       height: '32px',
@@ -284,7 +291,9 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       border: '1px solid rgb(189, 197, 207)',
                       borderRadius: '100px',
                       fontSize: '15px',
-                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
+                      fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                      userSelect: 'text',
+                      WebkitUserSelect: 'text'
                     }}
                   >
                     <option value=""></option>
@@ -302,6 +311,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       );
                     })}
                   </select>
+                  <span className="text-gray-700" style={{minWidth: 110}}>{paraLabel}</span>
                 </div>
               </div>
             );
@@ -355,8 +365,15 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
               if (saveAnswers) saveAnswers();
             }}
+            onCopy={(e) => e.stopPropagation()}
+            onCut={(e) => e.stopPropagation()}
+            onPaste={(e) => e.stopPropagation()}
             className="flex-1 px-3 py-2 border rounded-lg"
-            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+            style={{ 
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
+            }}
           />
         </div>
       );
@@ -441,8 +458,15 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
               if (saveAnswers) saveAnswers();
             }}
+            onCopy={(e) => e.stopPropagation()}
+            onCut={(e) => e.stopPropagation()}
+            onPaste={(e) => e.stopPropagation()}
             className="flex-1 px-3 py-2 border rounded-lg"
-            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+            style={{ 
+              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
+            }}
           />
         </div>
       );
@@ -464,7 +488,7 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
   const paragraphLetters = detectParagraphLetters(section.content);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col select-text">
       {/* IELTS-style headers */}
       <div className="mb-4">
         <h1 style={{ 
@@ -494,13 +518,15 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
       </div>
 
       {/* Side-by-side layout */}
-      <div className="flex-1 flex gap-6 overflow-hidden">
+      <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
         {/* LEFT SIDE: Passage */}
         <div 
-          className="overflow-y-auto pr-4"
+          className="overflow-y-auto pr-4 min-h-0"
           style={{ 
             width: `${textWidth}%`,
-            borderRight: '2px solid rgb(221, 221, 221)'
+            borderRight: '2px solid rgb(221, 221, 221)',
+            userSelect: 'text',
+            WebkitUserSelect: 'text'
           }}
         >
           {/* Instruction */}
@@ -590,8 +616,12 @@ export default function ReadingRenderer({ section, partNumber, globalOffset, que
 
         {/* RIGHT SIDE: Questions */}
         <div 
-          className="overflow-y-auto pl-4"
-          style={{ width: `${100 - textWidth}%` }}
+          className="overflow-y-auto pl-4 min-h-0"
+          style={{ 
+            width: `${100 - textWidth}%`,
+            userSelect: 'text',
+            WebkitUserSelect: 'text'
+          }}
         >
           {sectionGroups.map(group => {
             const groupQuestions = questions

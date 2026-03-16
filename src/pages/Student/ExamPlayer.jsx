@@ -41,7 +41,8 @@ export default function ExamPlayer() {
     title: '',
     message: '',
     onConfirm: null,
-    confirmText: 'OK'
+    confirmText: 'OK',
+    showCancel: false
   });
 
   // Timer state
@@ -271,7 +272,7 @@ export default function ExamPlayer() {
             if (currentIndex < MODULE_ORDER.length - 1) {
               handleModuleSubmit(true); // Auto-submit and move to next
             } else {
-              handleFinalSubmit(); // Time's up on last module
+              handleFinalSubmit(true, true); // Time's up on last module
             }
           }
         }
@@ -403,7 +404,34 @@ export default function ExamPlayer() {
   // ============================================
   // MODULE SUBMISSION
   // ============================================
-  const handleModuleSubmit = async (autoSubmit = false) => {
+  const handleModuleSubmit = async (autoSubmit = false, bypassConfirmation = false) => {
+    if (!autoSubmit && !bypassConfirmation && (currentModule === 'listening' || currentModule === 'reading')) {
+      const moduleLabel = currentModule.charAt(0).toUpperCase() + currentModule.slice(1);
+
+      setNotification({
+        isOpen: true,
+        type: 'warning',
+        title: `Submit ${moduleLabel}?`,
+        message: `Are you sure you want to submit ${moduleLabel}? Once submitted, you cannot return to this module or change its answers.`,
+        confirmText: 'Sure',
+        showCancel: true,
+        onConfirm: () => {
+          setTimeout(() => {
+            setNotification({
+              isOpen: true,
+              type: 'warning',
+              title: `Final Confirmation`,
+              message: `This action is final for ${moduleLabel}. Click Submit Module to continue to the next module.`,
+              confirmText: 'Submit Module',
+              showCancel: true,
+              onConfirm: () => handleModuleSubmit(false, true)
+            });
+          }, 0);
+        }
+      });
+      return;
+    }
+
     // If in writing module Task 1, warn and move to Task 2 instead  
     if (currentModule === 'writing' && currentWritingTask === 1) {
       const confirmMove = window.confirm('You are still on Task 1. Do you want to move to Task 2? (You can also click "Continue to Task 2" button)');
@@ -453,7 +481,32 @@ export default function ExamPlayer() {
   // ============================================
   // FINAL SUBMISSION
   // ============================================
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = async (bypassConfirmation = false, autoSubmit = false) => {
+    if (!bypassConfirmation && !autoSubmit) {
+      setNotification({
+        isOpen: true,
+        type: 'warning',
+        title: 'Submit Final Exam?',
+        message: 'Are you sure you want to submit your final exam? Once submitted, you cannot return to previous modules or edit any answers.',
+        confirmText: 'Sure',
+        showCancel: true,
+        onConfirm: () => {
+          setTimeout(() => {
+            setNotification({
+              isOpen: true,
+              type: 'warning',
+              title: 'Final Confirmation',
+              message: 'This action is final. Click Submit Final to lock and submit all answers now.',
+              confirmText: 'Submit Final',
+              showCancel: true,
+              onConfirm: () => handleFinalSubmit(true, false)
+            });
+          }, 0);
+        }
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     const latestAnswers = answersRef.current;
     
@@ -819,8 +872,8 @@ export default function ExamPlayer() {
 
         {/* Reading Module */}
         {currentModule === "reading" && currentSection && (
-          <div className="h-full flex flex-col p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto w-full">
+          <div className="h-full min-h-0 flex flex-col p-6 overflow-hidden">
+            <div className="max-w-7xl mx-auto w-full h-full min-h-0">
               <ErrorBoundary>
                 <ReadingRenderer 
                   section={currentSection}
@@ -906,9 +959,16 @@ export default function ExamPlayer() {
                       {/* Response Area */}
                       <textarea
                         className="w-full min-h-[250px] p-4 border-2 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 outline-none"
-                        style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                        style={{ 
+                          fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                          userSelect: 'text',
+                          WebkitUserSelect: 'text'
+                        }}
                         placeholder={`Write your response for Task ${actualTaskNumber} here...`}
                         value={answers[taskKey] || ""}
+                        onCopy={(e) => e.stopPropagation()}
+                        onCut={(e) => e.stopPropagation()}
+                        onPaste={(e) => e.stopPropagation()}
                         onChange={(e) => setAnswersWithAutosave(prev => ({ ...prev, [taskKey]: e.target.value }))}
                       />
                       
@@ -1111,6 +1171,7 @@ export default function ExamPlayer() {
         message={notification.message}
         onConfirm={notification.onConfirm}
         confirmText={notification.confirmText}
+        showCancel={notification.showCancel || false}
       />
     </div>
   );

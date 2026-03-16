@@ -37,6 +37,9 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
       type="text" 
       value={value || ''}
       onChange={onChange}
+      onCopy={(e) => e.stopPropagation()}
+      onCut={(e) => e.stopPropagation()}
+      onPaste={(e) => e.stopPropagation()}
       style={{ 
         width: '200px',
         height: '32px',
@@ -47,7 +50,9 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
         fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
         boxShadow: 'rgba(0, 0, 0, 0.075) 0px 1px 1px 0px inset',
         outline: 'none',
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        userSelect: 'text',
+        WebkitUserSelect: 'text'
       }}
     />
   </span>
@@ -441,10 +446,17 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                   setAnswers(prev => ({ ...prev, [q.id]: e.target.value.toUpperCase() }));
                   if (saveAnswers) saveAnswers();
                 }}
+                onCopy={(e) => e.stopPropagation()}
+                onCut={(e) => e.stopPropagation()}
+                onPaste={(e) => e.stopPropagation()}
                 maxLength={1}
                 className="w-12 h-10 text-center border rounded font-bold text-lg"
                 placeholder="?"
-                style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                style={{ 
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text'
+                }}
               />
             </div>
           );
@@ -515,7 +527,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
   const globalOffset = partOffsets.find(p => p.sectionId === currentPartSection.id)?.offset ?? 0;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col select-text">
       {/* Headers */}
       <div className="mb-4">
         <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 5px 0', padding: 0, lineHeight: '28.8px' }}>
@@ -528,7 +540,7 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
       </div>
 
       {/* Questions */}
-      <div className="overflow-y-auto pr-4 flex-1">
+      <div className="overflow-y-auto pr-4 flex-1 min-h-0" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
         {sectionGroups.map(group => {
           const groupQuestions = questions
             .filter(q => q.group_id === group.id)
