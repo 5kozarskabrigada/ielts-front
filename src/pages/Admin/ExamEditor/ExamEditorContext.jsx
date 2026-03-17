@@ -226,6 +226,21 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       setDeletedGroupIds(prev => [...prev, id]);
     }
     setQuestionGroups(prev => prev.filter(g => g.id !== id));
+
+    setQuestions((prevQuestions) => {
+      const groupQuestions = prevQuestions.filter((question) => question.group_id === id);
+      const persistedQuestionIds = groupQuestions
+        .map((question) => question.id)
+        .filter((questionId) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(questionId));
+
+      if (persistedQuestionIds.length > 0) {
+        setDeletedQuestionIds((prevDeletedIds) => [
+          ...new Set([...prevDeletedIds, ...persistedQuestionIds]),
+        ]);
+      }
+
+      return prevQuestions.filter((question) => question.group_id !== id);
+    });
   };
 
   const clearDeletedGroupIds = () => {

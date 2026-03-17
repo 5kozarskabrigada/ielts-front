@@ -473,6 +473,14 @@ export default function ExamPlayer() {
     }
   };
 
+  const confirmMoveToTask2 = useCallback((message = 'Do you want to move to Task 2?') => {
+    const shouldMove = window.confirm(message);
+    if (shouldMove) {
+      setCurrentWritingTask(2);
+    }
+    return shouldMove;
+  }, []);
+
   // ============================================
   // MODULE SUBMISSION
   // ============================================
@@ -508,10 +516,7 @@ export default function ExamPlayer() {
 
     // If in writing module Task 1, warn and move to Task 2 instead  
     if (currentModule === 'writing' && currentWritingTask === 1) {
-      const confirmMove = window.confirm('You are still on Task 1. Do you want to move to Task 2? (You can also click "Continue to Task 2" button)');
-      if (confirmMove) {
-        setCurrentWritingTask(2);
-      }
+      confirmMoveToTask2('You are still on Task 1. Do you want to move to Task 2?');
       return;
     }
 
@@ -1111,7 +1116,7 @@ export default function ExamPlayer() {
                       {currentWritingTask === 1 && (
                         <div className="mt-6 flex justify-end">
                           <button
-                            onClick={() => setCurrentWritingTask(2)}
+                            onClick={() => confirmMoveToTask2('Do you want to move to Task 2?')}
                             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center space-x-2 transition"
                           >
                             <span>Continue to Task 2</span>
