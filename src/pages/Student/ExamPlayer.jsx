@@ -33,6 +33,7 @@ export default function ExamPlayer() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examSubmitted, setExamSubmitted] = useState(false);
+  const [listeningAudioError, setListeningAudioError] = useState("");
 
   // Notification modal state
   const [notification, setNotification] = useState({
@@ -63,6 +64,7 @@ export default function ExamPlayer() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [violations, setViolations] = useState([]);
   const violationTimeoutRef = useRef(null);
+  const listeningAudioRef = useRef(null);
 
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
@@ -701,6 +703,38 @@ export default function ExamPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const normalizeAudioUrl = useCallback((rawUrl) => {
+    if (typeof rawUrl !== 'string') return null;
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('//')) return `https:${trimmed}`;
+    if (/^www\./i.test(trimmed)) return `https://${trimmed}`;
+    if (trimmed.startsWith('http://') && typeof window !== 'undefined' && window.location?.protocol === 'https:') {
+      return trimmed.replace('http://', 'https://');
+    }
+    return trimmed;
+  }, []);
+
+  const isHttpAudioUrl = useCallback((url) => {
+    if (typeof url !== 'string') return false;
+    return /^https?:\/\//i.test(url.trim());
+  }, []);
+
+  const modulesConfig = useMemo(() => {
+    if (!exam?.modules_config) return {};
+    if (typeof exam.modules_config === 'string') {
+      try {
+        return JSON.parse(exam.modules_config);
+      } catch {
+        return {};
+      }
+    }
+    return exam.modules_config;
+  }, [exam?.modules_config]);
+
+  const listeningConfig = modulesConfig?.listening || {};
+  const shouldUseGlobalListeningAudio = listeningConfig.use_global_audio !== false;
+
   // Get all sections for current module
   const allModuleSections = useMemo(
     () => sections.filter(s => s.module_type === currentModule).sort((a, b) => a.section_order - b.section_order),
@@ -742,6 +776,58 @@ export default function ExamPlayer() {
       return sum + Math.max(dbCount, maxEnd);
     }, 0);
   }, [allModuleSections, currentPart, questions, questionGroups]);
+
+  const sectionAudioUrl = normalizeAudioUrl(currentSection?.audio_url);
+  const globalListeningAudioUrl = normalizeAudioUrl(listeningConfig?.global_audio_url)
+    || normalizeAudioUrl(modulesConfig?.global_audio_url);
+  const selectedListeningAudioUrl = shouldUseGlobalListeningAudio
+    ? (sectionAudioUrl || globalListeningAudioUrl)
+    : sectionAudioUrl;
+
+  const listeningAudioSrc = useMemo(() => {
+    if (!selectedListeningAudioUrl) return null;
+
+    if (!isHttpAudioUrl(selectedListeningAudioUrl)) {
+      return selectedListeningAudioUrl;
+    }
+
+    if (!token) {
+      return selectedListeningAudioUrl;
+    }
+
+    const trimmedApiUrl = String(API_URL || '').replace(/\/+$/, '');
+    const encodedUrl = encodeURIComponent(selectedListeningAudioUrl);
+    const encodedToken = encodeURIComponent(token);
+    return `${trimmedApiUrl}/exams/audio-proxy?url=${encodedUrl}&token=${encodedToken}`;
+  }, [selectedListeningAudioUrl, token, isHttpAudioUrl]);
+
+  const hasListeningAudio = !!selectedListeningAudioUrl;
+
+  useEffect(() => {
+    if (currentModule !== 'listening') {
+      setListeningAudioError("");
+      return;
+    }
+
+    const audioElement = listeningAudioRef.current;
+    if (!audioElement || !listeningAudioSrc) {
+      setListeningAudioError("");
+      return;
+    }
+
+    setListeningAudioError("");
+
+    const attemptPlay = async () => {
+      try {
+        await audioElement.play();
+      } catch {
+        setListeningAudioError("Autoplay may be blocked. Press Play on the audio control to start listening.");
+      }
+    };
+
+    audioElement.load();
+    attemptPlay();
+  }, [currentModule, listeningAudioSrc]);
 
   // ============================================
   // LOADING & ERROR STATES
@@ -946,21 +1032,34 @@ export default function ExamPlayer() {
               </span>
             )}
             {/* Audio Player in Header - Listening Only */}
-            {currentModule === "listening" && (currentSection?.audio_url || exam?.modules_config?.listening?.global_audio_url) && (
+            {currentModule === "listening" && listeningAudioSrc && (
               <div className="flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full">
                 <Volume2 size={16} className="text-blue-300" />
-                <span className="text-xs">Audio Playing</span>
+                <span className="text-xs">Listening Audio</span>
                 <audio 
+                  key={listeningAudioSrc}
+                  ref={listeningAudioRef}
+                  controls
                   autoPlay
                   loop={false}
+                  preload="metadata"
                   controlsList="nodownload nofullscreen noremoteplayback"
                   disablePictureInPicture
                   onContextMenu={(e) => e.preventDefault()}
-                  src={currentSection.audio_url || exam?.modules_config?.listening?.global_audio_url}
-                  style={{ display: 'none' }}
+                  src={listeningAudioSrc}
+                  className="h-8 max-w-[260px]"
+                  onError={() => {
+                    console.error('[ExamPlayer] Failed to load listening audio URL:', listeningAudioSrc);
+                    setListeningAudioError('Unable to load this audio URL through proxy. Use a direct MP3 URL or upload audio from Admin.');
+                  }}
                 >
                   Your browser does not support the audio element.
                 </audio>
+                {listeningAudioError && (
+                  <span className="text-[11px] text-amber-200 max-w-[260px] truncate" title={listeningAudioError}>
+                    {listeningAudioError}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -991,7 +1090,7 @@ export default function ExamPlayer() {
         {/* Listening Module */}
         {currentModule === "listening" && currentSection && (
           <div className="h-full flex flex-col p-6">
-            {!currentSection.audio_url && !exam?.modules_config?.listening?.global_audio_url && (
+            {!hasListeningAudio && (
               <div className="bg-yellow-50 rounded-xl border-2 border-yellow-200 p-4 mb-6">
                 <p className="text-yellow-800 text-sm">⚠️ No audio file attached for this section</p>
               </div>

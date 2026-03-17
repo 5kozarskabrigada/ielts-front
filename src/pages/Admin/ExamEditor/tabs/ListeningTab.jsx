@@ -69,7 +69,7 @@ const QUESTION_TYPES = [
   },
 ];
 
-const MAX_LISTENING_AUDIO_UPLOAD_MB = 100;
+const MAX_LISTENING_AUDIO_UPLOAD_MB = 50;
 const MAX_LISTENING_AUDIO_UPLOAD_BYTES = MAX_LISTENING_AUDIO_UPLOAD_MB * 1024 * 1024;
 
 // ============================================
