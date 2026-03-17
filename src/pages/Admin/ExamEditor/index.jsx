@@ -21,7 +21,7 @@ const generateCode = () => {
 };
 
 function ExamEditorContent() {
-  const { exam, sections, questions, questionGroups, validate, validationErrors, isSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, deletedGroupIds, clearDeletedGroupIds, clearTempCode, setQuestions } = useExamEditor();
+  const { exam, sections, questions, questionGroups, validate, validationErrors, isSaving, setIsSaving, updateExam, updateIds, deletedQuestionIds, clearDeletedQuestionIds, deletedGroupIds, clearDeletedGroupIds, clearTempCode, setQuestions } = useExamEditor();
   const [activeTab, setActiveTab] = useState("overview");
   const [fullScreenModule, setFullScreenModule] = useState(null);
   const { token } = useAuth();
@@ -36,6 +36,11 @@ function ExamEditorContent() {
   const [isActivating, setIsActivating] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [workingExamId, setWorkingExamId] = useState(id || null);
+
+  useEffect(() => {
+    setWorkingExamId(id || null);
+  }, [id]);
 
   const fetchExamStats = useCallback(async () => {
     if (!id) return;
@@ -62,11 +67,20 @@ function ExamEditorContent() {
   };
 
   const handleSave = async () => {
-    let examId = id;
-    let isNew = false;
+    if (isSaving) return;
 
-    if (!examId) {
-      try {
+    const isValid = validate();
+    if (!isValid) {
+      if (!window.confirm("Exam has structural validation errors. Save as draft anyway?")) return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      let examId = id || workingExamId;
+      const shouldNavigateToSavedExam = !id;
+
+      if (!examId) {
         const newExam = await apiCreateExam(token, {
           title: exam.title || "Untitled Exam",
           description: exam.description || "",
@@ -74,19 +88,9 @@ function ExamEditorContent() {
           modules_config: exam.modules_config
         });
         examId = newExam.id;
-        isNew = true;
-      } catch (err) {
-        showModal("Creation Failed", "Failed to initialize exam record: " + err.message, "danger");
-        return;
+        setWorkingExamId(newExam.id);
       }
-    }
-    
-    const isValid = validate();
-    if (!isValid) {
-      if (!window.confirm("Exam has structural validation errors. Save as draft anyway?")) return;
-    }
 
-    try {
       // Generate questions from table_data groups (TableBuilder format)
       const allQuestions = [...questions];
       let questionsAdded = false;
@@ -326,11 +330,17 @@ function ExamEditorContent() {
       // Show "Saved" feedback on button
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 3000);
-      if (isNew) {
-        navigate(`/admin/exams/editor/${examId}`);
+      if (shouldNavigateToSavedExam && examId) {
+        navigate(`/admin/exams/editor/${examId}`, { replace: true });
       }
     } catch (err) {
-      showModal("Save Failed", "Failed to save exam structure: " + err.message, "danger");
+      if (!id && !workingExamId && String(err.message || '').toLowerCase().includes('create')) {
+        showModal("Creation Failed", "Failed to initialize exam record: " + err.message, "danger");
+      } else {
+        showModal("Save Failed", "Failed to save exam structure: " + err.message, "danger");
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 

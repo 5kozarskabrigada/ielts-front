@@ -329,7 +329,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
       questionGroups, addQuestionGroup, updateQuestionGroup, deleteQuestionGroup, reorderQuestionGroups,
       deletedQuestionIds, clearDeletedQuestionIds,
       deletedGroupIds, clearDeletedGroupIds,
-      validationErrors, validate, isSaving, updateIds, clearTempCode
+      validationErrors, validate, isSaving, setIsSaving, updateIds, clearTempCode
     }}>
       {children}
     </ExamEditorContext.Provider>

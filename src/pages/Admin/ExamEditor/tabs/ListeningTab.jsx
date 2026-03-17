@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExamEditor } from "../ExamEditorContext";
+import { useAuth } from "../../../../authContext";
+import { API_URL } from "../../../../api";
 import { 
   ChevronDown, ChevronUp, Plus, Trash2, Mic, Play, Pause, CheckCircle, 
   HelpCircle, ListChecks, ArrowRightLeft, MapPin, FileText, 
   StickyNote, Type, MessageSquare, Settings, Eye, EyeOff,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, Upload
 } from "lucide-react";
 
 // ============================================
@@ -2098,11 +2100,14 @@ const QuestionGroupCard = ({ group, sectionId, partNumber }) => {
 // ============================================
 // PART (SECTION) CARD
 // ============================================
-const PartCard = ({ section, partNumber }) => {
+const PartCard = ({ section, partNumber, token }) => {
   const { updateSection, questionGroups, addQuestionGroup } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioUploadError, setAudioUploadError] = useState("");
 
   const sectionGroups = questionGroups
     .filter(g => g.section_id === section.id)
@@ -2120,6 +2125,68 @@ const PartCard = ({ section, partNumber }) => {
     if (audioRef.current) {
       isPlaying ? audioRef.current.pause() : audioRef.current.play();
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleAudioFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAudioUploadError("");
+
+    if (!token) {
+      setAudioUploadError("No authentication token found. Please login again.");
+      e.target.value = "";
+      return;
+    }
+
+    const isAudioMime = String(file.type || "").toLowerCase().startsWith("audio/");
+    const hasAllowedExt = /\.(mp3|wav|ogg|m4a|aac|webm)$/i.test(file.name || "");
+    if (!isAudioMime && !hasAllowedExt) {
+      setAudioUploadError("Invalid audio format. Allowed: mp3, wav, ogg, m4a, aac, webm");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      setAudioUploadError("Audio file is too large (max 25MB)");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingAudio(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      const response = await fetch(`${API_URL}/upload/listening-audio`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error("Session expired. Please logout and login again.");
+        }
+        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result?.url) {
+        throw new Error("Upload succeeded but no URL was returned.");
+      }
+
+      updateSection(section.id, { audio_url: result.url });
+    } catch (err) {
+      console.error("Part audio upload error:", err);
+      setAudioUploadError(err.message || "Audio upload failed. Please try again.");
+    } finally {
+      setUploadingAudio(false);
+      e.target.value = "";
     }
   };
 
@@ -2196,8 +2263,25 @@ const PartCard = ({ section, partNumber }) => {
                     value={section.audio_url || ""}
                     onChange={(e) => updateSection(section.id, { audio_url: e.target.value })}
                   />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAudio}
+                    className={`px-3 py-2.5 ${colors.bg} text-white rounded-lg hover:opacity-90 transition flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed`}
+                  >
+                    <Upload size={16} />
+                    {uploadingAudio ? "Uploading..." : "Upload"}
+                  </button>
+                  <input
+                    type="file"
+                    accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleAudioFileChange}
+                  />
                   {section.audio_url && <audio ref={audioRef} src={section.audio_url} onEnded={() => setIsPlaying(false)} />}
                 </div>
+                {audioUploadError && <p className="mt-1 text-xs text-red-600">{audioUploadError}</p>}
               </div>
               <Input
                 label="Audio Start Time (sec)"
@@ -2272,11 +2356,14 @@ const PartCard = ({ section, partNumber }) => {
 // ============================================
 // GLOBAL AUDIO SETTINGS
 // ============================================
-const GlobalAudioSettings = () => {
+const GlobalAudioSettings = ({ token }) => {
   const { exam, updateExam } = useExamEditor();
   const [isExpanded, setIsExpanded] = useState(false);
   const audioRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioUploadError, setAudioUploadError] = useState("");
 
   // Access listening config from modules_config
   const listeningConfig = exam.modules_config?.listening || {};
@@ -2294,6 +2381,68 @@ const GlobalAudioSettings = () => {
     if (audioRef.current) {
       isPlaying ? audioRef.current.pause() : audioRef.current.play();
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleAudioFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAudioUploadError("");
+
+    if (!token) {
+      setAudioUploadError("No authentication token found. Please login again.");
+      e.target.value = "";
+      return;
+    }
+
+    const isAudioMime = String(file.type || "").toLowerCase().startsWith("audio/");
+    const hasAllowedExt = /\.(mp3|wav|ogg|m4a|aac|webm)$/i.test(file.name || "");
+    if (!isAudioMime && !hasAllowedExt) {
+      setAudioUploadError("Invalid audio format. Allowed: mp3, wav, ogg, m4a, aac, webm");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      setAudioUploadError("Audio file is too large (max 25MB)");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingAudio(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      const response = await fetch(`${API_URL}/upload/listening-audio`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error("Session expired. Please logout and login again.");
+        }
+        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result?.url) {
+        throw new Error("Upload succeeded but no URL was returned.");
+      }
+
+      updateConfig('global_audio_url', result.url);
+    } catch (err) {
+      console.error("Global listening audio upload error:", err);
+      setAudioUploadError(err.message || "Audio upload failed. Please try again.");
+    } finally {
+      setUploadingAudio(false);
+      e.target.value = "";
     }
   };
 
@@ -2342,7 +2491,24 @@ const GlobalAudioSettings = () => {
                   value={listeningConfig.global_audio_url || ""}
                   onChange={(e) => updateConfig('global_audio_url', e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAudio}
+                  className="px-3 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Upload size={16} />
+                  {uploadingAudio ? "Uploading..." : "Upload"}
+                </button>
+                <input
+                  type="file"
+                  accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleAudioFileChange}
+                />
               </div>
+              {audioUploadError && <p className="mt-1 text-xs text-red-600">{audioUploadError}</p>}
               {listeningConfig.global_audio_url && (
                 <audio ref={audioRef} src={listeningConfig.global_audio_url} onEnded={() => setIsPlaying(false)} />
               )}
@@ -3233,6 +3399,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
 // ============================================
 export default function ListeningTab() {
   const { sections } = useExamEditor();
+  const { token } = useAuth();
   const [showPreview, setShowPreview] = useState(false);
 
   const listeningSections = sections
@@ -3273,12 +3440,12 @@ export default function ListeningTab() {
         </div>
       </div>
 
-      <GlobalAudioSettings />
+      <GlobalAudioSettings token={token} />
 
       <div className="space-y-5">
         {listeningSections.length > 0 ? (
           listeningSections.map((section, idx) => (
-            <PartCard key={section.id} section={section} partNumber={idx + 1} />
+            <PartCard key={section.id} section={section} partNumber={idx + 1} token={token} />
           ))
         ) : (
           <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
