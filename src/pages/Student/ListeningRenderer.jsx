@@ -575,24 +575,34 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
           
           return (
             <div key={group.id} className="mb-8">
-              <div 
-                style={{ 
-                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-                  fontSize: '16px', 
-                  fontWeight: 700, 
-                  color: 'rgb(41, 69, 99)', 
-                  padding: '10px',
-                  backgroundColor: 'rgb(230, 230, 230)',
-                  borderRadius: '5px',
-                  marginBottom: '15px' 
-                }}
-              >
-                {group.group_title ? (
-                  <span dangerouslySetInnerHTML={{ __html: group.group_title }} />
-                ) : (
-                  <span>{`Questions ${headingStart}-${headingEnd}`}</span>
-                )}
-              </div>
+              {group.group_title ? (
+                <div 
+                  style={{ 
+                    fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+                    fontSize: '16px', 
+                    fontWeight: 700, 
+                    color: 'rgb(41, 69, 99)', 
+                    padding: '10px',
+                    backgroundColor: 'rgb(230, 230, 230)',
+                    borderRadius: '5px',
+                    marginBottom: '15px' 
+                  }}
+                  dangerouslySetInnerHTML={{ __html: group.group_title }}
+                />
+              ) : (
+                <h3
+                  style={{
+                    fontFamily: 'Montserrat, Helvetica, Arial, sans-serif',
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    color: 'rgb(41, 69, 99)',
+                    margin: '0 0 15px 0',
+                    lineHeight: '26px'
+                  }}
+                >
+                  {`Questions ${headingStart}-${headingEnd}`}
+                </h3>
+              )}
               {group.instruction_text && (
                 <div
                   className="mb-3 text-gray-700 leading-relaxed"
