@@ -544,48 +544,55 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
 
   return (
     <div className="h-full min-h-0 flex flex-col select-text">
-      {/* Headers */}
-      <div className="mb-4">
-        <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 5px 0', padding: 0, lineHeight: '28.8px' }}>
-          PART {partNumber}
-        </h1>
-        {currentPartSection.title && (
-          <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, color: 'rgb(41, 69, 99)', margin: 0, padding: 0, lineHeight: '21.6px' }}
-              dangerouslySetInnerHTML={{ __html: currentPartSection.title }} />
-        )}
-        {currentPartSection.instruction && (
-          <div
-            className="mt-2 text-gray-700 leading-relaxed"
-            style={{ fontSize: '14px', lineHeight: '21px' }}
-            dangerouslySetInnerHTML={{ __html: currentPartSection.instruction }}
-          />
-        )}
-      </div>
-
       {/* Questions */}
       <div className="overflow-y-auto pr-4 flex-1 min-h-0" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+        {/* Headers (scroll with content - not pinned) */}
+        <div className="mb-4">
+          <h1 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '24px', fontWeight: 700, textTransform: 'uppercase', color: 'rgb(41, 69, 99)', margin: '0 0 5px 0', padding: 0, lineHeight: '28.8px' }}>
+            PART {partNumber}
+          </h1>
+          {currentPartSection.instruction && (
+            <div
+              className="mt-2 text-gray-700 leading-relaxed"
+              style={{ fontSize: '14px', lineHeight: '21px' }}
+              dangerouslySetInnerHTML={{ __html: currentPartSection.instruction }}
+            />
+          )}
+        </div>
+
         {sectionGroups.map(group => {
           const groupQuestions = questions
             .filter(q => q.group_id === group.id)
             .sort((a, b) => a.question_number - b.question_number);
+
+          const hasExplicitRange = Number.isFinite(Number(group.question_range_start)) && Number.isFinite(Number(group.question_range_end));
+          const headingStart = hasExplicitRange
+            ? globalOffset + Number(group.question_range_start)
+            : (groupQuestions[0] ? globalOffset + Number(groupQuestions[0].question_number) : globalOffset + 1);
+          const headingEnd = hasExplicitRange
+            ? globalOffset + Number(group.question_range_end)
+            : (groupQuestions[groupQuestions.length - 1] ? globalOffset + Number(groupQuestions[groupQuestions.length - 1].question_number) : headingStart);
           
           return (
             <div key={group.id} className="mb-8">
-              {group.group_title && (
-                <div 
-                  style={{ 
-                    fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
-                    fontSize: '16px', 
-                    fontWeight: 700, 
-                    color: 'rgb(41, 69, 99)', 
-                    padding: '10px',
-                    backgroundColor: 'rgb(230, 230, 230)',
-                    borderRadius: '5px',
-                    marginBottom: '15px' 
-                  }}
-                  dangerouslySetInnerHTML={{ __html: group.group_title }}
-                />
-              )}
+              <div 
+                style={{ 
+                  fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', 
+                  fontSize: '16px', 
+                  fontWeight: 700, 
+                  color: 'rgb(41, 69, 99)', 
+                  padding: '10px',
+                  backgroundColor: 'rgb(230, 230, 230)',
+                  borderRadius: '5px',
+                  marginBottom: '15px' 
+                }}
+              >
+                {group.group_title ? (
+                  <span dangerouslySetInnerHTML={{ __html: group.group_title }} />
+                ) : (
+                  <span>{`Questions ${headingStart}-${headingEnd}`}</span>
+                )}
+              </div>
               {group.instruction_text && (
                 <div
                   className="mb-3 text-gray-700 leading-relaxed"
