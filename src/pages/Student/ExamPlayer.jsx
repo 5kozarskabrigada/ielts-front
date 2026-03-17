@@ -65,6 +65,10 @@ export default function ExamPlayer() {
   const [violations, setViolations] = useState([]);
   const violationTimeoutRef = useRef(null);
   const listeningAudioRef = useRef(null);
+  const listeningAudioGuardRef = useRef({
+    lastAllowedTime: 0,
+    ignoreSeekingEvent: false
+  });
 
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
@@ -821,12 +825,44 @@ export default function ExamPlayer() {
       try {
         await audioElement.play();
       } catch {
-        setListeningAudioError("Autoplay may be blocked. Press Play on the audio control to start listening.");
+        setListeningAudioError("Autoplay may be blocked by your browser. Click anywhere in the exam page to resume audio.");
       }
     };
 
     audioElement.load();
     attemptPlay();
+  }, [currentModule, listeningAudioSrc]);
+
+  useEffect(() => {
+    listeningAudioGuardRef.current = {
+      lastAllowedTime: 0,
+      ignoreSeekingEvent: false
+    };
+  }, [listeningAudioSrc]);
+
+  useEffect(() => {
+    if (currentModule !== 'listening' || !listeningAudioSrc) return;
+
+    const resumePlaybackFromUserGesture = async () => {
+      const audioElement = listeningAudioRef.current;
+      if (!audioElement) return;
+      if (!audioElement.paused || audioElement.ended) return;
+
+      try {
+        await audioElement.play();
+        setListeningAudioError("");
+      } catch {
+        // keep existing message until playback is allowed
+      }
+    };
+
+    document.addEventListener('pointerdown', resumePlaybackFromUserGesture, true);
+    document.addEventListener('keydown', resumePlaybackFromUserGesture, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', resumePlaybackFromUserGesture, true);
+      document.removeEventListener('keydown', resumePlaybackFromUserGesture, true);
+    };
   }, [currentModule, listeningAudioSrc]);
 
   // ============================================
@@ -1035,22 +1071,73 @@ export default function ExamPlayer() {
             {currentModule === "listening" && listeningAudioSrc && (
               <div className="flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full">
                 <Volume2 size={16} className="text-blue-300" />
-                <span className="text-xs">Listening Audio</span>
+                <span className="text-xs">Listening Audio (Auto)</span>
                 <audio 
                   key={listeningAudioSrc}
                   ref={listeningAudioRef}
-                  controls
                   autoPlay
                   loop={false}
                   preload="metadata"
                   controlsList="nodownload nofullscreen noremoteplayback"
                   disablePictureInPicture
+                  playsInline
                   onContextMenu={(e) => e.preventDefault()}
                   src={listeningAudioSrc}
-                  className="h-8 max-w-[260px]"
+                  className="hidden"
+                  onLoadedMetadata={(e) => {
+                    const audioElement = e.currentTarget;
+                    audioElement.playbackRate = 1;
+                    audioElement.defaultPlaybackRate = 1;
+                    audioElement.muted = false;
+                    audioElement.volume = 1;
+                    listeningAudioGuardRef.current.lastAllowedTime = 0;
+                  }}
+                  onTimeUpdate={(e) => {
+                    listeningAudioGuardRef.current.lastAllowedTime = e.currentTarget.currentTime;
+                  }}
+                  onPause={async (e) => {
+                    const audioElement = e.currentTarget;
+                    if (currentModule !== 'listening' || !hasStarted || examSubmitted || audioElement.ended) return;
+                    try {
+                      await audioElement.play();
+                      setListeningAudioError("");
+                    } catch {
+                      setListeningAudioError("Audio must keep playing during Listening. Click anywhere in the exam page to resume.");
+                    }
+                  }}
+                  onSeeking={(e) => {
+                    if (currentModule !== 'listening' || !hasStarted || examSubmitted) return;
+
+                    const guard = listeningAudioGuardRef.current;
+                    if (guard.ignoreSeekingEvent) {
+                      guard.ignoreSeekingEvent = false;
+                      return;
+                    }
+
+                    guard.ignoreSeekingEvent = true;
+                    e.currentTarget.currentTime = guard.lastAllowedTime;
+                  }}
+                  onRateChange={(e) => {
+                    const audioElement = e.currentTarget;
+                    if (audioElement.playbackRate !== 1) {
+                      audioElement.playbackRate = 1;
+                    }
+                  }}
+                  onVolumeChange={(e) => {
+                    const audioElement = e.currentTarget;
+                    if (audioElement.muted) {
+                      audioElement.muted = false;
+                    }
+                    if (audioElement.volume !== 1) {
+                      audioElement.volume = 1;
+                    }
+                  }}
+                  onPlay={() => {
+                    setListeningAudioError("");
+                  }}
                   onError={() => {
                     console.error('[ExamPlayer] Failed to load listening audio URL:', listeningAudioSrc);
-                    setListeningAudioError('Unable to load this audio URL through proxy. Use a direct MP3 URL or upload audio from Admin.');
+                    setListeningAudioError('Unable to load this listening audio URL.');
                   }}
                 >
                   Your browser does not support the audio element.
