@@ -521,18 +521,20 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
     .filter(s => s.module_type === 'listening')
     .sort((a, b) => a.section_order - b.section_order);
 
+  if (listeningSections.length === 0) {
+    return <div>Listening sections not found.</div>;
+  }
+
   // Use external globalOffset if provided (from ExamPlayer), otherwise calculate internally
-  let cumulativeOffset = externalOffset || 0;
+  let cumulativeOffset = typeof externalOffset === 'number' ? externalOffset : 0;
   const partOffsets = listeningSections.map((section) => {
     const offset = cumulativeOffset;
     cumulativeOffset += questions.filter(q => q.section_id === section.id).length;
     return { sectionId: section.id, offset };
   });
 
-  const currentPartSection = listeningSections[partNumber - 1];
-  if (!currentPartSection) {
-    return <div>Part {partNumber} not found for Listening.</div>;
-  }
+  const requestedPartIndex = Number(partNumber) - 1;
+  const currentPartSection = listeningSections[requestedPartIndex] || listeningSections[0];
 
   const sectionGroups = questionGroups
     .filter(g => g.section_id === currentPartSection.id)

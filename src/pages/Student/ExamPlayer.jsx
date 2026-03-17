@@ -1001,7 +1001,7 @@ export default function ExamPlayer() {
             <div className="flex-1 overflow-y-auto">
               <ErrorBoundary>
                 <ListeningRenderer 
-                  sections={[currentSection]}
+                  sections={allModuleSections}
                   questions={currentQuestions}
                   questionGroups={currentSectionQuestionGroups}
                   answers={answers}
