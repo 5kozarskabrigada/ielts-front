@@ -66,9 +66,11 @@ export default function ExamPlayer() {
 
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
+  const saveQueueRef = useRef(Promise.resolve());
   const lastSaveRef = useRef({});
   const answersRef = useRef({});
   const hasStartedRef = useRef(false);
+  const examSubmittedRef = useRef(false);
   const currentModuleRef = useRef("listening");
   const currentPartRef = useRef(1);
   const currentWritingTaskRef = useRef(1);
@@ -306,6 +308,10 @@ export default function ExamPlayer() {
   }, [hasStarted]);
 
   useEffect(() => {
+    examSubmittedRef.current = examSubmitted;
+  }, [examSubmitted]);
+
+  useEffect(() => {
     currentModuleRef.current = currentModule;
   }, [currentModule]);
 
@@ -321,85 +327,126 @@ export default function ExamPlayer() {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
 
-  const saveAnswers = useCallback(async (answerData) => {
-    if (!hasStartedRef.current) return;
+  const saveAnswers = useCallback((answerData) => {
+    if (!hasStartedRef.current || examSubmittedRef.current) return Promise.resolve();
 
     const payloadAnswers = answerData ?? answersRef.current;
+    const payloadAnswersSnapshot = payloadAnswers && typeof payloadAnswers === 'object'
+      ? { ...payloadAnswers }
+      : {};
+    const payloadModuleSnapshot = currentModuleRef.current;
+    const payloadPartSnapshot = currentPartRef.current;
+    const payloadWritingTaskSnapshot = currentWritingTaskRef.current;
+    const payloadTimeSpentSnapshot = timeSpentRef.current && typeof timeSpentRef.current === 'object'
+      ? { ...timeSpentRef.current }
+      : {};
+    const saveTimestamp = new Date().toISOString();
 
-    try {
-      await fetch(`${API_URL}/exams/${examId}/autosave`, {
+    const saveTask = async () => {
+      const response = await fetch(`${API_URL}/exams/${examId}/autosave`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          answers: payloadAnswers,
-          module: currentModuleRef.current,
-          currentPart: currentPartRef.current,
-          currentWritingTask: currentWritingTaskRef.current,
-          timeSpent: timeSpentRef.current,
-          timestamp: new Date().toISOString()
+          answers: payloadAnswersSnapshot,
+          module: payloadModuleSnapshot,
+          currentPart: payloadPartSnapshot,
+          currentWritingTask: payloadWritingTaskSnapshot,
+          timeSpent: payloadTimeSpentSnapshot,
+          timestamp: saveTimestamp
         })
       });
-      lastSaveRef.current = { ...payloadAnswers };
-    } catch (err) {
-      console.error("Auto-save failed:", err);
-    }
+
+      if (!response.ok) {
+        let errorMessage = "Auto-save request failed";
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // ignore parse failure and use fallback message
+        }
+        throw new Error(errorMessage);
+      }
+
+      lastSaveRef.current = payloadAnswersSnapshot;
+    };
+
+    const queuedSave = saveQueueRef.current
+      .catch(() => {})
+      .then(saveTask);
+
+    saveQueueRef.current = queuedSave.catch(() => {});
+    return queuedSave;
   }, [examId, token]);
+
+  const flushPendingAutosave = useCallback(async (answerData) => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+      autoSaveTimeoutRef.current = null;
+    }
+    await saveAnswers(answerData ?? answersRef.current);
+  }, [saveAnswers]);
 
   const setAnswersWithAutosave = useCallback((updater) => {
     setAnswers((previousAnswers) => {
       const nextAnswers = typeof updater === 'function' ? updater(previousAnswers) : updater;
-      if (hasStartedRef.current) {
-        lastSaveRef.current = { ...nextAnswers };
-        saveAnswers(nextAnswers);
-      }
+      answersRef.current = nextAnswers;
       return nextAnswers;
     });
-  }, [saveAnswers]);
+  }, []);
 
   // ============================================
   // AUTO-SAVE
   // ============================================
   // Auto-save on answer change - immediate save
   useEffect(() => {
+    if (!hasStarted || examSubmitted) return;
     if (JSON.stringify(answers) === JSON.stringify(lastSaveRef.current)) return;
 
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Immediate save for answer changes, with small debounce to prevent spam
+    // Save shortly after answer changes to avoid request spam while typing
     autoSaveTimeoutRef.current = setTimeout(() => {
-      saveAnswers();
-    }, 100); // Save almost immediately after answer change
+      saveAnswers(answersRef.current).catch((err) => {
+        console.error("Debounced auto-save failed:", err);
+      });
+    }, 300);
 
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [answers, saveAnswers]);
+  }, [answers, hasStarted, examSubmitted, saveAnswers]);
 
   // Auto-save on module/part/task change
   useEffect(() => {
-    if (!hasStarted) return;
+    if (!hasStarted || examSubmitted) return;
     
     // Save immediately when navigation changes
-    saveAnswers(answersRef.current);
-  }, [hasStarted, currentModule, currentPart, currentWritingTask, saveAnswers]);
+    saveAnswers(answersRef.current).catch((err) => {
+      console.error("Navigation auto-save failed:", err);
+    });
+  }, [hasStarted, examSubmitted, currentModule, currentPart, currentWritingTask, saveAnswers]);
 
   // Periodic auto-save (every 15 seconds) to ensure time spent is saved
   useEffect(() => {
-    if (!hasStarted) return;
+    if (!hasStarted || examSubmitted) return;
 
     const periodicSave = setInterval(() => {
-      saveAnswers(answersRef.current);
+      saveAnswers(answersRef.current).catch((err) => {
+        console.error("Periodic auto-save failed:", err);
+      });
     }, 15000); // Save every 15 seconds
 
     return () => clearInterval(periodicSave);
-  }, [hasStarted, saveAnswers]);
+  }, [hasStarted, examSubmitted, saveAnswers]);
 
   // ============================================
   // START EXAM
@@ -430,6 +477,8 @@ export default function ExamPlayer() {
   // MODULE SUBMISSION
   // ============================================
   const handleModuleSubmit = async (autoSubmit = false, bypassConfirmation = false) => {
+    if (isSubmitting) return;
+
     if (!autoSubmit && !bypassConfirmation && (currentModule === 'listening' || currentModule === 'reading')) {
       const moduleLabel = currentModule.charAt(0).toUpperCase() + currentModule.slice(1);
 
@@ -467,7 +516,18 @@ export default function ExamPlayer() {
     }
 
     // Save answers before moving to next module
-    await saveAnswers(answersRef.current);
+    try {
+      await flushPendingAutosave(answersRef.current);
+    } catch (err) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: `Could not save your latest answers before module submission: ${err.message}`,
+        confirmText: 'OK'
+      });
+      return;
+    }
 
     const currentIndex = MODULE_ORDER.indexOf(currentModule);
     if (currentIndex < MODULE_ORDER.length - 1) {
@@ -507,6 +567,8 @@ export default function ExamPlayer() {
   // FINAL SUBMISSION
   // ============================================
   const handleFinalSubmit = async (bypassConfirmation = false, autoSubmit = false) => {
+    if (isSubmitting || examSubmitted) return;
+
     if (!bypassConfirmation && !autoSubmit) {
       setNotification({
         isOpen: true,
@@ -534,9 +596,41 @@ export default function ExamPlayer() {
 
     setIsSubmitting(true);
     const latestAnswers = answersRef.current;
+
+    const completeSubmissionUI = async (successMessage) => {
+      setExamSubmitted(true);
+
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (fullscreenErr) {
+          console.warn("Failed to exit fullscreen after submission:", fullscreenErr);
+        }
+      }
+
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Exam Submitted Successfully!',
+        message: successMessage,
+        confirmText: 'Continue'
+      });
+    };
     
     // Final save before submission
-    await saveAnswers(latestAnswers);
+    try {
+      await flushPendingAutosave(latestAnswers);
+    } catch (saveErr) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: `Could not save your latest answers before final submission: ${saveErr.message}`,
+        confirmText: 'OK'
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       // Aggregate writing task times into total writing time
@@ -564,22 +658,24 @@ export default function ExamPlayer() {
         throw new Error(errorData.error || "Submission failed");
       }
 
-      setExamSubmitted(true);
+      await completeSubmissionUI('Your exam has been submitted. You will now be redirected to the results page.');
+    } catch (err) {
+      try {
+        const statusResponse = await fetch(`${API_URL}/exams/${examId}/status`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
 
-      // Exit fullscreen
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          if (statusData.submitted) {
+            await completeSubmissionUI('Your exam submission was confirmed. You will now be redirected to the results page.');
+            return;
+          }
+        }
+      } catch (statusErr) {
+        console.error("Failed to verify submission status after submit error:", statusErr);
       }
 
-      // Show success notification
-      setNotification({
-        isOpen: true,
-        type: 'success',
-        title: 'Exam Submitted Successfully!',
-        message: 'Your exam has been submitted. You will now be redirected to the results page.',
-        confirmText: 'Continue'
-      });
-    } catch (err) {
       setNotification({
         isOpen: true,
         type: 'error',
