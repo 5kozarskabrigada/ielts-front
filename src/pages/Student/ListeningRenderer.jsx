@@ -553,6 +553,13 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
           <h2 style={{ fontFamily: 'Montserrat, Helvetica, Arial, sans-serif', fontSize: '18px', fontWeight: 700, color: 'rgb(41, 69, 99)', margin: 0, padding: 0, lineHeight: '21.6px' }}
               dangerouslySetInnerHTML={{ __html: currentPartSection.title }} />
         )}
+        {currentPartSection.instruction && (
+          <div
+            className="mt-2 text-gray-700 leading-relaxed"
+            style={{ fontSize: '14px', lineHeight: '21px' }}
+            dangerouslySetInnerHTML={{ __html: currentPartSection.instruction }}
+          />
+        )}
       </div>
 
       {/* Questions */}
@@ -577,6 +584,13 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
                     marginBottom: '15px' 
                   }}
                   dangerouslySetInnerHTML={{ __html: group.group_title }}
+                />
+              )}
+              {group.instruction_text && (
+                <div
+                  className="mb-3 text-gray-700 leading-relaxed"
+                  style={{ fontSize: '14px', lineHeight: '21px' }}
+                  dangerouslySetInnerHTML={{ __html: group.instruction_text }}
                 />
               )}
               {renderQuestionGroup(group, groupQuestions, globalOffset, answers, setAnswers, saveAnswers)}

@@ -1084,6 +1084,17 @@ export default function ExamPlayer() {
                         />
                       </div>
 
+                      {taskConfig.instructions && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                          <p
+                            className="text-sm text-blue-900 whitespace-pre-wrap"
+                            style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
+                          >
+                            {taskConfig.instructions}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Task 1 Image (graph/chart/map/process) */}
                       {taskConfig.imageUrl && (
                         <div className="mb-4 flex justify-center">
