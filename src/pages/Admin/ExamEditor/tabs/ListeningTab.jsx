@@ -69,6 +69,9 @@ const QUESTION_TYPES = [
   },
 ];
 
+const MAX_LISTENING_AUDIO_UPLOAD_MB = 100;
+const MAX_LISTENING_AUDIO_UPLOAD_BYTES = MAX_LISTENING_AUDIO_UPLOAD_MB * 1024 * 1024;
+
 // ============================================
 // STYLED COMPONENTS
 // ============================================
@@ -2148,8 +2151,8 @@ const PartCard = ({ section, partNumber, token }) => {
       return;
     }
 
-    if (file.size > 25 * 1024 * 1024) {
-      setAudioUploadError("Audio file is too large (max 25MB)");
+    if (file.size > MAX_LISTENING_AUDIO_UPLOAD_BYTES) {
+      setAudioUploadError(`Audio file is too large (max ${MAX_LISTENING_AUDIO_UPLOAD_MB}MB)`);
       e.target.value = "";
       return;
     }
@@ -2404,8 +2407,8 @@ const GlobalAudioSettings = ({ token }) => {
       return;
     }
 
-    if (file.size > 25 * 1024 * 1024) {
-      setAudioUploadError("Audio file is too large (max 25MB)");
+    if (file.size > MAX_LISTENING_AUDIO_UPLOAD_BYTES) {
+      setAudioUploadError(`Audio file is too large (max ${MAX_LISTENING_AUDIO_UPLOAD_MB}MB)`);
       e.target.value = "";
       return;
     }
