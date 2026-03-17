@@ -13,9 +13,15 @@ import {
 const QUESTION_TYPES = [
   { 
     value: "multiple_choice", 
-    label: "Multiple Choice", 
+    label: "Multiple Choice (Single)", 
     icon: ListChecks, 
     hint: "Choose ONE correct answer (A, B, C or A, B, C, D)"
+  },
+  { 
+    value: "multiple_choice_multiple", 
+    label: "Multiple Choice (Multiple)", 
+    icon: ListChecks, 
+    hint: "Choose TWO or more correct answers (e.g., A/C)"
   },
   { 
     value: "matching", 
@@ -1185,7 +1191,7 @@ const ExampleBlock = ({ group, updateGroup }) => {
         value={exampleData.stem || ""}
         onChange={(e) => updateExample('stem', e.target.value)}
       />
-      {group.question_type === 'multiple_choice' && (
+      {(group.question_type === 'multiple_choice' || group.question_type === 'multiple_choice_multiple') && (
         <div className="grid grid-cols-4 gap-2">
           {['A', 'B', 'C', 'D'].slice(0, group.option_count || 3).map(letter => (
             <Input
@@ -1317,6 +1323,32 @@ const ImageUploader = ({ group, updateGroup }) => (
 const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, deleteQuestion }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isInfoRow = question.is_info_row === true;
+  const isMultipleChoiceMultiple = groupType === 'multiple_choice_multiple';
+
+  const parseMultiAnswers = (value) => {
+    const normalized = String(value || '').toUpperCase().trim();
+    if (!normalized) return [];
+    if (normalized.includes('/')) return normalized.split('/').map(s => s.trim()).filter(Boolean);
+    if (normalized.includes(',')) return normalized.split(',').map(s => s.trim()).filter(Boolean);
+    if (/^[A-Z]+$/.test(normalized)) return normalized.split('');
+    return normalized.split(/\s+/).filter(Boolean);
+  };
+
+  const formatMultiAnswers = (letters) => {
+    return [...new Set(letters)]
+      .map((letter) => String(letter || '').toUpperCase().trim())
+      .filter(Boolean)
+      .sort()
+      .join('/');
+  };
+
+  const toggleMultipleCorrectAnswer = (letter) => {
+    const current = parseMultiAnswers(question.correct_answer);
+    const next = current.includes(letter)
+      ? current.filter((item) => item !== letter)
+      : [...current, letter];
+    updateQuestion(question.id, { correct_answer: formatMultiAnswers(next) });
+  };
 
   return (
     <div className={`border rounded-lg overflow-hidden bg-white ${isInfoRow ? 'border-blue-200' : 'border-gray-200'}`}>
@@ -1357,8 +1389,8 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
 
       {isExpanded && (
         <div className="px-4 py-4 border-t border-gray-100 bg-gray-50 space-y-4">
-          {/* Multiple Choice - Question number, question text, then A/B/C below */}
-          {groupType === 'multiple_choice' && (
+          {/* Multiple Choice (Single + Multiple) */}
+          {(groupType === 'multiple_choice' || groupType === 'multiple_choice_multiple') && (
             <>
               <RichTextArea
                 label="Question Text"
@@ -1371,15 +1403,18 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 <p className="text-xs text-gray-500 mb-2">Preview (Q{questionNumber}):</p>
                 <div className="text-sm text-gray-700">
                   <p className="font-medium mb-2">
-                    <span className="text-amber-700">{questionNumber}.</span>{' '}
+                    {!isMultipleChoiceMultiple && <span className="text-amber-700">{questionNumber}.</span>}{' '}
                     <RenderHtml html={question.question_text || 'Question text...'} />
                   </p>
                   <div className="ml-4 space-y-1">
-                    {['A', 'B', 'C', 'D'].map(letter => {
+                    {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
                       const text = question[`option_${letter.toLowerCase()}`];
                       if (!text) return null;
+                      const isCorrect = isMultipleChoiceMultiple
+                        ? parseMultiAnswers(question.correct_answer).includes(letter)
+                        : question.correct_answer === letter;
                       return (
-                        <div key={letter} className={`${question.correct_answer === letter ? 'text-green-600 font-medium' : ''}`}>
+                        <div key={letter} className={`${isCorrect ? 'text-green-600 font-medium' : ''}`}>
                           <span className="font-semibold">{letter}</span> <RenderHtml html={text} />
                         </div>
                       );
@@ -1387,29 +1422,71 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                   </div>
                 </div>
               </div>
+
+              {isMultipleChoiceMultiple && (
+                <Input
+                  label="Correct Answers (use / to separate, e.g., A/C)"
+                  placeholder="A/C"
+                  value={question.correct_answer || ""}
+                  onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value.toUpperCase() })}
+                />
+              )}
+
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Options (click letter to set correct answer)</label>
-                {['A', 'B', 'C', 'D'].map(letter => (
-                  <div key={letter} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateQuestion(question.id, { correct_answer: letter })}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg font-semibold text-sm transition ${
-                        question.correct_answer === letter 
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {letter}
-                    </button>
-                    <input
-                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 outline-none"
-                      placeholder={`Option ${letter} text`}
-                      value={question[`option_${letter.toLowerCase()}`] || ""}
-                      onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
-                    />
-                  </div>
-                ))}
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {isMultipleChoiceMultiple
+                    ? 'Options (click letter to toggle correct answers)'
+                    : 'Options (click letter to set correct answer)'}
+                </label>
+                {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
+                  const optionValue = question[`option_${letter.toLowerCase()}`];
+                  const prevLetter = String.fromCharCode(letter.charCodeAt(0) - 1);
+                  const showOption = ['A', 'B', 'C', 'D'].includes(letter)
+                    || optionValue
+                    || (prevLetter >= 'A' && question[`option_${prevLetter.toLowerCase()}`]);
+                  if (!showOption) return null;
+
+                  const isCorrect = isMultipleChoiceMultiple
+                    ? parseMultiAnswers(question.correct_answer).includes(letter)
+                    : question.correct_answer === letter;
+
+                  return (
+                    <div key={letter} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isMultipleChoiceMultiple) {
+                            toggleMultipleCorrectAnswer(letter);
+                          } else {
+                            updateQuestion(question.id, { correct_answer: letter });
+                          }
+                        }}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg font-semibold text-sm transition ${
+                          isCorrect
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {letter}
+                      </button>
+                      <input
+                        className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 outline-none"
+                        placeholder={`Option ${letter} text`}
+                        value={optionValue || ""}
+                        onChange={(e) => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: e.target.value })}
+                      />
+                      {!['A', 'B', 'C', 'D'].includes(letter) && optionValue && (
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(question.id, { [`option_${letter.toLowerCase()}`]: '' })}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded transition"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -2441,31 +2518,30 @@ const PreviewMode = ({ isOpen, onClose }) => {
       );
     };
 
-    // Multiple Choice: Number, question, then A/B/C options below
-    if (type === 'multiple_choice') {
+    // Multiple Choice (Single + Multiple)
+    if (type === 'multiple_choice' || type === 'multiple_choice_multiple') {
+      const isMultiple = type === 'multiple_choice_multiple';
       return groupQuestions.map(q => {
         const globalNum = globalOffset + q.question_number;
         return (
           <div key={q.id} className="py-4" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
-            {/* Question number as plain bold text */}
             <p style={{
               color: 'rgb(40, 40, 40)',
               fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
               fontSize: '16px',
-              fontWeight: 700,
+              fontWeight: isMultiple ? 400 : 700,
               lineHeight: '24px',
               marginTop: '10px',
               marginBottom: '10px'
             }}>
-              {globalNum}. <RenderHtml html={q.question_text || ''} />
+              {!isMultiple && `${globalNum}. `}<RenderHtml html={q.question_text || ''} />
             </p>
             <div className="ml-4 space-y-2">
-              {['A', 'B', 'C', 'D'].map(letter => {
+              {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
                 const text = q[`option_${letter.toLowerCase()}`];
                 if (!text) return null;
                 return (
                   <label key={letter} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
-                    {/* Letter circle (gray) first */}
                     <span style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2483,9 +2559,11 @@ const PreviewMode = ({ isOpen, onClose }) => {
                     }}>
                       {letter}
                     </span>
-                    {/* Radio button */}
-                    <input type="radio" name={`q${q.id}`} className="w-4 h-4" />
-                    {/* Option text */}
+                    <input
+                      type={isMultiple ? 'checkbox' : 'radio'}
+                      name={isMultiple ? undefined : `q${q.id}`}
+                      className="w-4 h-4"
+                    />
                     <span style={{ marginLeft: '4px' }}><RenderHtml html={text} /></span>
                   </label>
                 );

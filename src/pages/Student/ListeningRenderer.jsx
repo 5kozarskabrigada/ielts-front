@@ -62,8 +62,9 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
 const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, saveAnswers = null) => {
   const type = group.question_type;
 
-  // Multiple Choice
-  if (type === 'multiple_choice') {
+  // Multiple Choice (Single + Multiple)
+  if (type === 'multiple_choice' || type === 'multiple_choice_multiple') {
+    const isMultiple = type === 'multiple_choice_multiple';
     return groupQuestions.map((q, idx) => {
       const globalNum = globalOffset + q.question_number;
       return (
@@ -71,23 +72,28 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           key={q.id} 
           id={`question-${globalNum}`} 
           data-question-id={q.id}
-          className="py-4 scroll-mt-20" 
+          className="py-4 scroll-mt-20"
           style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}
-        >          <p style={{
+        >
+          <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-            fontSize: '16px',
-            fontWeight: 700,
+            fontSize: '17px',
+            fontWeight: isMultiple ? 400 : 700,
             lineHeight: '24px',
             marginTop: '10px',
             marginBottom: '10px'
           }}>
-            {globalNum}. <RenderHtml html={q.question_text || ''} />
+            {!isMultiple && `${globalNum}. `}<RenderHtml html={q.question_text || ''} />
           </p>
           <div className="ml-4 space-y-2">
-            {['A', 'B', 'C', 'D'].map(letter => {
+            {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
               const text = q[`option_${letter.toLowerCase()}`];
               if (!text) return null;
+              const isChecked = isMultiple
+                ? (answers[q.id] || '').includes(letter)
+                : answers[q.id] === letter;
+
               return (
                 <label key={letter} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
                   <span style={{
@@ -108,12 +114,20 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     {letter}
                   </span>
                   <input 
-                    type="radio" 
-                    name={`q${q.id}`} 
+                    type={isMultiple ? 'checkbox' : 'radio'}
+                    name={isMultiple ? undefined : `q${q.id}`}
                     className="w-4 h-4"
-                    checked={answers[q.id] === letter}
-                    onChange={() => {
-                      setAnswers(prev => ({ ...prev, [q.id]: letter }));
+                    checked={isChecked}
+                    onChange={(e) => {
+                      if (isMultiple) {
+                        const current = answers[q.id] || '';
+                        const newValue = e.target.checked
+                          ? current + letter
+                          : current.replace(letter, '');
+                        setAnswers(prev => ({ ...prev, [q.id]: newValue }));
+                      } else {
+                        setAnswers(prev => ({ ...prev, [q.id]: letter }));
+                      }
                       if (saveAnswers) saveAnswers();
                     }}
                   />
