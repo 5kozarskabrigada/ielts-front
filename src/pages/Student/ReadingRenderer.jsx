@@ -75,6 +75,25 @@ const detectParagraphLetters = (content) => {
 
 const isLetterMatchingStyle = (styleValue) => String(styleValue || 'roman').trim().toLowerCase().startsWith('letter');
 
+const normalizeTriStateAnswer = (value, isYesNoType) => {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (!normalized) return '';
+
+  if (normalized === 'not_given' || normalized === 'notgiven' || normalized === 'ng') {
+    return 'not_given';
+  }
+
+  if (isYesNoType) {
+    if (normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === 't') return 'yes';
+    if (normalized === 'no' || normalized === 'n' || normalized === 'false' || normalized === 'f') return 'no';
+    return normalized;
+  }
+
+  if (normalized === 'true' || normalized === 't' || normalized === 'yes' || normalized === 'y') return 'true';
+  if (normalized === 'false' || normalized === 'f' || normalized === 'no' || normalized === 'n') return 'false';
+  return normalized;
+};
+
 // Render question group based on type
 const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAnswers, paragraphLetters, saveAnswers = null) => {
   const type = group.question_type;
@@ -117,14 +136,16 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
             const qNum = globalOffset + q.question_number;
+            const selectedValue = normalizeTriStateAnswer(answers[q.id], isYesNo);
             return (
               <div key={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex items-center gap-2 flex-1">
                   <select 
-                    value={answers[q.id] || ''}
+                    value={selectedValue}
                     onChange={e => {
-                      setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                      const normalizedValue = normalizeTriStateAnswer(e.target.value, isYesNo);
+                      setAnswers(prev => ({ ...prev, [q.id]: normalizedValue }));
                       if (saveAnswers) saveAnswers();
                     }}
                     style={{
@@ -138,8 +159,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     }}
                   >
                     <option value=""></option>
-                    <option value="true">{isYesNo ? 'YES' : 'TRUE'}</option>
-                    <option value="false">{isYesNo ? 'NO' : 'FALSE'}</option>
+                    <option value={isYesNo ? 'yes' : 'true'}>{isYesNo ? 'YES' : 'TRUE'}</option>
+                    <option value={isYesNo ? 'no' : 'false'}>{isYesNo ? 'NO' : 'FALSE'}</option>
                     <option value="not_given">NOT GIVEN</option>
                   </select>
                   <p className="flex-1"><RenderHtml html={q.question_text || ''} /></p>
