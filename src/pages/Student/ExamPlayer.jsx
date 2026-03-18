@@ -480,11 +480,15 @@ export default function ExamPlayer() {
   };
 
   const confirmMoveToTask2 = useCallback((message = 'Do you want to move to Task 2?') => {
-    const shouldMove = window.confirm(message);
-    if (shouldMove) {
-      setCurrentWritingTask(2);
-    }
-    return shouldMove;
+    setNotification({
+      isOpen: true,
+      type: 'warning',
+      title: 'Move to Task 2?',
+      message,
+      confirmText: 'Move to Task 2',
+      showCancel: true,
+      onConfirm: () => setCurrentWritingTask(2)
+    });
   }, []);
 
   // ============================================
