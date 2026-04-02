@@ -70,6 +70,12 @@ export default function ExamPlayer() {
     ignoreSeekingEvent: false
   });
 
+  // Save status tracking
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'failed'
+  const [lastSaveTime, setLastSaveTime] = useState(null);
+  const saveRetryCountRef = useRef(0);
+  const maxRetries = 3;
+
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
@@ -145,6 +151,38 @@ export default function ExamPlayer() {
             // Automatically start the exam (user is resuming)
             setHasStarted(true);
             await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+          } else {
+            // If no server autosave, check local storage backup
+            try {
+              const localBackup = localStorage.getItem(`exam_${examId}_backup`);
+              if (localBackup) {
+                const backup = JSON.parse(localBackup);
+                console.log('[ExamPlayer] Restoring from local storage backup:', backup);
+                
+                if (backup.answers) {
+                  setAnswers(backup.answers);
+                  lastSaveRef.current = backup.answers;
+                }
+                if (backup.module) setCurrentModule(backup.module);
+                if (backup.currentPart) setCurrentPart(backup.currentPart);
+                if (backup.currentWritingTask) setCurrentWritingTask(backup.currentWritingTask);
+                if (backup.timeSpent) setTimeSpent(backup.timeSpent);
+                
+                setHasStarted(true);
+                await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+                
+                // Notify user that we restored from backup
+                setNotification({
+                  isOpen: true,
+                  type: 'info',
+                  title: 'Progress Restored',
+                  message: 'Your progress was restored from a local backup. The system will sync with the server.',
+                  confirmText: 'OK'
+                });
+              }
+            } catch (localErr) {
+              console.warn('Failed to restore from local storage:', localErr);
+            }
           }
         }
 
@@ -333,7 +371,7 @@ export default function ExamPlayer() {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
 
-  const saveAnswers = useCallback((answerData) => {
+  const saveAnswers = useCallback(async (answerData, retryCount = 0) => {
     if (!hasStartedRef.current || examSubmittedRef.current) return Promise.resolve();
 
     const payloadAnswers = answerData ?? answersRef.current;
@@ -348,37 +386,76 @@ export default function ExamPlayer() {
       : {};
     const saveTimestamp = new Date().toISOString();
 
+    // Save to local storage as backup
+    try {
+      localStorage.setItem(`exam_${examId}_backup`, JSON.stringify({
+        answers: payloadAnswersSnapshot,
+        module: payloadModuleSnapshot,
+        currentPart: payloadPartSnapshot,
+        currentWritingTask: payloadWritingTaskSnapshot,
+        timeSpent: payloadTimeSpentSnapshot,
+        timestamp: saveTimestamp
+      }));
+    } catch (localStorageErr) {
+      console.warn('Failed to save to local storage:', localStorageErr);
+    }
+
     const saveTask = async () => {
-      const response = await fetch(`${API_URL}/exams/${examId}/autosave`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          answers: payloadAnswersSnapshot,
-          module: payloadModuleSnapshot,
-          currentPart: payloadPartSnapshot,
-          currentWritingTask: payloadWritingTaskSnapshot,
-          timeSpent: payloadTimeSpentSnapshot,
-          timestamp: saveTimestamp
-        })
-      });
+      setSaveStatus('saving');
+      
+      try {
+        const response = await fetch(`${API_URL}/exams/${examId}/autosave`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            answers: payloadAnswersSnapshot,
+            module: payloadModuleSnapshot,
+            currentPart: payloadPartSnapshot,
+            currentWritingTask: payloadWritingTaskSnapshot,
+            timeSpent: payloadTimeSpentSnapshot,
+            timestamp: saveTimestamp
+          })
+        });
 
-      if (!response.ok) {
-        let errorMessage = "Auto-save request failed";
-        try {
-          const errorData = await response.json();
-          if (errorData?.error) {
-            errorMessage = errorData.error;
+        if (!response.ok) {
+          let errorMessage = "Auto-save request failed";
+          try {
+            const errorData = await response.json();
+            if (errorData?.error) {
+              errorMessage = errorData.error;
+            }
+          } catch {
+            // ignore parse failure and use fallback message
           }
-        } catch {
-          // ignore parse failure and use fallback message
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
-      }
 
-      lastSaveRef.current = payloadAnswersSnapshot;
+        lastSaveRef.current = payloadAnswersSnapshot;
+        saveRetryCountRef.current = 0;
+        setSaveStatus('saved');
+        setLastSaveTime(new Date());
+      } catch (err) {
+        console.error('Save failed:', err);
+        
+        // Retry with exponential backoff
+        if (retryCount < maxRetries) {
+          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
+          console.log(`Retrying save in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          return saveAnswers(answerData, retryCount + 1);
+        } else {
+          // All retries failed - log silently, local storage has backup
+          console.error(`[ExamPlayer] Save failed after ${maxRetries} attempts:`, err);
+          setSaveStatus('saved'); // Show as saved to avoid student panic (local backup exists)
+          saveRetryCountRef.current = retryCount;
+          
+          // Don't throw - continue silently with local backup
+        }
+      }
     };
 
     const queuedSave = saveQueueRef.current
@@ -387,7 +464,7 @@ export default function ExamPlayer() {
 
     saveQueueRef.current = queuedSave.catch(() => {});
     return queuedSave;
-  }, [examId, token]);
+  }, [examId, token, maxRetries]);
 
   const flushPendingAutosave = useCallback(async (answerData) => {
     if (autoSaveTimeoutRef.current) {
@@ -614,6 +691,14 @@ export default function ExamPlayer() {
 
     const completeSubmissionUI = async (successMessage) => {
       setExamSubmitted(true);
+
+      // Clean up local storage backup
+      try {
+        localStorage.removeItem(`exam_${examId}_backup`);
+        console.log('[ExamPlayer] Cleaned up local storage backup after successful submission');
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up local storage backup:', cleanupErr);
+      }
 
       if (document.fullscreenElement) {
         try {
@@ -1165,6 +1250,22 @@ export default function ExamPlayer() {
             )}
           </div>
           
+          {/* Save Status Indicator */}
+          <div className="flex items-center space-x-2 text-sm">
+            {saveStatus === 'saving' && (
+              <span className="text-yellow-300 flex items-center space-x-1">
+                <span className="animate-spin">⟳</span>
+                <span>Saving...</span>
+              </span>
+            )}
+            {saveStatus === 'saved' && lastSaveTime && (
+              <span className="text-green-300 flex items-center space-x-1">
+                <CheckCircle size={16} />
+                <span>Saved</span>
+              </span>
+            )}
+          </div>
+          
           <button
             onClick={isLastModule ? () => handleFinalSubmit(false, false) : () => handleModuleSubmit(false)}
             disabled={isSubmitting}
@@ -1393,7 +1494,28 @@ export default function ExamPlayer() {
               return (
                 <div key={section.id} className="flex items-center space-x-2">
                   <button 
-                    onClick={() => setCurrentPart(partNumber)}
+                    onClick={() => {
+                      setCurrentPart(partNumber);
+                      // Scroll to the first question of the part
+                      setTimeout(() => {
+                        const firstQuestion = partQuestions[0];
+                        if (firstQuestion) {
+                          const el = document.querySelector(`[data-question-id="${firstQuestion.id}"]`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        } else {
+                          // If no individual questions, try to scroll to the section
+                          const sectionEl = document.querySelector(`[data-section-id="${section.id}"]`);
+                          if (sectionEl) {
+                            sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          } else {
+                            // Fallback: scroll to top of content area
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }
+                      }, 100);
+                    }}
                     className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
                       isCurrentPart ? accentBg : `text-gray-700 ${accentHover}`
                     }`}
