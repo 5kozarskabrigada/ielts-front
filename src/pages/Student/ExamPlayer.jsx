@@ -70,7 +70,6 @@ export default function ExamPlayer() {
     ignoreSeekingEvent: false
   });
   const listeningAudioAutoStartedRef = useRef(false);
-  const listeningAudioLoadingRef = useRef(false);
 
   // Save status tracking
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'failed'
@@ -872,101 +871,79 @@ export default function ExamPlayer() {
     }, 0);
   }, [allModuleSections, currentPart, questions, questionGroups]);
 
-  const sectionAudioUrl = normalizeAudioUrl(currentSection?.audio_url);
-  const globalListeningAudioUrl = normalizeAudioUrl(listeningConfig?.global_audio_url)
-    || normalizeAudioUrl(modulesConfig?.global_audio_url);
-  const selectedListeningAudioUrl = shouldUseGlobalListeningAudio
-    ? (sectionAudioUrl || globalListeningAudioUrl)
-    : sectionAudioUrl;
+  // Stable audio URL: use global audio or first listening section's audio — never changes when switching parts
+  const allListeningSections = useMemo(
+    () => sections.filter(s => s.module_type === 'listening').sort((a, b) => a.section_order - b.section_order),
+    [sections]
+  );
+  const stableAudioRawUrl = useMemo(() => {
+    const globalUrl = normalizeAudioUrl(listeningConfig?.global_audio_url)
+      || normalizeAudioUrl(modulesConfig?.global_audio_url);
+    if (globalUrl) return globalUrl;
+    // Fallback: first listening section's audio_url
+    for (const sec of allListeningSections) {
+      const url = normalizeAudioUrl(sec.audio_url);
+      if (url) return url;
+    }
+    return null;
+  }, [listeningConfig, modulesConfig, allListeningSections]);
 
   const listeningAudioSrc = useMemo(() => {
-    if (!selectedListeningAudioUrl) return null;
-
-    if (!isHttpAudioUrl(selectedListeningAudioUrl)) {
-      return selectedListeningAudioUrl;
-    }
-
-    if (!token) {
-      return selectedListeningAudioUrl;
-    }
-
+    if (!stableAudioRawUrl) return null;
+    if (!isHttpAudioUrl(stableAudioRawUrl)) return stableAudioRawUrl;
+    if (!token) return stableAudioRawUrl;
     const trimmedApiUrl = String(API_URL || '').replace(/\/+$/, '');
-    const encodedUrl = encodeURIComponent(selectedListeningAudioUrl);
-    const encodedToken = encodeURIComponent(token);
-    return `${trimmedApiUrl}/exams/audio-proxy?url=${encodedUrl}&token=${encodedToken}`;
-  }, [selectedListeningAudioUrl, token, isHttpAudioUrl]);
+    return `${trimmedApiUrl}/exams/audio-proxy?url=${encodeURIComponent(stableAudioRawUrl)}&token=${encodeURIComponent(token)}`;
+  }, [stableAudioRawUrl, token, isHttpAudioUrl]);
 
-  const hasListeningAudio = !!selectedListeningAudioUrl;
+  const hasListeningAudio = !!stableAudioRawUrl;
 
+  // Start audio once when entering listening module — never reload/restart
   useEffect(() => {
-    // Only auto-play audio once when first entering listening module after exam starts
     if (!hasStarted || currentModule !== 'listening') {
       setListeningAudioError("");
       if (currentModule !== 'listening') {
-        listeningAudioAutoStartedRef.current = false; // Reset when leaving listening
+        listeningAudioAutoStartedRef.current = false;
       }
       return;
     }
-
     const audioElement = listeningAudioRef.current;
     if (!audioElement || !listeningAudioSrc) {
       setListeningAudioError("");
       return;
     }
-
-    setListeningAudioError("");
-
-    // Only load + play when the src actually changes
-    if (audioElement.getAttribute('src') !== listeningAudioSrc) {
-      listeningAudioLoadingRef.current = true;
+    // Set src only once
+    if (!audioElement.getAttribute('src')) {
       audioElement.src = listeningAudioSrc;
       audioElement.load();
     }
-
-    // Only autoplay if we haven't already auto-started for this listening session
-    if (listeningAudioAutoStartedRef.current) {
-      return;
-    }
-    
+    // Auto-play only once
+    if (listeningAudioAutoStartedRef.current) return;
     listeningAudioAutoStartedRef.current = true;
+    setListeningAudioError("");
     const attemptPlay = async () => {
       try {
         await audioElement.play();
       } catch {
-        setListeningAudioError("Autoplay may be blocked by your browser. Click anywhere in the exam page to resume audio.");
+        setListeningAudioError("Autoplay blocked by browser. Click anywhere to start audio.");
       }
     };
     attemptPlay();
   }, [hasStarted, currentModule, listeningAudioSrc]);
 
-  useEffect(() => {
-    listeningAudioGuardRef.current = {
-      lastAllowedTime: 0,
-      ignoreSeekingEvent: false
-    };
-  }, [listeningAudioSrc]);
-
+  // Resume on user gesture if autoplay was blocked
   useEffect(() => {
     if (currentModule !== 'listening' || !listeningAudioSrc) return;
-
     const resumePlaybackFromUserGesture = async () => {
       const audioElement = listeningAudioRef.current;
-      if (!audioElement) return;
-      if (!audioElement.paused || audioElement.ended) return;
-      // Don't resume during a load operation (part switch)
-      if (listeningAudioLoadingRef.current) return;
-
+      if (!audioElement || !audioElement.paused || audioElement.ended) return;
       try {
         await audioElement.play();
         setListeningAudioError("");
-      } catch {
-        // keep existing message until playback is allowed
-      }
+      } catch { /* keep existing message */ }
     };
-
     document.addEventListener('pointerdown', resumePlaybackFromUserGesture, true);
     document.addEventListener('keydown', resumePlaybackFromUserGesture, true);
-
     return () => {
       document.removeEventListener('pointerdown', resumePlaybackFromUserGesture, true);
       document.removeEventListener('keydown', resumePlaybackFromUserGesture, true);
@@ -1180,76 +1157,6 @@ export default function ExamPlayer() {
               <div className="flex items-center space-x-2 px-3 py-1 bg-white/10 rounded-full">
                 <Volume2 size={16} className="text-blue-300" />
                 <span className="text-xs">Listening Audio (Auto)</span>
-                <audio 
-                  ref={listeningAudioRef}
-                  loop={false}
-                  preload="metadata"
-                  controlsList="nodownload nofullscreen noremoteplayback"
-                  disablePictureInPicture
-                  playsInline
-                  onContextMenu={(e) => e.preventDefault()}
-                  className="hidden"
-                  onLoadedMetadata={(e) => {
-                    const audioElement = e.currentTarget;
-                    audioElement.playbackRate = 1;
-                    audioElement.defaultPlaybackRate = 1;
-                    audioElement.muted = false;
-                    audioElement.volume = 1;
-                    listeningAudioGuardRef.current.lastAllowedTime = 0;
-                    listeningAudioLoadingRef.current = false;
-                  }}
-                  onTimeUpdate={(e) => {
-                    listeningAudioGuardRef.current.lastAllowedTime = e.currentTarget.currentTime;
-                  }}
-                  onPause={async (e) => {
-                    const audioElement = e.currentTarget;
-                    if (currentModule !== 'listening' || !hasStarted || examSubmitted || audioElement.ended) return;
-                    // Don't auto-resume during a load operation (part switch)
-                    if (listeningAudioLoadingRef.current) return;
-                    try {
-                      await audioElement.play();
-                      setListeningAudioError("");
-                    } catch {
-                      setListeningAudioError("Audio must keep playing during Listening. Click anywhere in the exam page to resume.");
-                    }
-                  }}
-                  onSeeking={(e) => {
-                    if (currentModule !== 'listening' || !hasStarted || examSubmitted) return;
-
-                    const guard = listeningAudioGuardRef.current;
-                    if (guard.ignoreSeekingEvent) {
-                      guard.ignoreSeekingEvent = false;
-                      return;
-                    }
-
-                    guard.ignoreSeekingEvent = true;
-                    e.currentTarget.currentTime = guard.lastAllowedTime;
-                  }}
-                  onRateChange={(e) => {
-                    const audioElement = e.currentTarget;
-                    if (audioElement.playbackRate !== 1) {
-                      audioElement.playbackRate = 1;
-                    }
-                  }}
-                  onVolumeChange={(e) => {
-                    const audioElement = e.currentTarget;
-                    if (audioElement.muted) {
-                      audioElement.muted = false;
-                    }
-                    if (audioElement.volume !== 1) {
-                      audioElement.volume = 1;
-                    }
-                  }}
-                  onPlay={() => {
-                    setListeningAudioError("");
-                  }}
-                  onError={() => {
-                    console.error('[ExamPlayer] Failed to load listening audio URL:', listeningAudioSrc);
-                    setListeningAudioError('Unable to load this listening audio URL.');
-                  }}
-                >
-                  Your browser does not support the audio element.
-                </audio>
                 {listeningAudioError && (
                   <span className="text-[11px] text-amber-200 max-w-[260px] truncate" title={listeningAudioError}>
                     {listeningAudioError}
@@ -1257,6 +1164,58 @@ export default function ExamPlayer() {
                 )}
               </div>
             )}
+            {/* Audio element always mounted so it never restarts on part switch */}
+            <audio
+              ref={listeningAudioRef}
+              loop={false}
+              preload="auto"
+              controlsList="nodownload nofullscreen noremoteplayback"
+              disablePictureInPicture
+              playsInline
+              onContextMenu={(e) => e.preventDefault()}
+              className="hidden"
+              onLoadedMetadata={(e) => {
+                const el = e.currentTarget;
+                el.playbackRate = 1;
+                el.defaultPlaybackRate = 1;
+                el.muted = false;
+                el.volume = 1;
+                listeningAudioGuardRef.current.lastAllowedTime = 0;
+              }}
+              onTimeUpdate={(e) => {
+                listeningAudioGuardRef.current.lastAllowedTime = e.currentTarget.currentTime;
+              }}
+              onPause={async (e) => {
+                const el = e.currentTarget;
+                if (currentModule !== 'listening' || !hasStarted || examSubmitted || el.ended) return;
+                // Always try to resume — audio should never stop until it finishes
+                try {
+                  await el.play();
+                  setListeningAudioError("");
+                } catch {
+                  setListeningAudioError("Click anywhere to resume audio.");
+                }
+              }}
+              onSeeking={(e) => {
+                if (currentModule !== 'listening' || !hasStarted || examSubmitted) return;
+                const guard = listeningAudioGuardRef.current;
+                if (guard.ignoreSeekingEvent) { guard.ignoreSeekingEvent = false; return; }
+                guard.ignoreSeekingEvent = true;
+                e.currentTarget.currentTime = guard.lastAllowedTime;
+              }}
+              onRateChange={(e) => { if (e.currentTarget.playbackRate !== 1) e.currentTarget.playbackRate = 1; }}
+              onVolumeChange={(e) => {
+                if (e.currentTarget.muted) e.currentTarget.muted = false;
+                if (e.currentTarget.volume !== 1) e.currentTarget.volume = 1;
+              }}
+              onPlay={() => setListeningAudioError("")}
+              onError={() => {
+                console.error('[ExamPlayer] Audio load failed:', listeningAudioSrc);
+                setListeningAudioError('Unable to load audio.');
+              }}
+            >
+              Your browser does not support the audio element.
+            </audio>
           </div>
         </div>
         
