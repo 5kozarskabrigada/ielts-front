@@ -3266,9 +3266,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
               {currentGroups.length > 0 ? (
                 currentGroups.map(group => {
                   const groupQuestions = questions
-                    .filter(q => q.section_id === currentSection.id && 
-                      q.question_number >= group.question_range_start && 
-                      q.question_number <= group.question_range_end)
+                    .filter(q => q.group_id === group.id)
                     .sort((a, b) => a.question_number - b.question_number);
 
                   const globalOffset = (selectedPart - 1) * 10;

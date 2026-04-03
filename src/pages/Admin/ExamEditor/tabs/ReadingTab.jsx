@@ -880,7 +880,7 @@ const QuestionGroupCard = ({ group, sectionId, passageNumber, passageLetters, to
   const Icon = selectedType?.icon || HelpCircle;
 
   const groupQuestions = questions
-    .filter(q => q.section_id === sectionId && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end)
+    .filter(q => q.group_id === group.id)
     .sort((a, b) => a.question_number - b.question_number);
 
   const baseQuestionNumber = (passageNumber - 1) * 13 + group.question_range_start;
@@ -1722,7 +1722,7 @@ const PreviewMode = ({ isOpen, onClose }) => {
 
               {currentGroups.length > 0 ? (
                 currentGroups.map(group => {
-                  const groupQuestions = questions.filter(q => q.section_id === currentSection.id && q.question_number >= group.question_range_start && q.question_number <= group.question_range_end).sort((a, b) => a.question_number - b.question_number);
+                  const groupQuestions = questions.filter(q => q.group_id === group.id).sort((a, b) => a.question_number - b.question_number);
                   const globalOffset = (selectedPassage - 1) * 13;
                   const qStart = globalOffset + group.question_range_start;
                   const qEnd = globalOffset + group.question_range_end;

@@ -321,13 +321,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {/* Headings/People List */}
         <div className="mb-4">
           <div className="font-semibold text-gray-700 mb-1" style={{fontSize: '16px'}}>{isPeople ? 'List of People' : 'List of Headings'}</div>
-          <div className="border rounded-lg overflow-hidden">
+          <div style={{background: 'white', display: 'flex', flexDirection: 'column', gap: '8px'}}>
             {(isPeople ? people : headings).map((item, idx) => (
-              <div key={item.id || idx} style={{background: idx % 2 === 0 ? '#f5f5f5' : 'white'}} className="flex items-center px-3 py-2">
-                <span className="w-10 text-center font-bold text-gray-700">
+              <div key={item.id || idx} style={{background: 'white', display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
+                <span style={{minWidth: '30px', textAlign: 'left', fontWeight: 'bold', color: '#374151', fontSize: '15px'}}>
                   {isPeople ? String.fromCharCode(65 + idx) : (useLettersForHeadings ? String.fromCharCode(65 + idx) : toRoman(idx + 1))}.
                 </span>
-                <span className="flex-1 text-gray-800" style={{fontSize: '15px'}}>{item.value}</span>
+                <span style={{flex: 1, color: '#1f2937', fontSize: '15px'}}>{item.value}</span>
               </div>
             ))}
           </div>
