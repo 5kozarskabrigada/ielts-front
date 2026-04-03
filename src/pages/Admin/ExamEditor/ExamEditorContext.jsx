@@ -181,7 +181,7 @@ export const ExamEditorProvider = ({ children, initialData = null }) => {
   const addQuestion = (sectionId, questionData) => {
     setQuestions(prev => [
       ...prev,
-      { id: `temp_${Date.now()}`, section_id: sectionId, ...questionData }
+      { id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, section_id: sectionId, ...questionData }
     ]);
   };
 
