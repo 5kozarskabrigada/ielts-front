@@ -518,8 +518,53 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     }
   }
 
-  // Other completion types (table_completion, diagram_labeling, note_completion, form_completion)
-  if (['table_completion', 'diagram_labeling', 'note_completion', 'form_completion'].includes(type)) {
+  // Diagram/Map labeling - show image and description
+  if (type === 'diagram_labeling') {
+    return (
+      <div>
+        {group.image_url && (
+          <div className="mb-4">
+            <img 
+              src={group.image_url} 
+              alt={group.image_description || 'Diagram'} 
+              style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }}
+            />
+            {group.image_description && (
+              <p className="text-sm text-gray-600 mt-2 italic">{group.image_description}</p>
+            )}
+          </div>
+        )}
+        {groupQuestions.map((q, idx) => {
+          const qNum = globalOffset + q.question_number;
+          return (
+            <div key={q.id} className="flex items-start gap-3 mb-3">
+              <span className="font-bold text-gray-700">{qNum}.</span>
+              <input 
+                type="text"
+                value={answers[q.id] || ''}
+                onChange={(e) => {
+                  setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                  if (saveAnswers) saveAnswers();
+                }}
+                onCopy={(e) => e.stopPropagation()}
+                onCut={(e) => e.stopPropagation()}
+                onPaste={(e) => e.stopPropagation()}
+                className="flex-1 px-3 py-2 border rounded-lg"
+                style={{ 
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text'
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Other completion types (table_completion, note_completion, form_completion)
+  if (['table_completion', 'note_completion', 'form_completion'].includes(type)) {
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (

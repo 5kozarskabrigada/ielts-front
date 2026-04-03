@@ -368,8 +368,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       const parts = template.split('[BLANK]');
       
       return (
-        <div key={q.id} className="py-3">
-          <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px' }}>
+        <div key={q.id} className="py-2">
+          <span style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px', display: 'inline' }}>
             <RenderHtml html={parts[0]} />
             {parts.length > 1 && (
               <>
@@ -387,7 +387,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 <RenderHtml html={parts[1]} />
               </>
             )}
-          </div>
+          </span>
         </div>
       );
     });
@@ -401,8 +401,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       const parts = template.split('[BLANK]');
       
       return (
-        <div key={q.id} className="py-2">
-          <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px' }}>
+        <div key={q.id} className="py-1">
+          <span style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px', display: 'inline' }}>
             <RenderHtml html={parts[0]} />
             {parts.length > 1 && (
               <>
@@ -420,7 +420,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 <RenderHtml html={parts[1]} />
               </>
             )}
-          </div>
+          </span>
         </div>
       );
     });
@@ -433,13 +433,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return (
       <div>
         {sharedOptions.length > 0 && (
-          <div className="bg-purple-50 rounded-lg p-4 mb-4">
-            <p className="text-sm font-semibold text-purple-700 mb-2">Options:</p>
-            <div className="grid grid-cols-2 gap-2">
+          <div style={{background: 'white', marginBottom: '16px'}}>
+            <p style={{fontSize: '16px', fontWeight: 600, color: '#374151', marginBottom: '8px'}}>Options:</p>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
               {sharedOptions.map(opt => (
-                <div key={opt.label} className="flex items-start gap-2">
-                  <span className="font-bold text-purple-700">{opt.label}</span>
-                  <span className="text-sm">{opt.text}</span>
+                <div key={opt.label} style={{display: 'flex', alignItems: 'flex-start', gap: '8px'}}>
+                  <span style={{minWidth: '30px', fontWeight: 'bold', color: '#374151', fontSize: '15px'}}>{opt.label}</span>
+                  <span style={{fontSize: '15px', color: '#1f2937'}}>{opt.text}</span>
                 </div>
               ))}
             </div>
@@ -479,23 +479,21 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     );
   }
 
-  // Short Answer - Use inline [BLANK] style
+  // Short Answer - Stack question and blank vertically
   if (type === 'short_answer') {
     return (
       <div className="space-y-3">
         {groupQuestions.map((q, idx) => {
           const globalNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} className="flex items-start gap-3" data-question-id={q.id}>
+            <div key={q.id} className="flex flex-col gap-2" data-question-id={q.id}>
               <p style={{
                 color: 'rgb(40, 40, 40)',
                 fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
                 fontSize: '14px',
-                fontWeight: 600,
-                marginBottom: '8px',
-                flex: 1
+                fontWeight: 600
               }}>
-                <RenderHtml html={q.question_text || `Question ${globalNum}`} />
+                {globalNum}. <RenderHtml html={q.question_text || `Question ${globalNum}`} />
               </p>
               <BlankInput
                 questionNumber={globalNum}
@@ -562,7 +560,14 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
 
         {sectionGroups.map(group => {
           const groupQuestions = questions
-            .filter(q => q.group_id === group.id)
+            .filter(q => {
+              // Primary: match by group_id
+              if (q.group_id === group.id) return true;
+              // Fallback: match by section_id + question_number range (for old data)
+              return q.section_id === group.section_id && 
+                q.question_number >= group.question_range_start && 
+                q.question_number <= group.question_range_end;
+            })
             .sort((a, b) => a.question_number - b.question_number);
 
           const hasExplicitRange = Number.isFinite(Number(group.question_range_start)) && Number.isFinite(Number(group.question_range_end));

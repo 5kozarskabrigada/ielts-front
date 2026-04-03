@@ -897,7 +897,8 @@ export default function ExamPlayer() {
   const hasListeningAudio = !!selectedListeningAudioUrl;
 
   useEffect(() => {
-    if (currentModule !== 'listening') {
+    // Only auto-play audio after exam has started and when on listening module
+    if (!hasStarted || currentModule !== 'listening') {
       setListeningAudioError("");
       return;
     }
@@ -920,7 +921,7 @@ export default function ExamPlayer() {
 
     audioElement.load();
     attemptPlay();
-  }, [currentModule, listeningAudioSrc]);
+  }, [hasStarted, currentModule, listeningAudioSrc]);
 
   useEffect(() => {
     listeningAudioGuardRef.current = {
