@@ -69,6 +69,7 @@ export default function ExamPlayer() {
     lastAllowedTime: 0,
     ignoreSeekingEvent: false
   });
+  const listeningAudioAutoStartedRef = useRef(false);
 
   // Save status tracking
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'failed'
@@ -897,9 +898,12 @@ export default function ExamPlayer() {
   const hasListeningAudio = !!selectedListeningAudioUrl;
 
   useEffect(() => {
-    // Only auto-play audio after exam has started and when on listening module
+    // Only auto-play audio once when first entering listening module after exam starts
     if (!hasStarted || currentModule !== 'listening') {
       setListeningAudioError("");
+      if (currentModule !== 'listening') {
+        listeningAudioAutoStartedRef.current = false; // Reset when leaving listening
+      }
       return;
     }
 
@@ -912,6 +916,12 @@ export default function ExamPlayer() {
     setListeningAudioError("");
 
     const attemptPlay = async () => {
+      // Only autoplay if we haven't already auto-started for this listening session
+      if (listeningAudioAutoStartedRef.current) {
+        return;
+      }
+      
+      listeningAudioAutoStartedRef.current = true;
       try {
         await audioElement.play();
       } catch {

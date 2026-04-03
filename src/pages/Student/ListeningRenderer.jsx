@@ -13,7 +13,8 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
   <span 
     id={`question-${questionNumber}`} 
     data-question-id={questionId}
-    className="inline-flex items-center gap-2 mx-1 my-0.5 scroll-mt-20"
+    className="scroll-mt-20"
+    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '2px 4px', verticalAlign: 'middle' }}
   >    <span 
       style={{
         display: 'flex',
@@ -181,7 +182,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               blankIndex: startBlankNum + blankCount - 1,
               totalGroupQuestions: groupQuestions.length,
               groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
-              expectedRange: `${group.question_range_start}-${group.question_range_end}`
+              expectedRange: `${group.question_range_start}-${group.question_range_end}`,
+              allQuestionsInGroup: groupQuestions
             });
             return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
           }
@@ -448,10 +450,12 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {groupQuestions.map((q, idx) => {
           const globalNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} className="py-3 flex items-start gap-3">
-              <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
-              <div className="flex-1">
-                <RenderHtml html={q.question_text || ''} />
+            <div key={q.id} className="py-2">
+              <div className="flex items-start gap-3 mb-2">
+                <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
+                <div className="flex-1">
+                  <RenderHtml html={q.question_text || ''} />
+                </div>
               </div>
               <input 
                 type="text"
