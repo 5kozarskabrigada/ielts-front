@@ -953,6 +953,8 @@ export default function ExamPlayer() {
       const audioElement = listeningAudioRef.current;
       if (!audioElement) return;
       if (!audioElement.paused || audioElement.ended) return;
+      // Don't resume during a load operation (part switch)
+      if (listeningAudioLoadingRef.current) return;
 
       try {
         await audioElement.play();
@@ -1492,7 +1494,7 @@ export default function ExamPlayer() {
                 }
               });
 
-              // Add synthetic entries for summary_completion blanks not in partQuestions
+              // Add synthetic entries for group-based blanks not in partQuestions
               sectionGroups.forEach(group => {
                 if (group.question_type === 'summary_completion' && group.summary_data?.text) {
                   const blankCount = (group.summary_data.text.match(/\[BLANK\]/g) || []).length;
@@ -1500,6 +1502,16 @@ export default function ExamPlayer() {
                     const qNum = group.question_range_start + i;
                     if (!partQuestions.find(q => q.question_number === qNum)) {
                       const syntheticId = `summary_placeholder_${group.id}_${i}`;
+                      items.push({ type: 'single', question: { id: syntheticId, question_number: qNum }, sortKey: qNum });
+                    }
+                  }
+                }
+                // Table/form/note completion and map/diagram labeling: generate entries from range
+                const rangeTypes = ['table_completion', 'form_completion', 'note_completion', 'map_labeling', 'diagram_labeling', 'sentence_completion'];
+                if (rangeTypes.includes(group.question_type) && group.question_range_start && group.question_range_end) {
+                  for (let qNum = group.question_range_start; qNum <= group.question_range_end; qNum++) {
+                    if (!partQuestions.find(q => q.question_number === qNum) && !items.find(it => it.sortKey === qNum)) {
+                      const syntheticId = `table_${group.id}_blank_${qNum - group.question_range_start}`;
                       items.push({ type: 'single', question: { id: syntheticId, question_number: qNum }, sortKey: qNum });
                     }
                   }
