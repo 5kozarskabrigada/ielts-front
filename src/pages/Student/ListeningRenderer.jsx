@@ -176,16 +176,30 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           blankCount++;
           
           if (!question) {
-            console.error(`Table completion: Question not found for blank ${blankCount}`, {
+            console.warn(`Table completion: Question not found for blank ${blankCount}`, {
               groupId: group.id,
               sectionId: group.section_id,
               blankIndex: startBlankNum + blankCount - 1,
               totalGroupQuestions: groupQuestions.length,
-              groupQuestions: groupQuestions.map(q => ({ id: q.id, num: q.question_number, groupId: q.group_id })),
-              expectedRange: `${group.question_range_start}-${group.question_range_end}`,
-              allQuestionsInGroup: groupQuestions
             });
-            return <span key={idx} className="text-red-500">[Missing Question - Check Console]</span>;
+            // Render a usable input with a synthetic ID so the student can still answer
+            const syntheticId = `table_${group.id}_blank_${startBlankNum + blankCount - 1}`;
+            return (
+              <BlankInput 
+                key={idx}
+                questionNumber={qNum}
+                questionId={syntheticId}
+                value={answers[syntheticId] || ''}
+                onChange={(e) => {
+                  try {
+                    setAnswers(prev => ({ ...prev, [syntheticId]: e.target.value }));
+                    if (saveAnswers) saveAnswers();
+                  } catch (error) {
+                    console.error('Error updating answer:', error);
+                  }
+                }}
+              />
+            );
           }
           
           return (

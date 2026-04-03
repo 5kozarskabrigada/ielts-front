@@ -70,6 +70,7 @@ export default function ExamPlayer() {
     ignoreSeekingEvent: false
   });
   const listeningAudioAutoStartedRef = useRef(false);
+  const listeningAudioLoadingRef = useRef(false);
 
   // Save status tracking
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'failed'
@@ -917,6 +918,7 @@ export default function ExamPlayer() {
 
     // Only load + play when the src actually changes
     if (audioElement.getAttribute('src') !== listeningAudioSrc) {
+      listeningAudioLoadingRef.current = true;
       audioElement.src = listeningAudioSrc;
       audioElement.load();
     }
@@ -1192,6 +1194,7 @@ export default function ExamPlayer() {
                     audioElement.muted = false;
                     audioElement.volume = 1;
                     listeningAudioGuardRef.current.lastAllowedTime = 0;
+                    listeningAudioLoadingRef.current = false;
                   }}
                   onTimeUpdate={(e) => {
                     listeningAudioGuardRef.current.lastAllowedTime = e.currentTarget.currentTime;
@@ -1199,6 +1202,8 @@ export default function ExamPlayer() {
                   onPause={async (e) => {
                     const audioElement = e.currentTarget;
                     if (currentModule !== 'listening' || !hasStarted || examSubmitted || audioElement.ended) return;
+                    // Don't auto-resume during a load operation (part switch)
+                    if (listeningAudioLoadingRef.current) return;
                     try {
                       await audioElement.play();
                       setListeningAudioError("");
