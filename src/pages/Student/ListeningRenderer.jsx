@@ -515,6 +515,52 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     );
   }
 
+  // Map/Diagram Labeling
+  if (type === 'map_labeling' || type === 'diagram_labeling') {
+    return (
+      <div>
+        {group.image_url && (
+          <div className="mb-4">
+            <img 
+              src={group.image_url} 
+              alt={group.image_description || 'Diagram'} 
+              style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }}
+            />
+            {group.image_description && (
+              <p className="text-sm text-gray-600 mt-2 italic">{group.image_description}</p>
+            )}
+          </div>
+        )}
+        <div className="space-y-3">
+          {groupQuestions.map((q, idx) => {
+            const globalNum = globalOffset + q.question_number;
+            return (
+              <div key={q.id} className="flex flex-col gap-2" data-question-id={q.id}>
+                <p style={{
+                  color: 'rgb(40, 40, 40)',
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  fontWeight: 600
+                }}>
+                  {globalNum}. <RenderHtml html={q.question_text || `Question ${globalNum}`} />
+                </p>
+                <BlankInput
+                  questionNumber={globalNum}
+                  questionId={q.id}
+                  value={answers[q.id]}
+                  onChange={(e) => {
+                    setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
+                    if (saveAnswers) saveAnswers();
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return null;
 };
 

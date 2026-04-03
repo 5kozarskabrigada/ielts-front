@@ -1175,7 +1175,6 @@ export default function ExamPlayer() {
                 <audio 
                   key={listeningAudioSrc}
                   ref={listeningAudioRef}
-                  autoPlay
                   loop={false}
                   preload="metadata"
                   controlsList="nodownload nofullscreen noremoteplayback"
