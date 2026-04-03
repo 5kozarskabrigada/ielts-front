@@ -14,7 +14,7 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
     id={`question-${questionNumber}`} 
     data-question-id={questionId}
     className="scroll-mt-20"
-    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', margin: '2px 4px', verticalAlign: 'middle' }}
+    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', margin: '2px 4px', verticalAlign: 'middle' }}
   >    <span 
       style={{
         display: 'flex',
@@ -42,9 +42,9 @@ const BlankInput = ({ questionNumber, questionId, value, onChange }) => (
       onCut={(e) => e.stopPropagation()}
       onPaste={(e) => e.stopPropagation()}
       style={{ 
-        width: '200px',
+        width: '150px',
         height: '32px',
-        padding: '0 20px 0 10px',
+        padding: '0 12px 0 8px',
         border: '1px solid rgb(189, 197, 207)',
         borderRadius: '100px',
         fontSize: '14px',
@@ -614,9 +614,14 @@ export default function ListeningRenderer({ sections, questions, questionGroups,
               // Primary: match by group_id
               if (q.group_id === group.id) return true;
               // Fallback: match by section_id + question_number range (for old data)
-              return q.section_id === group.section_id && 
+              if (q.section_id === group.section_id && 
                 q.question_number >= group.question_range_start && 
-                q.question_number <= group.question_range_end;
+                q.question_number <= group.question_range_end) return true;
+              // Last resort for form_completion: match by section + question_type
+              if (group.question_type === 'form_completion' && 
+                q.section_id === group.section_id && 
+                (q.question_type === 'form_completion' || q.question_type === group.question_type)) return true;
+              return false;
             })
             .sort((a, b) => a.question_number - b.question_number);
 

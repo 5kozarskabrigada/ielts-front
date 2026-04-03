@@ -915,21 +915,25 @@ export default function ExamPlayer() {
 
     setListeningAudioError("");
 
+    // Only load + play when the src actually changes
+    if (audioElement.getAttribute('src') !== listeningAudioSrc) {
+      audioElement.src = listeningAudioSrc;
+      audioElement.load();
+    }
+
+    // Only autoplay if we haven't already auto-started for this listening session
+    if (listeningAudioAutoStartedRef.current) {
+      return;
+    }
+    
+    listeningAudioAutoStartedRef.current = true;
     const attemptPlay = async () => {
-      // Only autoplay if we haven't already auto-started for this listening session
-      if (listeningAudioAutoStartedRef.current) {
-        return;
-      }
-      
-      listeningAudioAutoStartedRef.current = true;
       try {
         await audioElement.play();
       } catch {
         setListeningAudioError("Autoplay may be blocked by your browser. Click anywhere in the exam page to resume audio.");
       }
     };
-
-    audioElement.load();
     attemptPlay();
   }, [hasStarted, currentModule, listeningAudioSrc]);
 
@@ -1173,7 +1177,6 @@ export default function ExamPlayer() {
                 <Volume2 size={16} className="text-blue-300" />
                 <span className="text-xs">Listening Audio (Auto)</span>
                 <audio 
-                  key={listeningAudioSrc}
                   ref={listeningAudioRef}
                   loop={false}
                   preload="metadata"
@@ -1181,7 +1184,6 @@ export default function ExamPlayer() {
                   disablePictureInPicture
                   playsInline
                   onContextMenu={(e) => e.preventDefault()}
-                  src={listeningAudioSrc}
                   className="hidden"
                   onLoadedMetadata={(e) => {
                     const audioElement = e.currentTarget;
