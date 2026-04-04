@@ -1716,6 +1716,14 @@ const QuestionEditor = ({ question, questionNumber, groupType, updateQuestion, d
                 value={question.correct_answer || ""}
                 onChange={(e) => updateQuestion(question.id, { correct_answer: e.target.value })}
               />
+              <Input
+                label="Alternative Answers (use / to separate)"
+                placeholder="e.g., the library/Main Library"
+                value={Array.isArray(question.answer_alternatives) ? question.answer_alternatives.join('/') : (question.answer_alternatives || '')}
+                onChange={(e) => updateQuestion(question.id, { 
+                  answer_alternatives: e.target.value
+                })}
+              />
             </>
           )}
 
