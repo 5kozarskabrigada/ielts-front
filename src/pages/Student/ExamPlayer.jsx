@@ -70,6 +70,7 @@ export default function ExamPlayer() {
     ignoreSeekingEvent: false
   });
   const listeningAudioAutoStartedRef = useRef(false);
+  const listeningAudioStoppedRef = useRef(false);
 
   // Save status tracking
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'failed'
@@ -624,6 +625,7 @@ export default function ExamPlayer() {
 
     // Stop listening audio when leaving the listening module
     if (currentModule === 'listening' && listeningAudioRef.current) {
+      listeningAudioStoppedRef.current = true;
       listeningAudioRef.current.pause();
       listeningAudioRef.current.currentTime = 0;
       listeningAudioRef.current.removeAttribute('src');
@@ -699,6 +701,7 @@ export default function ExamPlayer() {
 
     // Stop listening audio immediately on final submit
     if (listeningAudioRef.current) {
+      listeningAudioStoppedRef.current = true;
       listeningAudioRef.current.pause();
       listeningAudioRef.current.currentTime = 0;
       listeningAudioRef.current.removeAttribute('src');
@@ -952,6 +955,7 @@ export default function ExamPlayer() {
   useEffect(() => {
     if (currentModule !== 'listening' || !listeningAudioSrc) return;
     const resumePlaybackFromUserGesture = async () => {
+      if (listeningAudioStoppedRef.current) return;
       const audioElement = listeningAudioRef.current;
       if (!audioElement || !audioElement.paused || audioElement.ended) return;
       try {
@@ -1204,7 +1208,7 @@ export default function ExamPlayer() {
               }}
               onPause={async (e) => {
                 const el = e.currentTarget;
-                if (currentModule !== 'listening' || !hasStarted || examSubmitted || isSubmitting || el.ended || !el.src) return;
+                if (listeningAudioStoppedRef.current || currentModule !== 'listening' || !hasStarted || examSubmitted || isSubmitting || el.ended || !el.src) return;
                 // Always try to resume — audio should never stop until it finishes
                 try {
                   await el.play();
