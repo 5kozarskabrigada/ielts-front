@@ -622,6 +622,14 @@ export default function ExamPlayer() {
       return;
     }
 
+    // Stop listening audio when leaving the listening module
+    if (currentModule === 'listening' && listeningAudioRef.current) {
+      listeningAudioRef.current.pause();
+      listeningAudioRef.current.currentTime = 0;
+      listeningAudioRef.current.removeAttribute('src');
+      listeningAudioRef.current.load();
+    }
+
     const currentIndex = MODULE_ORDER.indexOf(currentModule);
     if (currentIndex < MODULE_ORDER.length - 1) {
       const nextModule = MODULE_ORDER[currentIndex + 1];
@@ -688,6 +696,15 @@ export default function ExamPlayer() {
     }
 
     setIsSubmitting(true);
+
+    // Stop listening audio immediately on final submit
+    if (listeningAudioRef.current) {
+      listeningAudioRef.current.pause();
+      listeningAudioRef.current.currentTime = 0;
+      listeningAudioRef.current.removeAttribute('src');
+      listeningAudioRef.current.load();
+    }
+
     const latestAnswers = answersRef.current;
 
     const completeSubmissionUI = async (successMessage) => {
@@ -1187,7 +1204,7 @@ export default function ExamPlayer() {
               }}
               onPause={async (e) => {
                 const el = e.currentTarget;
-                if (currentModule !== 'listening' || !hasStarted || examSubmitted || el.ended) return;
+                if (currentModule !== 'listening' || !hasStarted || examSubmitted || isSubmitting || el.ended || !el.src) return;
                 // Always try to resume — audio should never stop until it finishes
                 try {
                   await el.play();
