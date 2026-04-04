@@ -385,7 +385,13 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                       );
                     })}
                   </select>
-                  <span className="text-gray-700" style={{minWidth: 110}}>{paraLabel}</span>
+                  {isPeople && q.question_text ? (
+                    <span className="text-gray-700" style={{flex: 1, fontSize: '15px'}}>
+                      <RenderHtml html={q.question_text} />
+                    </span>
+                  ) : (
+                    <span className="text-gray-700" style={{minWidth: 110}}>{paraLabel}</span>
+                  )}
                 </div>
               </div>
             );
