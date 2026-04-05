@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Save, Loader2, Download } from "lucide-react";
 import { apiOverrideWritingGrade, apiGradeWritingWithAI } from "../../api";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
+import html2pdf from "html2pdf.js";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
@@ -17,12 +18,45 @@ export default function SubmissionDetail() {
   const [writingOverrides, setWritingOverrides] = useState({});
   const [savingOverride, setSavingOverride] = useState(null);
   const [gradingAI, setGradingAI] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
     type: 'info',
     title: '',
     message: ''
   });
+  const pageRef = React.useRef(null);
+
+  const handleDownloadPdf = async () => {
+    if (!pageRef.current || downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      const studentName = (submission.user_name || 'Unknown').replace(/\s+/g, '_');
+      const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
+      const filename = `${studentName}_${examTitle}_Results.pdf`;
+
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(pageRef.current).save();
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'PDF Download Failed',
+        message: `Unable to generate PDF: ${err.message}`
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     fetchSubmissionDetails();
@@ -174,17 +208,32 @@ export default function SubmissionDetail() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <button 
-          onClick={() => navigate(-1)} 
-          className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition"
+      <div className="flex items-start justify-between">
+        <div>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition"
+          >
+            <ArrowLeft size={20} className="mr-2" />
+            Back to Submissions
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Submission Details</h1>
+          <p className="text-gray-600 mt-1">Detailed view of exam submission</p>
+        </div>
+        <button
+          onClick={handleDownloadPdf}
+          disabled={downloadingPdf}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-sm font-medium"
         >
-          <ArrowLeft size={20} className="mr-2" />
-          Back to Submissions
+          {downloadingPdf ? (
+            <><Loader2 size={16} className="animate-spin" /><span>Generating PDF...</span></>
+          ) : (
+            <><Download size={16} /><span>Download PDF</span></>
+          )}
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">Submission Details</h1>
-        <p className="text-gray-600 mt-1">Detailed view of exam submission</p>
       </div>
+
+      <div ref={pageRef}>
 
       {/* Student Info Card */}
       <div className="bg-white rounded-xl border shadow-sm p-6">
@@ -649,6 +698,8 @@ export default function SubmissionDetail() {
           </div>
         );
       })()}
+
+      </div>{/* end pageRef */}
 
       {/* Notification Modal */}
       <NotificationModal
