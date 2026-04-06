@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Save, Loader2, Download } from "lucide-react";
-import { apiOverrideWritingGrade } from "../../api";
+import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download } from "lucide-react";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
 import html2pdf from "html2pdf.js";
 
@@ -15,8 +14,6 @@ export default function SubmissionDetail() {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [writingOverrides, setWritingOverrides] = useState({});
-  const [savingOverride, setSavingOverride] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
@@ -25,6 +22,34 @@ export default function SubmissionDetail() {
     message: ''
   });
   const pageRef = React.useRef(null);
+
+  useEffect(() => {
+    fetchSubmissionDetails();
+  }, [id]);
+
+  const fetchSubmissionDetails = async () => {
+    try {
+      const response = await fetch(`${API_URL}/monitoring/submissions/${id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch submission: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setSubmission(data);
+    } catch (err) {
+      console.error("Failed to fetch submission details:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
 
   const handleDownloadPdf = async () => {
     if (!pageRef.current || downloadingPdf) return;
@@ -70,57 +95,6 @@ export default function SubmissionDetail() {
       });
     } finally {
       setDownloadingPdf(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSubmissionDetails();
-  }, [id]);
-
-  const fetchSubmissionDetails = async () => {
-    try {
-      const response = await fetch(`${API_URL}/monitoring/submissions/${id}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch submission: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setSubmission(data);
-    } catch (err) {
-      console.error("Failed to fetch submission details:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const handleSaveOverride = async (responseId) => {
-    const override = writingOverrides[responseId];
-    if (!override?.band) return;
-    setSavingOverride(responseId);
-    try {
-      await apiOverrideWritingGrade(token, responseId, {
-        override_band: parseFloat(override.band),
-        feedback: override.feedback || ''
-      });
-      await fetchSubmissionDetails();
-      setWritingOverrides(prev => ({ ...prev, [responseId]: undefined }));
-    } catch (err) {
-      setNotification({
-        isOpen: true,
-        type: 'error',
-        title: 'Failed to Save Override',
-        message: `Unable to save the grade override: ${err.message}`
-      });
-    } finally {
-      setSavingOverride(null);
     }
   };
 
@@ -342,60 +316,64 @@ export default function SubmissionDetail() {
                           return (
                             <div 
                               key={idx}
-                              className={`px-6 py-3 flex items-center gap-4 pdf-keep-together ${
+                              className={`px-4 py-3 pdf-keep-together ${
                                 !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
                               }`}
                             >
-                              {/* Question Number */}
-                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                                !userAnswer ? 'bg-gray-300 text-white' : ans.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                              }`}>
-                                {ans.question_number}
-                              </div>
-                              
-                              {/* Question Text */}
-                              <div className="flex-1 min-w-0">
-                                {ans.question_text && (
-                                  <p className="text-sm text-gray-700">{ans.question_text}</p>
-                                )}
-                                <span className="text-xs text-gray-400">{ans.question_type?.replace(/_/g, ' ')}</span>
-                              </div>
-                              
-                              {/* Student Answer */}
-                              <div className="w-40 text-sm">
-                                <span className="text-xs text-gray-500 block">Student:</span>
-                                {userAnswer ? (
-                                  <span className={`font-semibold ${ans.is_correct ? 'text-green-700' : 'text-red-700'}`}>
-                                    {userAnswer}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400 italic">Skipped</span>
-                                )}
-                              </div>
-                              
-                              {/* Correct Answer */}
-                              <div className="w-40 text-sm">
-                                <span className="text-xs text-gray-500 block">Correct:</span>
-                                <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
-                              </div>
-                              
-                              {/* Status Badge */}
-                              <div className="w-24 flex-shrink-0 text-center">
-                                {!userAnswer ? (
-                                  <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
-                                    Skipped
-                                  </span>
-                                ) : ans.is_correct ? (
-                                  <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">
-                                    <CheckCircle size={12} className="mr-1" />
-                                    Correct
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">
-                                    <XCircle size={12} className="mr-1" />
-                                    Wrong
-                                  </span>
-                                )}
+                              <div className="flex items-start gap-3">
+                                {/* Question Number */}
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                                  !userAnswer ? 'bg-gray-300 text-white' : ans.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                                }`}>
+                                  {ans.question_number}
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  {/* Question Text */}
+                                  {ans.question_text && (
+                                    <p className="text-sm text-gray-700">{ans.question_text}</p>
+                                  )}
+                                  
+                                  {/* Answer Row */}
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <div>
+                                      <span className="text-xs text-gray-500">Student: </span>
+                                      {userAnswer ? (
+                                        <span className={`font-semibold ${
+                                          ans.is_correct ? 'text-green-700' : 'text-red-700'
+                                        }`}>{userAnswer}</span>
+                                      ) : (
+                                        <span className="text-gray-400 italic">Skipped</span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <span className="text-xs text-gray-500">Correct: </span>
+                                      <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-xs text-gray-400">{ans.question_type?.replace(/_/g, ' ')}</div>
+                                </div>
+                                
+                                {/* Status Badge */}
+                                <div className="flex-shrink-0">
+                                  {!userAnswer ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
+                                      Skipped
+                                    </span>
+                                  ) : ans.is_correct ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">
+                                      <CheckCircle size={12} className="mr-1" />
+                                      Correct
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">
+                                      <XCircle size={12} className="mr-1" />
+                                      Wrong
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           );
@@ -431,9 +409,7 @@ export default function SubmissionDetail() {
                 try { return typeof wr.ai_feedback === 'string' ? JSON.parse(wr.ai_feedback) : wr.ai_feedback; }
                 catch { return null; }
               })();
-              const override = writingOverrides[wr.id] || {};
               const finalBand = wr.admin_override_band || wr.final_band || wr.ai_overall_band;
-              const isRawFallback = String(wr.id).startsWith('raw-');
 
               return (
                 <div key={wr.id} className="border-b last:border-b-0">
@@ -540,82 +516,6 @@ export default function SubmissionDetail() {
                         )}
                       </div>
                     ) : null}
-
-                    {/* Admin Override */}
-                    {!isRawFallback && (
-                      <div className="border-t pt-4">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Admin Grade Override</h4>
-                        {wr.admin_override_band != null && !override.editing ? (
-                          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                            <div>
-                              <p className="text-sm text-indigo-800">
-                                <span className="font-semibold">Override Band: {wr.admin_override_band.toFixed(1)}</span>
-                                {wr.admin_graded_at && (
-                                  <span className="text-xs text-indigo-500 ml-2">
-                                    (set {new Date(wr.admin_graded_at).toLocaleDateString()})
-                                  </span>
-                                )}
-                              </p>
-                              {wr.admin_feedback && (
-                                <p className="text-sm text-gray-600 mt-1">{wr.admin_feedback}</p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: { band: wr.admin_override_band, feedback: wr.admin_feedback || '', editing: true } }))}
-                              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-                            >
-                              Edit
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-end gap-3">
-                            <div className="flex-shrink-0">
-                              <label className="text-xs text-gray-500 block mb-1">Band Score</label>
-                              <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                max="9"
-                                value={override.band ?? ''}
-                                onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], band: e.target.value } }))}
-                                className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-center"
-                                placeholder="0-9"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="text-xs text-gray-500 block mb-1">Feedback (optional)</label>
-                              <input
-                                type="text"
-                                value={override.feedback ?? ''}
-                                onChange={(e) => setWritingOverrides(prev => ({ ...prev, [wr.id]: { ...prev[wr.id], feedback: e.target.value } }))}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                placeholder="Admin feedback..."
-                              />
-                            </div>
-                            <button
-                              onClick={() => handleSaveOverride(wr.id)}
-                              disabled={!override.band || savingOverride === wr.id}
-                              className="flex items-center space-x-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex-shrink-0"
-                            >
-                              {savingOverride === wr.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <Save size={16} />
-                              )}
-                              <span>Save</span>
-                            </button>
-                            {override.editing && (
-                              <button
-                                onClick={() => setWritingOverrides(prev => ({ ...prev, [wr.id]: undefined }))}
-                                className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               );
