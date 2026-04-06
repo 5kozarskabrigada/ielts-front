@@ -35,16 +35,32 @@ export default function SubmissionDetail() {
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
+      // Temporarily expand all scrollable containers so full content is captured
+      const container = pageRef.current;
+      const scrollables = container.querySelectorAll('.pdf-expand');
+      scrollables.forEach(el => {
+        el.dataset.origMaxH = el.style.maxHeight;
+        el.dataset.origOverflow = el.style.overflow;
+        el.style.maxHeight = 'none';
+        el.style.overflow = 'visible';
+      });
+
       const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [10, 8, 10, 8],
         filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-keep-together'] }
       };
 
-      await html2pdf().set(opt).from(pageRef.current).save();
+      await html2pdf().set(opt).from(container).save();
+
+      // Restore scrollable containers
+      scrollables.forEach(el => {
+        el.style.maxHeight = el.dataset.origMaxH || '';
+        el.style.overflow = el.dataset.origOverflow || '';
+      });
     } catch (err) {
       console.error('PDF generation failed:', err);
       setNotification({
@@ -233,10 +249,10 @@ export default function SubmissionDetail() {
         </button>
       </div>
 
-      <div ref={pageRef}>
+      <div ref={pageRef} className="space-y-6">
 
       {/* Student Info Card */}
-      <div className="bg-white rounded-xl border shadow-sm p-6">
+      <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
@@ -274,7 +290,7 @@ export default function SubmissionDetail() {
       </div>
 
       {/* Overall Score */}
-      <div className="bg-white rounded-xl border shadow-sm p-6">
+      <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
         <h3 className="text-xl font-bold text-gray-900 mb-4">Overall Score</h3>
         <div className="flex items-center justify-center">
           <div className={`text-center px-8 py-6 rounded-xl border-2 ${getBandColor(submission.band_score)}`}>
@@ -289,7 +305,7 @@ export default function SubmissionDetail() {
 
       {/* Module-Wise Scores */}
       {(submission.scores_by_module || submission.answers_by_module) && (
-        <div className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Module-Wise Band Scores</h3>
           <div className="grid grid-cols-3 gap-4">
             {['listening', 'reading', 'writing'].map(module => {
@@ -333,8 +349,8 @@ export default function SubmissionDetail() {
               .sort(([, a], [, b]) => a.order - b.order);
 
             return (
-              <div key={module} className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 border-b">
+              <div key={module} className="bg-white rounded-xl border shadow-sm">
+                <div className="bg-gray-50 px-6 py-4 border-b pdf-keep-together">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-gray-900 capitalize flex items-center space-x-2">
                       <FileText size={24} />
@@ -389,7 +405,7 @@ export default function SubmissionDetail() {
                           return (
                             <div 
                               key={idx}
-                              className={`px-6 py-3 flex items-center gap-4 ${
+                              className={`px-6 py-3 flex items-center gap-4 pdf-keep-together ${
                                 !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
                               }`}
                             >
@@ -462,7 +478,7 @@ export default function SubmissionDetail() {
         if (writingResponses.length === 0) return null;
 
         return (
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border shadow-sm">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
                 <PenTool size={24} />
@@ -506,7 +522,7 @@ export default function SubmissionDetail() {
                     {/* Student Essay */}
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Student's Response</h4>
-                      <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto border">
+                      <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto border pdf-expand">
                         {essayText || <span className="text-gray-400 italic">No response submitted</span>}
                       </div>
                     </div>
@@ -518,7 +534,7 @@ export default function SubmissionDetail() {
                           <Star size={16} className="text-amber-500" />
                           <span>AI Grading</span>
                         </h4>
-                        <div className="grid grid-cols-5 gap-3 mb-4">
+                        <div className="grid grid-cols-5 gap-3 mb-4 pdf-keep-together">
                           {[
                             { label: 'Task Response', score: wr.ai_task_response_score },
                             { label: 'Coherence', score: wr.ai_coherence_score },
@@ -549,7 +565,7 @@ export default function SubmissionDetail() {
                           return (
                             <div className="space-y-3 mb-4">
                               {criteriaFeedback.map(({ label, text, score }) => (
-                                <div key={label} className="bg-gray-50 border rounded-lg p-4">
+                                <div key={label} className="bg-gray-50 border rounded-lg p-4 pdf-keep-together">
                                   <div className="flex items-center justify-between mb-2">
                                     <p className="text-sm font-semibold text-gray-800">{label}</p>
                                     <span className={`text-sm font-bold px-2 py-0.5 rounded ${
