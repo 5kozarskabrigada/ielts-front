@@ -73,7 +73,7 @@ export default function SubmissionDetail() {
         margin: [10, 8, 10, 8],
         filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 1200 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-keep-together'] }
       };
@@ -316,29 +316,29 @@ export default function SubmissionDetail() {
                           return (
                             <div 
                               key={idx}
-                              className={`pdf-keep-together ${
+                              className={`px-4 py-3 pdf-keep-together ${
                                 !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
                               }`}
                             >
-                              <div className="flex flex-wrap items-start gap-3 px-4 py-3">
+                              <div className="flex items-start gap-3">
                                 {/* Question Number */}
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                                   !userAnswer ? 'bg-gray-300 text-white' : ans.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                                 }`}>
                                   {ans.question_number}
                                 </div>
                                 
                                 {/* Content */}
-                                <div className="flex-1 min-w-0 max-w-full space-y-2">
+                                <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
                                   {ans.question_text && (
-                                    <p className="text-sm text-gray-700 break-words">{ans.question_text}</p>
+                                    <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>{ans.question_text}</p>
                                   )}
                                   
-                                  {/* Answer Row */}
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                    <div className="break-words">
-                                      <span className="text-xs text-gray-500">Student: </span>
+                                  {/* Answers - vertical layout for PDF */}
+                                  <div className="text-xs space-y-1">
+                                    <div style={{wordBreak: 'break-word'}}>
+                                      <span className="text-gray-500">Student: </span>
                                       {userAnswer ? (
                                         <span className={`font-semibold ${
                                           ans.is_correct ? 'text-green-700' : 'text-red-700'
@@ -347,28 +347,26 @@ export default function SubmissionDetail() {
                                         <span className="text-gray-400 italic">Skipped</span>
                                       )}
                                     </div>
-                                    <div className="break-words">
-                                      <span className="text-xs text-gray-500">Correct: </span>
+                                    <div style={{wordBreak: 'break-word'}}>
+                                      <span className="text-gray-500">Correct: </span>
                                       <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
                                     </div>
                                   </div>
-                                  
-                                  <div className="text-xs text-gray-400">{ans.question_type?.replace(/_/g, ' ')}</div>
                                 </div>
                                 
                                 {/* Status Badge */}
-                                <div className="flex-shrink-0 self-start">
+                                <div className="flex-shrink-0">
                                   {!userAnswer ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold whitespace-nowrap">
+                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
                                       Skipped
                                     </span>
                                   ) : ans.is_correct ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold whitespace-nowrap">
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
                                       <CheckCircle size={12} className="mr-1" />
                                       Correct
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold whitespace-nowrap">
+                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
                                       <XCircle size={12} className="mr-1" />
                                       Wrong
                                     </span>
