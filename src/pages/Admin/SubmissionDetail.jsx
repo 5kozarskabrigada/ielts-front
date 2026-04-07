@@ -332,24 +332,24 @@ export default function SubmissionDetail() {
                                 <div className="flex-1 min-w-0 space-y-2">
                                   {/* Question Text */}
                                   {ans.question_text && (
-                                    <p className="text-sm text-gray-700">{ans.question_text}</p>
+                                    <p className="text-sm text-gray-700 break-words">{ans.question_text}</p>
                                   )}
                                   
                                   {/* Answer Row */}
-                                  <div className="flex items-center gap-4 text-sm">
-                                    <div>
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                    <div className="min-w-0">
                                       <span className="text-xs text-gray-500">Student: </span>
                                       {userAnswer ? (
-                                        <span className={`font-semibold ${
+                                        <span className={`font-semibold break-words ${
                                           ans.is_correct ? 'text-green-700' : 'text-red-700'
                                         }`}>{userAnswer}</span>
                                       ) : (
                                         <span className="text-gray-400 italic">Skipped</span>
                                       )}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                       <span className="text-xs text-gray-500">Correct: </span>
-                                      <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
+                                      <span className="font-semibold text-green-700 break-words">{correctAnswer || '-'}</span>
                                     </div>
                                   </div>
                                   
@@ -413,14 +413,14 @@ export default function SubmissionDetail() {
 
               return (
                 <div key={wr.id} className="border-b last:border-b-0">
-                  <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                  <div className="px-6 py-2 bg-blue-50 border-b border-blue-100 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-blue-800">
                       Task {wr.task_number}: {wr.section_title || `Writing Task ${wr.task_number}`}
                     </span>
                     <div className="flex items-center space-x-3">
-                      <span className="text-xs text-gray-500">{wordCount} words</span>
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{wordCount} words</span>
                       {finalBand != null && (
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ${
                           finalBand >= 7 ? 'bg-green-100 text-green-700' :
                           finalBand >= 5 ? 'bg-yellow-100 text-yellow-700' :
                           'bg-red-100 text-red-700'
@@ -447,7 +447,7 @@ export default function SubmissionDetail() {
                           <Star size={16} className="text-amber-500" />
                           <span>AI Grading</span>
                         </h4>
-                        <div className="grid grid-cols-5 gap-3 mb-4 pdf-keep-together">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4 pdf-keep-together">
                           {[
                             { label: 'Task Response', score: wr.ai_task_response_score },
                             { label: 'Coherence', score: wr.ai_coherence_score },
