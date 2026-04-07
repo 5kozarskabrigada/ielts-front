@@ -316,11 +316,11 @@ export default function SubmissionDetail() {
                           return (
                             <div 
                               key={idx}
-                              className={`px-4 py-3 pdf-keep-together ${
+                              className={`pdf-keep-together ${
                                 !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
                               }`}
                             >
-                              <div className="flex items-start gap-3">
+                              <div className="flex flex-wrap items-start gap-3 px-4 py-3">
                                 {/* Question Number */}
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                                   !userAnswer ? 'bg-gray-300 text-white' : ans.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
@@ -329,7 +329,7 @@ export default function SubmissionDetail() {
                                 </div>
                                 
                                 {/* Content */}
-                                <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex-1 min-w-0 max-w-full space-y-2">
                                   {/* Question Text */}
                                   {ans.question_text && (
                                     <p className="text-sm text-gray-700 break-words">{ans.question_text}</p>
@@ -337,19 +337,19 @@ export default function SubmissionDetail() {
                                   
                                   {/* Answer Row */}
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                    <div className="min-w-0">
+                                    <div className="break-words">
                                       <span className="text-xs text-gray-500">Student: </span>
                                       {userAnswer ? (
-                                        <span className={`font-semibold break-words ${
+                                        <span className={`font-semibold ${
                                           ans.is_correct ? 'text-green-700' : 'text-red-700'
                                         }`}>{userAnswer}</span>
                                       ) : (
                                         <span className="text-gray-400 italic">Skipped</span>
                                       )}
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="break-words">
                                       <span className="text-xs text-gray-500">Correct: </span>
-                                      <span className="font-semibold text-green-700 break-words">{correctAnswer || '-'}</span>
+                                      <span className="font-semibold text-green-700">{correctAnswer || '-'}</span>
                                     </div>
                                   </div>
                                   
@@ -357,18 +357,18 @@ export default function SubmissionDetail() {
                                 </div>
                                 
                                 {/* Status Badge */}
-                                <div className="flex-shrink-0">
+                                <div className="flex-shrink-0 self-start">
                                   {!userAnswer ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold">
+                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold whitespace-nowrap">
                                       Skipped
                                     </span>
                                   ) : ans.is_correct ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold">
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold whitespace-nowrap">
                                       <CheckCircle size={12} className="mr-1" />
                                       Correct
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold">
+                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold whitespace-nowrap">
                                       <XCircle size={12} className="mr-1" />
                                       Wrong
                                     </span>
