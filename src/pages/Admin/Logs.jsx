@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
 import { Activity, User, AlertTriangle, CheckCircle, Clock, Eye, Filter, Calendar } from "lucide-react";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+import { API_URL } from "../../api";
 
 const EVENT_TYPES = {
   joined: { label: "Joined", icon: User, color: "blue" },

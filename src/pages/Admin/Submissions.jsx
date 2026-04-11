@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
 import { FileText, User, Clock, CheckCircle, AlertCircle, Eye, Download, Filter } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+import { API_URL } from "../../api";
 
 export default function SubmissionsPage() {
   const { token } = useAuth();

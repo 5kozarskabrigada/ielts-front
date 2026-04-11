@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download } from "lucide-react";
+import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw } from "lucide-react";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
 import html2pdf from "html2pdf.js";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+import { API_URL, apiGradeWritingWithAI } from "../../api";
 
 export default function SubmissionDetail() {
   const { id } = useParams();
@@ -15,6 +14,7 @@ export default function SubmissionDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [gradingTasks, setGradingTasks] = useState({});
   const [notification, setNotification] = useState({
     isOpen: false,
     type: 'info',
@@ -108,6 +108,38 @@ export default function SubmissionDetail() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}m ${secs}s`;
+  };
+
+  const handleGradeWritingTask = async (writingResponse) => {
+    const taskKey = String(writingResponse.task_number);
+    setGradingTasks((current) => ({ ...current, [taskKey]: true }));
+
+    try {
+      await apiGradeWritingWithAI(token, {
+        submissionId: id,
+        sectionId: writingResponse.section_id,
+        taskNumber: writingResponse.task_number,
+        responseText: writingResponse.response_text,
+      });
+
+      await fetchSubmissionDetails();
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'AI Grading Complete',
+        message: `Writing Task ${writingResponse.task_number} was graded successfully.`
+      });
+    } catch (err) {
+      console.error('AI grading failed:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'AI Grading Failed',
+        message: err.message || 'Unable to grade this writing task with AI.'
+      });
+    } finally {
+      setGradingTasks((current) => ({ ...current, [taskKey]: false }));
+    }
   };
 
   if (loading) {
@@ -402,6 +434,7 @@ export default function SubmissionDetail() {
             {writingResponses.map((wr, idx) => {
               const essayText = wr.response_text || '';
               const wordCount = wr.word_count || (essayText.trim() ? essayText.trim().split(/\s+/).length : 0);
+              const isAiGrading = Boolean(gradingTasks[String(wr.task_number)]);
               const aiFeedback = (() => {
                 if (!wr.ai_feedback) return null;
                 try { return typeof wr.ai_feedback === 'string' ? JSON.parse(wr.ai_feedback) : wr.ai_feedback; }
@@ -437,6 +470,20 @@ export default function SubmissionDetail() {
                         {essayText || <span className="text-gray-400 italic">No response submitted</span>}
                       </div>
                     </div>
+
+                    {essayText && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleGradeWritingTask(wr)}
+                          disabled={isAiGrading}
+                          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isAiGrading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                          <span>{wr.ai_overall_band != null ? 'Re-grade with AI' : 'Grade with AI'}</span>
+                        </button>
+                      </div>
+                    )}
 
                     {/* AI Grading */}
                     {wr.ai_overall_band != null ? (

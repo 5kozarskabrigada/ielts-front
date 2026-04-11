@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { Key, AlertCircle, Loader } from "lucide-react";
+import { API_URL } from "../../api";
 
 export default function ExamCodeEntry() {
   const [code, setCode] = useState("");
@@ -22,7 +23,7 @@ export default function ExamCodeEntry() {
     setLoading(true);
     
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/exams/verify-code`, {
+      const response = await fetch(`${API_URL}/exams/verify-code`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

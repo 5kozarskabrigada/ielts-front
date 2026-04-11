@@ -9,8 +9,7 @@ import ListeningRenderer from "./ListeningRenderer";
 import ReadingRenderer from "./ReadingRenderer";
 import ErrorBoundary from "../../components/ErrorBoundary";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+import { API_URL } from "../../api";
 
 export default function ExamPlayer() {
   const { id: examId } = useParams();

@@ -1,4 +1,11 @@
-export const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
+const DEFAULT_API_URL = "http://localhost:4000/api";
+
+function normalizeApiUrl(rawUrl) {
+  const baseUrl = (rawUrl || DEFAULT_API_URL).trim().replace(/\/$/, "");
+  return /\/api$/i.test(baseUrl) ? baseUrl : `${baseUrl}/api`;
+}
+
+export const API_URL = normalizeApiUrl(process.env.REACT_APP_API_URL);
 
 function authHeaders(token) {
   return {
