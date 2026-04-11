@@ -79,8 +79,11 @@ export default function ExamPlayer() {
 
   // Auto-save state
   const autoSaveTimeoutRef = useRef(null);
-  const saveQueueRef = useRef(Promise.resolve());
+  const activeSavePromiseRef = useRef(Promise.resolve());
+  const isSaveInFlightRef = useRef(false);
+  const pendingSaveContextRef = useRef(null);
   const lastSaveRef = useRef({});
+  const lastSavedSignatureRef = useRef("");
   const answersRef = useRef({});
   const hasStartedRef = useRef(false);
   const examSubmittedRef = useRef(false);
@@ -92,6 +95,29 @@ export default function ExamPlayer() {
   // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
   const MODULE_DURATIONS = { listening: 30, reading: 60, writing: 60 };
+
+  const stableSerialize = useCallback((value) => {
+    if (Array.isArray(value)) {
+      return `[${value.map((item) => stableSerialize(item)).join(",")}]`;
+    }
+
+    if (value && typeof value === "object") {
+      const keys = Object.keys(value).sort();
+      return `{${keys.map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(",")}}`;
+    }
+
+    return JSON.stringify(value);
+  }, []);
+
+  const buildAutosaveSignature = useCallback((answerData, module, part, writingTask, spentTime) => {
+    return stableSerialize({
+      answers: answerData,
+      module,
+      currentPart: part,
+      currentWritingTask: writingTask,
+      timeSpent: spentTime,
+    });
+  }, [stableSerialize]);
 
   // ============================================
   // FETCH EXAM DATA & CHECK STATUS
@@ -149,6 +175,22 @@ export default function ExamPlayer() {
               setTimeSpent(autosave.time_spent);
             }
 
+            lastSavedSignatureRef.current = buildAutosaveSignature(
+              autosave.answers_data && typeof autosave.answers_data === 'object' ? autosave.answers_data : {},
+              autosave.current_module || 'listening',
+              autosave.current_part || 1,
+              autosave.current_writing_task || 1,
+              autosave.time_spent && typeof autosave.time_spent === 'object' ? autosave.time_spent : {
+                listening: 0,
+                reading: 0,
+                writing_task1: 0,
+                writing_task2: 0,
+              }
+            );
+            if (autosave.last_updated) {
+              setLastSaveTime(new Date(autosave.last_updated));
+            }
+
             // Automatically start the exam (user is resuming)
             setHasStarted(true);
             await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
@@ -168,6 +210,21 @@ export default function ExamPlayer() {
                 if (backup.currentPart) setCurrentPart(backup.currentPart);
                 if (backup.currentWritingTask) setCurrentWritingTask(backup.currentWritingTask);
                 if (backup.timeSpent) setTimeSpent(backup.timeSpent);
+                lastSavedSignatureRef.current = buildAutosaveSignature(
+                  backup.answers && typeof backup.answers === 'object' ? backup.answers : {},
+                  backup.module || 'listening',
+                  backup.currentPart || 1,
+                  backup.currentWritingTask || 1,
+                  backup.timeSpent && typeof backup.timeSpent === 'object' ? backup.timeSpent : {
+                    listening: 0,
+                    reading: 0,
+                    writing_task1: 0,
+                    writing_task2: 0,
+                  }
+                );
+                if (backup.timestamp) {
+                  setLastSaveTime(new Date(backup.timestamp));
+                }
                 
                 setHasStarted(true);
                 await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
@@ -372,22 +429,17 @@ export default function ExamPlayer() {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
 
-  const saveAnswers = useCallback(async (answerData, retryCount = 0) => {
-    if (!hasStartedRef.current || examSubmittedRef.current) return Promise.resolve();
+  const performAutosaveRequest = useCallback(async (saveContext, retryCount = 0) => {
+    const {
+      answers: payloadAnswersSnapshot,
+      module: payloadModuleSnapshot,
+      currentPart: payloadPartSnapshot,
+      currentWritingTask: payloadWritingTaskSnapshot,
+      timeSpent: payloadTimeSpentSnapshot,
+      timestamp: saveTimestamp,
+      signature,
+    } = saveContext;
 
-    const payloadAnswers = answerData ?? answersRef.current;
-    const payloadAnswersSnapshot = payloadAnswers && typeof payloadAnswers === 'object'
-      ? { ...payloadAnswers }
-      : {};
-    const payloadModuleSnapshot = currentModuleRef.current;
-    const payloadPartSnapshot = currentPartRef.current;
-    const payloadWritingTaskSnapshot = currentWritingTaskRef.current;
-    const payloadTimeSpentSnapshot = timeSpentRef.current && typeof timeSpentRef.current === 'object'
-      ? { ...timeSpentRef.current }
-      : {};
-    const saveTimestamp = new Date().toISOString();
-
-    // Save to local storage as backup
     try {
       localStorage.setItem(`exam_${examId}_backup`, JSON.stringify({
         answers: payloadAnswersSnapshot,
@@ -401,78 +453,130 @@ export default function ExamPlayer() {
       console.warn('Failed to save to local storage:', localStorageErr);
     }
 
-    const saveTask = async () => {
-      setSaveStatus('saving');
-      
-      try {
-        const response = await fetch(`${API_URL}/exams/${examId}/autosave`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            answers: payloadAnswersSnapshot,
-            module: payloadModuleSnapshot,
-            currentPart: payloadPartSnapshot,
-            currentWritingTask: payloadWritingTaskSnapshot,
-            timeSpent: payloadTimeSpentSnapshot,
-            timestamp: saveTimestamp
-          })
-        });
+    setSaveStatus('saving');
 
-        if (!response.ok) {
-          let errorMessage = "Auto-save request failed";
-          try {
-            const errorData = await response.json();
-            if (errorData?.error) {
-              errorMessage = errorData.error;
-            }
-          } catch {
-            // ignore parse failure and use fallback message
+    try {
+      const response = await fetch(`${API_URL}/exams/${examId}/autosave`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          answers: payloadAnswersSnapshot,
+          module: payloadModuleSnapshot,
+          currentPart: payloadPartSnapshot,
+          currentWritingTask: payloadWritingTaskSnapshot,
+          timeSpent: payloadTimeSpentSnapshot,
+          timestamp: saveTimestamp
+        })
+      });
+
+      if (!response.ok) {
+        let errorMessage = "Auto-save request failed";
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            errorMessage = errorData.error;
           }
-          throw new Error(errorMessage);
+        } catch {
+          // ignore parse failure and use fallback message
         }
-
-        lastSaveRef.current = payloadAnswersSnapshot;
-        saveRetryCountRef.current = 0;
-        setSaveStatus('saved');
-        setLastSaveTime(new Date());
-      } catch (err) {
-        console.error('Save failed:', err);
-        
-        // Retry with exponential backoff
-        if (retryCount < maxRetries) {
-          const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
-          console.log(`Retrying save in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
-          
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-          return saveAnswers(answerData, retryCount + 1);
-        } else {
-          // All retries failed - log silently, local storage has backup
-          console.error(`[ExamPlayer] Save failed after ${maxRetries} attempts:`, err);
-          setSaveStatus('saved'); // Show as saved to avoid student panic (local backup exists)
-          saveRetryCountRef.current = retryCount;
-          
-          // Don't throw - continue silently with local backup
-        }
+        throw new Error(errorMessage);
       }
+
+      lastSaveRef.current = payloadAnswersSnapshot;
+      lastSavedSignatureRef.current = signature;
+      saveRetryCountRef.current = 0;
+      setSaveStatus('saved');
+      setLastSaveTime(new Date());
+    } catch (err) {
+      console.error('Save failed:', err);
+
+      if (retryCount < maxRetries) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        console.log(`Retrying save in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        return performAutosaveRequest(saveContext, retryCount + 1);
+      }
+
+      console.error(`[ExamPlayer] Save failed after ${maxRetries} attempts:`, err);
+      setSaveStatus('saved');
+      saveRetryCountRef.current = retryCount;
+    }
+  }, [examId, token, maxRetries]);
+
+  const saveAnswers = useCallback(async (answerData, options = {}) => {
+    if (!hasStartedRef.current || examSubmittedRef.current) return Promise.resolve();
+
+    const force = options.force === true;
+    const payloadAnswers = answerData ?? answersRef.current;
+    const payloadAnswersSnapshot = payloadAnswers && typeof payloadAnswers === 'object'
+      ? { ...payloadAnswers }
+      : {};
+    const payloadModuleSnapshot = currentModuleRef.current;
+    const payloadPartSnapshot = currentPartRef.current;
+    const payloadWritingTaskSnapshot = currentWritingTaskRef.current;
+    const payloadTimeSpentSnapshot = timeSpentRef.current && typeof timeSpentRef.current === 'object'
+      ? { ...timeSpentRef.current }
+      : {};
+    const signature = buildAutosaveSignature(
+      payloadAnswersSnapshot,
+      payloadModuleSnapshot,
+      payloadPartSnapshot,
+      payloadWritingTaskSnapshot,
+      payloadTimeSpentSnapshot
+    );
+
+    if (!force && signature === lastSavedSignatureRef.current) {
+      return activeSavePromiseRef.current;
+    }
+
+    pendingSaveContextRef.current = {
+      answers: payloadAnswersSnapshot,
+      module: payloadModuleSnapshot,
+      currentPart: payloadPartSnapshot,
+      currentWritingTask: payloadWritingTaskSnapshot,
+      timeSpent: payloadTimeSpentSnapshot,
+      timestamp: new Date().toISOString(),
+      signature,
+      force,
     };
 
-    const queuedSave = saveQueueRef.current
-      .catch(() => {})
-      .then(saveTask);
+    if (isSaveInFlightRef.current) {
+      return activeSavePromiseRef.current;
+    }
 
-    saveQueueRef.current = queuedSave.catch(() => {});
-    return queuedSave;
-  }, [examId, token, maxRetries]);
+    const drainPendingSaves = async () => {
+      isSaveInFlightRef.current = true;
+
+      while (pendingSaveContextRef.current) {
+        const nextSave = pendingSaveContextRef.current;
+        pendingSaveContextRef.current = null;
+
+        if (!nextSave.force && nextSave.signature === lastSavedSignatureRef.current) {
+          continue;
+        }
+
+        await performAutosaveRequest(nextSave);
+      }
+
+      isSaveInFlightRef.current = false;
+    };
+
+    activeSavePromiseRef.current = drainPendingSaves().catch(() => {
+      isSaveInFlightRef.current = false;
+    });
+
+    return activeSavePromiseRef.current;
+  }, [buildAutosaveSignature, performAutosaveRequest]);
 
   const flushPendingAutosave = useCallback(async (answerData) => {
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
       autoSaveTimeoutRef.current = null;
     }
-    await saveAnswers(answerData ?? answersRef.current);
+    await saveAnswers(answerData ?? answersRef.current, { force: true });
   }, [saveAnswers]);
 
   const setAnswersWithAutosave = useCallback((updater) => {
