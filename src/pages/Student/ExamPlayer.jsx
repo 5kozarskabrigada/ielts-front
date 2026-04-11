@@ -119,6 +119,80 @@ export default function ExamPlayer() {
     });
   }, [stableSerialize]);
 
+  const enterFullscreen = useCallback(async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } catch (err) {
+      console.error("Fullscreen error:", err);
+    }
+  }, []);
+
+  const restoreSavedProgress = useCallback(async (savedProgress, source = 'server') => {
+    if (!savedProgress) return false;
+
+    if (savedProgress.answers_data && typeof savedProgress.answers_data === 'object') {
+      setAnswers(savedProgress.answers_data);
+      lastSaveRef.current = savedProgress.answers_data;
+    } else if (savedProgress.answers && typeof savedProgress.answers === 'object') {
+      setAnswers(savedProgress.answers);
+      lastSaveRef.current = savedProgress.answers;
+    }
+
+    const restoredModule = savedProgress.current_module || savedProgress.module || 'listening';
+    const restoredPart = savedProgress.current_part || savedProgress.currentPart || 1;
+    const restoredWritingTask = savedProgress.current_writing_task || savedProgress.currentWritingTask || 1;
+    const restoredTimeSpent = savedProgress.time_spent || savedProgress.timeSpent || {
+      listening: 0,
+      reading: 0,
+      writing_task1: 0,
+      writing_task2: 0,
+    };
+
+    setCurrentModule(restoredModule);
+    setCurrentPart(restoredPart);
+    setCurrentWritingTask(restoredWritingTask);
+
+    if (restoredTimeSpent && typeof restoredTimeSpent === 'object') {
+      setTimeSpent(restoredTimeSpent);
+    }
+
+    lastSavedSignatureRef.current = buildAutosaveSignature(
+      savedProgress.answers_data && typeof savedProgress.answers_data === 'object'
+        ? savedProgress.answers_data
+        : (savedProgress.answers && typeof savedProgress.answers === 'object' ? savedProgress.answers : {}),
+      restoredModule,
+      restoredPart,
+      restoredWritingTask,
+      restoredTimeSpent && typeof restoredTimeSpent === 'object' ? restoredTimeSpent : {
+        listening: 0,
+        reading: 0,
+        writing_task1: 0,
+        writing_task2: 0,
+      }
+    );
+
+    const savedTimestamp = savedProgress.last_updated || savedProgress.timestamp;
+    if (savedTimestamp) {
+      setLastSaveTime(new Date(savedTimestamp));
+    }
+
+    setHasStarted(true);
+    await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+
+    if (source === 'local') {
+      setNotification({
+        isOpen: true,
+        type: 'info',
+        title: 'Progress Restored',
+        message: 'Your progress was restored from the latest local backup because it was newer than the server autosave.',
+        confirmText: 'OK'
+      });
+    }
+
+    return true;
+  }, [buildAutosaveSignature, enterFullscreen]);
+
   // ============================================
   // FETCH EXAM DATA & CHECK STATUS
   // ============================================
@@ -146,101 +220,26 @@ export default function ExamPlayer() {
             return;
           }
 
-          // If there's autosave data, restore it
-          if (statusData.has_autosave && statusData.autosave) {
-            const autosave = statusData.autosave;
-            console.log('[ExamPlayer] Restoring from autosave:', autosave);
-            
-            // Restore answers
-            if (autosave.answers_data) {
-              setAnswers(autosave.answers_data);
-              lastSaveRef.current = autosave.answers_data;
+          let localBackupData = null;
+          try {
+            const localBackup = localStorage.getItem(`exam_${examId}_backup`);
+            if (localBackup) {
+              localBackupData = JSON.parse(localBackup);
             }
+          } catch (localErr) {
+            console.warn('Failed to restore from local storage:', localErr);
+          }
 
-            // Restore module position
-            if (autosave.current_module) {
-              setCurrentModule(autosave.current_module);
-            }
+          const serverAutosave = statusData.has_autosave ? statusData.autosave : null;
+          const serverTimestamp = serverAutosave?.last_updated ? new Date(serverAutosave.last_updated).getTime() : 0;
+          const localTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
 
-            // Restore part and writing task
-            if (autosave.current_part) {
-              setCurrentPart(autosave.current_part);
-            }
-            if (autosave.current_writing_task) {
-              setCurrentWritingTask(autosave.current_writing_task);
-            }
-
-            // Restore time spent
-            if (autosave.time_spent && typeof autosave.time_spent === 'object') {
-              setTimeSpent(autosave.time_spent);
-            }
-
-            lastSavedSignatureRef.current = buildAutosaveSignature(
-              autosave.answers_data && typeof autosave.answers_data === 'object' ? autosave.answers_data : {},
-              autosave.current_module || 'listening',
-              autosave.current_part || 1,
-              autosave.current_writing_task || 1,
-              autosave.time_spent && typeof autosave.time_spent === 'object' ? autosave.time_spent : {
-                listening: 0,
-                reading: 0,
-                writing_task1: 0,
-                writing_task2: 0,
-              }
-            );
-            if (autosave.last_updated) {
-              setLastSaveTime(new Date(autosave.last_updated));
-            }
-
-            // Automatically start the exam (user is resuming)
-            setHasStarted(true);
-            await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
-          } else {
-            // If no server autosave, check local storage backup
-            try {
-              const localBackup = localStorage.getItem(`exam_${examId}_backup`);
-              if (localBackup) {
-                const backup = JSON.parse(localBackup);
-                console.log('[ExamPlayer] Restoring from local storage backup:', backup);
-                
-                if (backup.answers) {
-                  setAnswers(backup.answers);
-                  lastSaveRef.current = backup.answers;
-                }
-                if (backup.module) setCurrentModule(backup.module);
-                if (backup.currentPart) setCurrentPart(backup.currentPart);
-                if (backup.currentWritingTask) setCurrentWritingTask(backup.currentWritingTask);
-                if (backup.timeSpent) setTimeSpent(backup.timeSpent);
-                lastSavedSignatureRef.current = buildAutosaveSignature(
-                  backup.answers && typeof backup.answers === 'object' ? backup.answers : {},
-                  backup.module || 'listening',
-                  backup.currentPart || 1,
-                  backup.currentWritingTask || 1,
-                  backup.timeSpent && typeof backup.timeSpent === 'object' ? backup.timeSpent : {
-                    listening: 0,
-                    reading: 0,
-                    writing_task1: 0,
-                    writing_task2: 0,
-                  }
-                );
-                if (backup.timestamp) {
-                  setLastSaveTime(new Date(backup.timestamp));
-                }
-                
-                setHasStarted(true);
-                await enterFullscreen().catch(err => console.warn('Fullscreen failed:', err));
-                
-                // Notify user that we restored from backup
-                setNotification({
-                  isOpen: true,
-                  type: 'info',
-                  title: 'Progress Restored',
-                  message: 'Your progress was restored from a local backup. The system will sync with the server.',
-                  confirmText: 'OK'
-                });
-              }
-            } catch (localErr) {
-              console.warn('Failed to restore from local storage:', localErr);
-            }
+          if (localBackupData && (!serverAutosave || (Number.isFinite(localTimestamp) && localTimestamp > serverTimestamp))) {
+            console.log('[ExamPlayer] Restoring from local storage backup:', localBackupData);
+            await restoreSavedProgress(localBackupData, 'local');
+          } else if (serverAutosave) {
+            console.log('[ExamPlayer] Restoring from autosave:', serverAutosave);
+            await restoreSavedProgress(serverAutosave, 'server');
           }
         }
 
@@ -276,20 +275,11 @@ export default function ExamPlayer() {
     if (token && examId) {
       fetchExamData();
     }
-  }, [token, examId, navigate]);
+  }, [token, examId, navigate, restoreSavedProgress]);
 
   // ============================================
   // FULLSCREEN ENFORCEMENT
   // ============================================
-  const enterFullscreen = useCallback(async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } catch (err) {
-      console.error("Fullscreen error:", err);
-    }
-  }, []);
-
   const handleFullscreenChange = useCallback(() => {
     const isNowFullscreen = !!document.fullscreenElement;
     setIsFullscreen(isNowFullscreen);
