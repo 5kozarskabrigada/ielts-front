@@ -138,7 +138,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             const qNum = globalOffset + q.question_number;
             const selectedValue = normalizeTriStateAnswer(answers[q.id], isYesNo);
             return (
-              <div key={q.id} className="flex items-center gap-4 py-1">
+              <div key={q.id} data-question-id={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex items-center gap-2 flex-1">
                   <select 
@@ -180,7 +180,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+        <div key={q.id} data-question-id={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
@@ -277,7 +277,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             {groupQuestions.map((q) => {
               const qNum = globalOffset + q.question_number;
               return (
-                <div key={q.id} className="flex items-center gap-3 py-1">
+                <div key={q.id} data-question-id={q.id} className="flex items-center gap-3 py-1">
                   <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
                   <select
                     value={answers[q.id] || ''}
@@ -346,7 +346,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               ? `Statement ${qNum}`
               : `Paragraph ${String.fromCharCode(66 + idx)}`;
             return (
-              <div key={q.id} className="flex items-center gap-4 py-1">
+              <div key={q.id} data-question-id={q.id} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex-1 flex items-center gap-3">
                   <select
@@ -409,7 +409,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       const parts = template.split('[BLANK]');
       
       return (
-        <div key={q.id} className="mb-3">
+        <div key={q.id} data-question-id={q.id} className="mb-3">
           <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px' }}>
             <RenderHtml html={parts[0]} />
             {parts.length > 1 && (
@@ -436,7 +436,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="flex items-start gap-3 mb-3">
+        <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
           <input 
             type="text"
@@ -543,7 +543,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {groupQuestions.map((q, idx) => {
           const qNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} className="flex items-start gap-3 mb-3">
+            <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
               <span className="font-bold text-gray-700">{qNum}.</span>
               <input 
                 type="text"
@@ -574,7 +574,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} className="flex items-start gap-3 mb-3">
+        <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
           <input 
             type="text"
@@ -701,10 +701,24 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
 
     pendingSelectionRangeRef.current = range.cloneRange();
     const paneRect = passagePaneRef.current.getBoundingClientRect();
+    const paneScrollLeft = passagePaneRef.current.scrollLeft;
+    const paneScrollTop = passagePaneRef.current.scrollTop;
+    const paneInnerWidth = passagePaneRef.current.clientWidth;
+    const buttonSize = 40; // 32px button + 8px margin
+
+    let x = rect.right - paneRect.left + paneScrollLeft + 8;
+    let y = rect.bottom - paneRect.top + paneScrollTop + 6;
+
+    // Clamp X so the highlight button doesn't overflow the pane's right edge
+    if (x + buttonSize > paneScrollLeft + paneInnerWidth) {
+      x = rect.left - paneRect.left + paneScrollLeft - buttonSize;
+      if (x < paneScrollLeft) x = paneScrollLeft + 4;
+    }
+
     setSelectionAction({
       visible: true,
-      x: rect.right - paneRect.left + passagePaneRef.current.scrollLeft + 8,
-      y: rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+      x,
+      y,
     });
     closeHighlightMenu();
   };
@@ -948,7 +962,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
         {/* LEFT SIDE: Passage */}
         <div 
           ref={passagePaneRef}
-          className="overflow-y-auto pr-4 min-h-0"
+          className="overflow-y-auto overflow-x-hidden pr-4 min-h-0"
           style={{ 
             width: `${textWidth}%`,
             borderRight: '2px solid rgb(221, 221, 221)',

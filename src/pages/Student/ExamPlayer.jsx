@@ -305,8 +305,7 @@ export default function ExamPlayer() {
     setIsFullscreen(isNowFullscreen);
 
     if (!isNowFullscreen && hasStarted && !examSubmitted) {
-      // User exited fullscreen during exam - log violation
-      logViolation("fullscreen_exit");
+      logViolation("fullscreen_exit", "User exited fullscreen mode (Esc key or browser action)");
     }
   }, [hasStarted, examSubmitted]);
 
@@ -318,16 +317,30 @@ export default function ExamPlayer() {
   // ============================================
   // VIOLATION LOGGING
   // ============================================
-  const logViolation = useCallback(async (type) => {
+  const logViolation = useCallback(async (type, detail = '') => {
     if (!hasStarted || examSubmitted) return;
 
     const violation = {
       type,
+      detail,
       timestamp: new Date().toISOString(),
       module: currentModule
     };
 
     setViolations(prev => [...prev, violation]);
+
+    const violationMessages = {
+      fullscreen_exit: 'You exited fullscreen mode. This violation has been recorded.',
+      tab_switch: 'You switched away from the exam tab. This violation has been recorded.',
+      window_blur: 'You switched to another window. This violation has been recorded.',
+    };
+
+    setNotification({
+      isOpen: true,
+      type: 'error',
+      title: `⚠️ Violation #${violations.length + 1} Detected`,
+      message: violationMessages[type] || 'A violation has been detected and logged.',
+    });
 
     try {
       await fetch(`${API_URL}/exams/${examId}/violations`, {
@@ -336,13 +349,13 @@ export default function ExamPlayer() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ type, metadata: { module: currentModule } })
+        body: JSON.stringify({ type, metadata: { module: currentModule, detail, violationCount: violations.length + 1 } })
       });
     } catch (err) {
       console.error("Failed to log violation:", err);
     }
 
-    // Show warning
+    // Re-enter fullscreen after delay
     if (violationTimeoutRef.current) {
       clearTimeout(violationTimeoutRef.current);
     }
@@ -351,18 +364,54 @@ export default function ExamPlayer() {
         enterFullscreen();
       }
     }, 5000);
-  }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen]);
+  }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen, violations.length]);
 
   // Tab visibility detection
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && hasStarted && !examSubmitted) {
-        logViolation("tab_switch");
+        logViolation("tab_switch", "Document became hidden (browser tab switched or window minimized)");
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [hasStarted, examSubmitted, logViolation]);
+
+  // Window blur detection (catches Alt+Tab, clicking another window, devtools opening)
+  useEffect(() => {
+    if (!hasStarted || examSubmitted) return;
+
+    const handleWindowBlur = () => {
+      // Only log if the document isn't also hidden (avoid double-logging with visibilitychange)
+      if (!document.hidden) {
+        logViolation("window_blur", "Window lost focus (possible Alt+Tab or external window interaction)");
+      }
+    };
+
+    window.addEventListener("blur", handleWindowBlur);
+    return () => window.removeEventListener("blur", handleWindowBlur);
+  }, [hasStarted, examSubmitted, logViolation]);
+
+  // Disable common keyboard shortcuts for devtools/extensions
+  useEffect(() => {
+    if (!hasStarted || examSubmitted) return;
+
+    const handleKeyDown = (e) => {
+      // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.key.toUpperCase() === 'U')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        logViolation("devtools_attempt", `Blocked shortcut: ${e.ctrlKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key}`);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [hasStarted, examSubmitted, logViolation]);
 
   // ============================================
@@ -1611,25 +1660,22 @@ export default function ExamPlayer() {
                   <button 
                     onClick={() => {
                       setCurrentPart(partNumber);
-                      // Scroll to the first question of the part
+                      // Scroll content area to top on part switch
                       setTimeout(() => {
+                        // Scroll all overflow-y-auto containers in the module content area to top
+                        const contentArea = document.querySelector('[class*="overflow-hidden"]');
+                        if (contentArea) {
+                          contentArea.querySelectorAll('[class*="overflow-y"]').forEach(el => {
+                            el.scrollTop = 0;
+                          });
+                        }
+                        // Also try to scroll to the first question
                         const firstQuestion = partQuestions[0];
                         if (firstQuestion) {
                           const el = document.querySelector(`[data-question-id="${firstQuestion.id}"]`);
-                          if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        } else {
-                          // If no individual questions, try to scroll to the section
-                          const sectionEl = document.querySelector(`[data-section-id="${section.id}"]`);
-                          if (sectionEl) {
-                            sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          } else {
-                            // Fallback: scroll to top of content area
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }
-                      }, 100);
+                      }, 150);
                     }}
                     className={`text-sm font-semibold transition cursor-pointer px-3 py-1.5 rounded-lg ${
                       isCurrentPart ? accentBg : `text-gray-700 ${accentHover}`
@@ -1651,7 +1697,7 @@ export default function ExamPlayer() {
                               setTimeout(() => {
                                 const el = document.querySelector(`[data-question-id="${q.id}"]`);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 100);
+                              }, 150);
                             }}
                             className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
                               isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
@@ -1671,7 +1717,7 @@ export default function ExamPlayer() {
                               setTimeout(() => {
                                 const el = item.firstQ && document.querySelector(`[data-question-id="${item.firstQ.id}"]`);
                                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 100);
+                              }, 150);
                             }}
                             className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
                               item.isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
