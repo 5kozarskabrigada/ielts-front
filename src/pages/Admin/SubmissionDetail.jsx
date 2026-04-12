@@ -99,8 +99,9 @@ export default function SubmissionDetail() {
   };
 
   const getBandColor = (band) => {
-    if (band >= 7) return "text-green-600 bg-green-50 border-green-200";
-    if (band >= 5) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    const n = parseFloat(band);
+    if (n >= 7) return "text-green-600 bg-green-50 border-green-200";
+    if (n >= 5) return "text-yellow-600 bg-yellow-50 border-yellow-200";
     return "text-red-600 bg-red-50 border-red-200";
   };
 
@@ -238,7 +239,7 @@ export default function SubmissionDetail() {
         <div className="flex items-center justify-center">
           <div className={`text-center px-8 py-6 rounded-xl border-2 ${getBandColor(submission.band_score)}`}>
             <p className="text-sm font-semibold uppercase mb-2">Band Score</p>
-            <p className="text-6xl font-bold">{submission.band_score?.toFixed(1) || 'N/A'}</p>
+            <p className="text-6xl font-bold">{submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A'}</p>
             <p className="text-sm mt-2">
               {submission.total_correct || 0} / {submission.total_questions || 0} correct
             </p>
@@ -252,7 +253,7 @@ export default function SubmissionDetail() {
           <h3 className="text-xl font-bold text-gray-900 mb-4">Module-Wise Band Scores</h3>
           <div className="grid grid-cols-3 gap-4">
             {['listening', 'reading', 'writing'].map(module => {
-              const score = submission.scores_by_module?.[module] ?? 0;
+              const score = parseFloat(submission.scores_by_module?.[module]) || 0;
               const moduleAnswers = submission.answers_by_module?.[module];
               const correct = moduleAnswers?.correct || 0;
               const total = correct + (moduleAnswers?.wrong || 0);
@@ -506,7 +507,7 @@ export default function SubmissionDetail() {
                               'bg-red-50 border-red-200'
                             }`}>
                               <p className="text-xs text-gray-500 mb-1">{label}</p>
-                              <p className="text-xl font-bold">{score?.toFixed(1)}</p>
+                              <p className="text-xl font-bold">{score != null ? parseFloat(score).toFixed(1) : 'N/A'}</p>
                             </div>
                           ))}
                         </div>
@@ -530,7 +531,7 @@ export default function SubmissionDetail() {
                                       score >= 7 ? 'bg-green-100 text-green-700' :
                                       score >= 5 ? 'bg-yellow-100 text-yellow-700' :
                                       'bg-red-100 text-red-700'
-                                    }`}>{score?.toFixed(1)}</span>
+                                    }`}>{score != null ? parseFloat(score).toFixed(1) : 'N/A'}</span>
                                   </div>
                                   <p className="text-sm text-gray-600 whitespace-pre-wrap">{text}</p>
                                 </div>

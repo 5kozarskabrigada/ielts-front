@@ -109,7 +109,7 @@ export default function SubmissionsPage() {
               <p className="text-sm text-gray-600">Avg Band Score</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">
                 {submissions.length > 0 
-                  ? (submissions.reduce((sum, s) => sum + (s.band_score || 0), 0) / submissions.length).toFixed(1)
+                  ? (submissions.reduce((sum, s) => sum + (parseFloat(s.band_score) || 0), 0) / submissions.length).toFixed(1)
                   : "0.0"}
               </p>
             </div>
@@ -214,8 +214,8 @@ export default function SubmissionsPage() {
                       <p className="text-sm text-gray-900">{formatDate(submission.submitted_at)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(submission.band_score)}`}>
-                        {submission.band_score?.toFixed(1) || "N/A"}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(parseFloat(submission.band_score))}`}>
+                        {submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
