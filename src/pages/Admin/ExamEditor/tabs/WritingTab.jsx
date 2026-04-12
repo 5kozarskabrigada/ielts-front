@@ -380,22 +380,14 @@ function TaskEditor({ section, taskNumber, token }) {
   // Parse task config from section content (stored as JSON)
   const getTaskConfig = () => {
     try {
-      return section.task_config ? JSON.parse(section.task_config) : {
-        type: taskTypes[0].value,
-        prompt: "",
-        instructions: "",
-        imageUrl: "",
-        wordMinimum: defaultWordMin,
-        wordMaximum: null,
-        duration: defaultDuration,
-        modelAnswer: "",
-        scoringCriteria: {
-          taskResponse: { weight: 25, description: "How well the response addresses all parts of the task" },
-          coherenceCohesion: { weight: 25, description: "Organization, paragraphing, and use of cohesive devices" },
-          lexicalResource: { weight: 25, description: "Range and accuracy of vocabulary" },
-          grammaticalRange: { weight: 25, description: "Range and accuracy of grammar" }
-        }
-      };
+      let parsed = section.task_config;
+      if (!parsed) throw new Error('empty');
+      // Handle potentially double-encoded strings
+      while (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed);
+      }
+      if (typeof parsed === 'object' && parsed !== null) return parsed;
+      throw new Error('not an object');
     } catch {
       return {
         type: taskTypes[0].value,
@@ -818,7 +810,10 @@ function PreviewMode({ isOpen, onClose, sections, examType }) {
 
   let taskConfig;
   try {
-    taskConfig = currentSection.task_config ? JSON.parse(currentSection.task_config) : {};
+    let parsed = currentSection.task_config;
+    if (!parsed) throw new Error('empty');
+    while (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    taskConfig = (typeof parsed === 'object' && parsed !== null) ? parsed : {};
   } catch {
     taskConfig = {};
   }
