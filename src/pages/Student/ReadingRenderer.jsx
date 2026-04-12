@@ -176,9 +176,14 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Multiple Choice
   if (type === 'multiple_choice_single' || type === 'multiple_choice_multiple') {
     const isMultiple = type === 'multiple_choice_multiple';
+    const maxSelections = isMultiple ? (group.question_range_end - group.question_range_start + 1) : 1;
     
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
+      // Count total selections across the entire MCM group
+      const totalGroupSelections = isMultiple
+        ? groupQuestions.reduce((sum, gq) => sum + (answers[gq.id] || '').length, 0)
+        : 0;
       return (
         <div key={q.id} data-question-id={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
@@ -191,6 +196,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             marginBottom: '12px'
           }}>
             {!isMultiple && `${qNum}. `}<RenderHtml html={q.question_text || ''} />
+            {isMultiple && <span style={{ fontSize: '14px', color: '#666', marginLeft: '8px' }}>(Select {maxSelections})</span>}
           </p>
           <div className="ml-4 space-y-2">
             {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(letter => {
@@ -199,9 +205,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               const isChecked = isMultiple 
                 ? (answers[q.id] || '').includes(letter)
                 : answers[q.id] === letter;
+              const isDisabled = isMultiple && !isChecked && totalGroupSelections >= maxSelections;
               
               return (
-                <label key={letter} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-50 rounded-lg">
+                <label key={letter} className={`flex items-center gap-2 cursor-pointer p-1.5 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
                   <span style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -223,8 +230,10 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     type={isMultiple ? "checkbox" : "radio"} 
                     name={isMultiple ? undefined : `q${q.id}`}
                     checked={isChecked}
+                    disabled={isDisabled}
                     onChange={(e) => {
                       if (isMultiple) {
+                        if (e.target.checked && totalGroupSelections >= maxSelections) return;
                         const current = answers[q.id] || '';
                         const newValue = e.target.checked
                           ? current + letter
