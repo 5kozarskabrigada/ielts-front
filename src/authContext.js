@@ -32,6 +32,15 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Clear all exam-related localStorage data
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('reading_highlights_') || key.startsWith('exam_') || key.startsWith('autosave_'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
     setUser(null);
     setToken(null);
   };

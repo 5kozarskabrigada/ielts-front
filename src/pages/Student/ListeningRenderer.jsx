@@ -69,10 +69,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const maxSelections = isMultiple ? (group.question_range_end - group.question_range_start + 1) : 1;
     return groupQuestions.map((q, idx) => {
       const globalNum = globalOffset + q.question_number;
-      // Count total selections across the entire MCM group
-      const totalGroupSelections = isMultiple
-        ? groupQuestions.reduce((sum, gq) => sum + (answers[gq.id] || '').length, 0)
-        : 0;
+      const selectedCount = isMultiple ? (answers[q.id] || '').length : 0;
       return (
         <div 
           key={q.id} 
@@ -100,7 +97,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               const isChecked = isMultiple
                 ? (answers[q.id] || '').includes(letter)
                 : answers[q.id] === letter;
-              const isDisabled = isMultiple && !isChecked && totalGroupSelections >= maxSelections;
+              const isDisabled = isMultiple && !isChecked && selectedCount >= maxSelections;
 
               return (
                 <label key={letter} className={`flex items-center gap-2 cursor-pointer p-1.5 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
@@ -129,8 +126,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     disabled={isDisabled}
                     onChange={(e) => {
                       if (isMultiple) {
-                        if (e.target.checked && totalGroupSelections >= maxSelections) return;
                         const current = answers[q.id] || '';
+                        if (e.target.checked && current.length >= maxSelections) return;
                         const newValue = e.target.checked
                           ? current + letter
                           : current.replace(letter, '');

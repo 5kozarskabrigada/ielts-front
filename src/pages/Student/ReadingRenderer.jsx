@@ -180,10 +180,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
-      // Count total selections across the entire MCM group
-      const totalGroupSelections = isMultiple
-        ? groupQuestions.reduce((sum, gq) => sum + (answers[gq.id] || '').length, 0)
-        : 0;
+      const selectedCount = isMultiple ? (answers[q.id] || '').length : 0;
       return (
         <div key={q.id} data-question-id={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
@@ -205,7 +202,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               const isChecked = isMultiple 
                 ? (answers[q.id] || '').includes(letter)
                 : answers[q.id] === letter;
-              const isDisabled = isMultiple && !isChecked && totalGroupSelections >= maxSelections;
+              const isDisabled = isMultiple && !isChecked && selectedCount >= maxSelections;
               
               return (
                 <label key={letter} className={`flex items-center gap-2 cursor-pointer p-1.5 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
@@ -233,8 +230,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                     disabled={isDisabled}
                     onChange={(e) => {
                       if (isMultiple) {
-                        if (e.target.checked && totalGroupSelections >= maxSelections) return;
                         const current = answers[q.id] || '';
+                        if (e.target.checked && current.length >= maxSelections) return;
                         const newValue = e.target.checked
                           ? current + letter
                           : current.replace(letter, '');
@@ -610,7 +607,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null }) {
+function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null, userId = null }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
   const passagePaneRef = useRef(null);
   const passageContentRef = useRef(null);
@@ -650,7 +647,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     });
   };
 
-  const getPassageStorageKey = () => `reading_highlights_${examId || 'anonymous'}_${section?.id || 'unknown'}`;
+  const getPassageStorageKey = () => `reading_highlights_${examId || 'anonymous'}_${userId || 'nouser'}_${section?.id || 'unknown'}`;
 
   const persistPassageHighlights = () => {
     if (!passageContentRef.current) return;

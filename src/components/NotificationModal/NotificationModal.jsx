@@ -43,7 +43,7 @@ export default function NotificationModal({ isOpen, onClose, type = 'info', titl
   const Icon = config.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fadeIn">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-50 animate-fadeIn">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-slideUp">
         {/* Header */}
         <div className={`${config.bgColor} ${config.borderColor} border-b px-6 py-4 rounded-t-xl flex items-center justify-between`}>
@@ -80,8 +80,9 @@ export default function NotificationModal({ isOpen, onClose, type = 'info', titl
             onClick={() => {
               if (onConfirm) {
                 onConfirm();
+              } else {
+                onClose();
               }
-              onClose();
             }}
             className={`px-6 py-2 text-white rounded-lg font-medium transition ${config.buttonColor}`}
           >

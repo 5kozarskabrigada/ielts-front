@@ -366,31 +366,33 @@ export default function ExamPlayer() {
     }, 5000);
   }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen, violations.length]);
 
-  // Tab visibility detection
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && hasStarted && !examSubmitted) {
-        logViolation("tab_switch", "Document became hidden (browser tab switched or window minimized)");
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [hasStarted, examSubmitted, logViolation]);
-
   // Window blur detection (catches Alt+Tab, clicking another window, devtools opening)
   useEffect(() => {
     if (!hasStarted || examSubmitted) return;
 
     const handleWindowBlur = () => {
-      // Only log if the document isn't also hidden (avoid double-logging with visibilitychange)
-      if (!document.hidden) {
-        logViolation("window_blur", "Window lost focus (possible Alt+Tab or external window interaction)");
-      }
+      // Log whenever window loses focus - even if document.hidden is also true
+      // The visibilitychange handler has a small delay to let blur fire first
+      logViolation("window_blur", "Window lost focus (possible Alt+Tab, taskbar switch, or external window interaction)");
     };
 
     window.addEventListener("blur", handleWindowBlur);
     return () => window.removeEventListener("blur", handleWindowBlur);
+  }, [hasStarted, examSubmitted, logViolation]);
+
+  // Tab visibility detection (fires on minimization or tab switch, debounced to avoid double-logging with blur)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && hasStarted && !examSubmitted) {
+        // Small delay to avoid double-logging when blur already fired
+        setTimeout(() => {
+          logViolation("tab_switch", "Document became hidden (browser tab switched or window minimized)");
+        }, 300);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [hasStarted, examSubmitted, logViolation]);
 
   // Disable common keyboard shortcuts for devtools/extensions
@@ -732,7 +734,10 @@ export default function ExamPlayer() {
       message,
       confirmText: 'Move to Task 2',
       showCancel: true,
-      onConfirm: () => setCurrentWritingTask(2)
+      onConfirm: () => {
+        setNotification(prev => ({ ...prev, isOpen: false }));
+        setCurrentWritingTask(2);
+      }
     });
   }, []);
 
@@ -753,17 +758,18 @@ export default function ExamPlayer() {
         confirmText: 'Sure',
         showCancel: true,
         onConfirm: () => {
-          setTimeout(() => {
-            setNotification({
-              isOpen: true,
-              type: 'warning',
-              title: `Final Confirmation`,
-              message: `This action is final for ${moduleLabel}. Click Submit Module to continue to the next module.`,
-              confirmText: 'Submit Module',
-              showCancel: true,
-              onConfirm: () => handleModuleSubmit(false, true)
-            });
-          }, 0);
+          setNotification({
+            isOpen: true,
+            type: 'warning',
+            title: `Final Confirmation`,
+            message: `This action is final for ${moduleLabel}. Click Submit Module to continue to the next module.`,
+            confirmText: 'Submit Module',
+            showCancel: true,
+            onConfirm: () => {
+              setNotification(prev => ({ ...prev, isOpen: false }));
+              handleModuleSubmit(false, true);
+            }
+          });
         }
       });
       return;
@@ -834,17 +840,18 @@ export default function ExamPlayer() {
         confirmText: 'Sure',
         showCancel: true,
         onConfirm: () => {
-          setTimeout(() => {
-            setNotification({
-              isOpen: true,
-              type: 'warning',
-              title: 'Final Confirmation',
-              message: 'This action is final. Click Submit Final to lock and submit all answers now.',
-              confirmText: 'Submit Final',
-              showCancel: true,
-              onConfirm: () => handleFinalSubmit(true, false)
-            });
-          }, 0);
+          setNotification({
+            isOpen: true,
+            type: 'warning',
+            title: 'Final Confirmation',
+            message: 'This action is final. Click Submit Final to lock and submit all answers now.',
+            confirmText: 'Submit Final',
+            showCancel: true,
+            onConfirm: () => {
+              setNotification(prev => ({ ...prev, isOpen: false }));
+              handleFinalSubmit(true, false);
+            }
+          });
         }
       });
       return;
@@ -1473,6 +1480,7 @@ export default function ExamPlayer() {
                   answers={answers}
                   setAnswers={setAnswersWithAutosave}
                   examId={examId}
+                  userId={user?.id}
                 />
               </ErrorBoundary>
             </div>
