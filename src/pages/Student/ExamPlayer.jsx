@@ -226,7 +226,9 @@ export default function ExamPlayer() {
 
           let localBackupData = null;
           try {
-            const localBackup = localStorage.getItem(`exam_${examId}_backup`);
+            const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
+            // Clean up old key format (no user ID) to prevent cross-student contamination
+            try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
             if (localBackup) {
               localBackupData = JSON.parse(localBackup);
             }
@@ -435,7 +437,7 @@ export default function ExamPlayer() {
     } = saveContext;
 
     try {
-      localStorage.setItem(`exam_${examId}_backup`, JSON.stringify({
+      localStorage.setItem(`exam_${examId}_user_${user?.id}_backup`, JSON.stringify({
         answers: payloadAnswersSnapshot,
         module: payloadModuleSnapshot,
         currentPart: payloadPartSnapshot,
@@ -803,6 +805,8 @@ export default function ExamPlayer() {
 
       // Clean up local storage backup
       try {
+        localStorage.removeItem(`exam_${examId}_user_${user?.id}_backup`);
+        // Also clean up legacy key
         localStorage.removeItem(`exam_${examId}_backup`);
         console.log('[ExamPlayer] Cleaned up local storage backup after successful submission');
       } catch (cleanupErr) {
