@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./authContext";
 
 import LoginPage from "./pages/LoginPage";
@@ -18,6 +18,12 @@ import LogsPage from "./pages/Admin/Logs";
 import StudentDashboard from "./pages/Student/Dashboard";
 import ExamCodeEntry from "./pages/Student/ExamCodeEntry";
 import ExamPlayer from "./pages/Student/ExamPlayer";
+
+// Wrapper to force remount when exam ID changes (prevents stale state from previous exam)
+function ExamPlayerKeyed() {
+  const { id } = useParams();
+  return <ExamPlayer key={id} />;
+}
 
 function PrivateRoute({ children, role }) {
   const { user, token } = useAuth();
@@ -88,7 +94,7 @@ function App() {
             path="/student/exam/:id"
             element={
               <PrivateRoute role="student">
-                <ExamPlayer />
+                <ExamPlayerKeyed />
               </PrivateRoute>
             }
           />
