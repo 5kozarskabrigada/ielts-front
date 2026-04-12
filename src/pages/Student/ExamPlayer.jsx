@@ -1694,26 +1694,36 @@ export default function ExamPlayer() {
             const taskKey = `writing_task_${taskNumber}`;
             const isAnswered = (answers[taskKey] || '').trim().length > 0;
             const isCurrentTask = taskNumber === currentWritingTask;
+            const isLocked = taskNumber > currentWritingTask;
+            const isCompleted = taskNumber < currentWritingTask;
             
             return (
               <button 
                 key={section.id} 
-                onClick={() => setCurrentWritingTask(taskNumber)}
-                className={`flex items-center space-x-3 cursor-pointer transition ${
-                  isCurrentTask ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                onClick={() => {
+                  if (taskNumber === currentWritingTask) return;
+                  if (taskNumber > currentWritingTask) {
+                    confirmMoveToTask2('Submit Task 1 and move to Task 2? You cannot return to Task 1.');
+                  }
+                  // Cannot go back to previous tasks
+                }}
+                disabled={isCompleted}
+                className={`flex items-center space-x-3 transition ${
+                  isCompleted ? 'opacity-50 cursor-not-allowed' : isCurrentTask ? 'opacity-100 cursor-default' : 'opacity-70 hover:opacity-100 cursor-pointer'
                 }`}
               >
                 <span className={`text-sm font-semibold min-w-[60px] ${
-                  isCurrentTask ? 'text-blue-700' : 'text-gray-700'
+                  isCurrentTask ? 'text-blue-700' : isCompleted ? 'text-gray-400' : 'text-gray-700'
                 }`}>
                   Task {taskNumber}
                 </span>
                 <div 
                   className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isAnswered ? 'bg-green-100 border-green-400' : isCurrentTask ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-300'
+                    isCompleted ? 'bg-green-100 border-green-400' : isAnswered ? 'bg-green-100 border-green-400' : isCurrentTask ? 'bg-blue-50 border-blue-400' : isLocked ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-300'
                   }`}
                 >
-                  {isAnswered && <span className="text-green-600 text-xs">✓</span>}
+                  {isCompleted && <span className="text-green-600 text-xs">✓</span>}
+                  {isLocked && !isCompleted && <span className="text-gray-400 text-xs">🔒</span>}
                 </div>
               </button>
             );

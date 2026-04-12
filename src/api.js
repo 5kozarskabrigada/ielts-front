@@ -540,16 +540,28 @@ export async function apiGetExamStats(token, examId) {
 // ---------- Grading & Results ----------
 
 export async function apiGradeWritingWithAI(token, data) {
-  const res = await fetch(`${API_URL}/grading/writing/ai-grade`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Failed to grade writing");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
+  try {
+    const res = await fetch(`${API_URL}/grading/writing/ai-grade`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to grade writing");
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error("AI grading timed out. Please try again.");
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export async function apiGetSubmissionsForGrading(token, params = {}) {
