@@ -109,13 +109,17 @@ export default function ExamPlayer() {
     return JSON.stringify(value);
   }, []);
 
-  const buildAutosaveSignature = useCallback((answerData, module, part, writingTask, spentTime) => {
+  const buildAutosaveSignature = useCallback((answerData, module, part, writingTask, _spentTime) => {
+    // NOTE: timeSpent is intentionally excluded from the signature.
+    // It changes every second (timer tick), which would cause the UI to show
+    // "Saving..." constantly even when the student hasn't touched anything.
+    // Time data is still sent with every save request — it just doesn't
+    // trigger a new save by itself. The periodic 15-second save handles it.
     return stableSerialize({
       answers: answerData,
       module,
       currentPart: part,
       currentWritingTask: writingTask,
-      timeSpent: spentTime,
     });
   }, [stableSerialize]);
 
@@ -613,15 +617,17 @@ export default function ExamPlayer() {
     });
   }, [hasStarted, examSubmitted, currentModule, currentPart, currentWritingTask, saveAnswers]);
 
-  // Periodic auto-save (every 15 seconds) to ensure time spent is saved
+  // Periodic auto-save (every 60 seconds) to persist time spent data
+  // Since timeSpent is excluded from the signature, this forces a save
+  // so that the server has up-to-date time tracking.
   useEffect(() => {
     if (!hasStarted || examSubmitted) return;
 
     const periodicSave = setInterval(() => {
-      saveAnswers(answersRef.current).catch((err) => {
+      saveAnswers(answersRef.current, { force: true }).catch((err) => {
         console.error("Periodic auto-save failed:", err);
       });
-    }, 15000); // Save every 15 seconds
+    }, 60000); // Save every 60 seconds
 
     return () => clearInterval(periodicSave);
   }, [hasStarted, examSubmitted, saveAnswers]);
