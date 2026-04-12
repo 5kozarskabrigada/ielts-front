@@ -488,7 +488,7 @@ export default function ExamPlayer() {
       console.error('Save failed:', err);
 
       if (retryCount < maxRetries) {
-        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        const backoffDelay = Math.min(500 * Math.pow(2, retryCount), 3000);
         console.log(`Retrying save in ${backoffDelay}ms (attempt ${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, backoffDelay));
         return performAutosaveRequest(saveContext, retryCount + 1);
@@ -538,6 +538,8 @@ export default function ExamPlayer() {
     };
 
     if (isSaveInFlightRef.current) {
+      // If a save is already in flight, don't block — the pending context
+      // will be picked up by the drain loop when the current save finishes.
       return activeSavePromiseRef.current;
     }
 
@@ -708,19 +710,10 @@ export default function ExamPlayer() {
       return;
     }
 
-    // Save answers before moving to next module
-    try {
-      await flushPendingAutosave(answersRef.current);
-    } catch (err) {
-      setNotification({
-        isOpen: true,
-        type: 'error',
-        title: 'Save Failed',
-        message: `Could not save your latest answers before module submission: ${err.message}`,
-        confirmText: 'OK'
-      });
-      return;
-    }
+    // Save answers before moving to next module — fire and don't block on retries
+    flushPendingAutosave(answersRef.current).catch((err) => {
+      console.warn('Module transition autosave failed (non-blocking):', err.message);
+    });
 
     // Stop listening audio when leaving the listening module
     if (currentModule === 'listening' && listeningAudioRef.current) {
@@ -738,30 +731,26 @@ export default function ExamPlayer() {
       setCurrentPart(1); // Reset to part 1 for new module
       setCurrentWritingTask(1); // Reset to task 1 for writing
 
-      // Log module completion
-      try {
-        await fetch(`${API_URL}/exams/${examId}/log`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            event_type: "module_completed",
-            metadata: { 
-              module: currentModule, 
-              auto_submit: autoSubmit,
-              time_spent_writing_task1: timeSpent.writing_task1 || 0,
-              time_spent_writing_task2: timeSpent.writing_task2 || 0,
-              time_spent: currentModule === 'writing' 
-                ? (timeSpent.writing_task1 || 0) + (timeSpent.writing_task2 || 0)
-                : timeSpent[currentModule]
-            }
-          })
-        });
-      } catch (err) {
-        console.error("Failed to log module completion:", err);
-      }
+      // Log module completion — fire-and-forget (don't block UI)
+      fetch(`${API_URL}/exams/${examId}/log`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          event_type: "module_completed",
+          metadata: { 
+            module: currentModule, 
+            auto_submit: autoSubmit,
+            time_spent_writing_task1: timeSpent.writing_task1 || 0,
+            time_spent_writing_task2: timeSpent.writing_task2 || 0,
+            time_spent: currentModule === 'writing' 
+              ? (timeSpent.writing_task1 || 0) + (timeSpent.writing_task2 || 0)
+              : timeSpent[currentModule]
+          }
+        })
+      }).catch(err => console.error('Failed to log module completion:', err));
     }
   };
 
