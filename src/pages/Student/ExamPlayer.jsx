@@ -203,8 +203,22 @@ export default function ExamPlayer() {
   useEffect(() => {
     const fetchExamData = async () => {
       try {
+        // Helper: fetch with retry for transient errors (deploy restarts, network blips)
+        const fetchWithRetry = async (url, opts, maxRetries = 3) => {
+          for (let i = 0; i < maxRetries; i++) {
+            try {
+              const r = await fetch(url, opts);
+              if (r.ok || r.status < 500) return r;
+              if (i < maxRetries - 1) await new Promise(w => setTimeout(w, 2000));
+            } catch (e) {
+              if (i >= maxRetries - 1) throw e;
+              await new Promise(w => setTimeout(w, 2000));
+            }
+          }
+        };
+
         // First, check if exam was already submitted or has autosave data
-        const statusResponse = await fetch(`${API_URL}/exams/${examId}/status`, {
+        const statusResponse = await fetchWithRetry(`${API_URL}/exams/${examId}/status`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
 
@@ -250,11 +264,11 @@ export default function ExamPlayer() {
         }
 
         // Fetch exam data
-        const response = await fetch(`${API_URL}/exams/${examId}`, {
+        const response = await fetchWithRetry(`${API_URL}/exams/${examId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
 
-        if (!response.ok) {
+        if (!response || !response.ok) {
           throw new Error("Failed to load exam");
         }
 
