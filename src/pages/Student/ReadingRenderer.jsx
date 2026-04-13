@@ -138,7 +138,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             const qNum = globalOffset + q.question_number;
             const selectedValue = normalizeTriStateAnswer(answers[q.id], isYesNo);
             return (
-              <div key={q.id} data-question-id={q.id} className="flex items-center gap-4 py-1">
+              <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', display: 'inline-block', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex items-center gap-2 flex-1">
                   <select 
@@ -182,7 +182,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       const qNum = globalOffset + q.question_number;
       const selectedCount = isMultiple ? (answers[q.id] || '').length : 0;
       return (
-        <div key={q.id} data-question-id={q.id} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
+        <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
           <p style={{
             color: 'rgb(40, 40, 40)',
             fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
@@ -283,7 +283,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             {groupQuestions.map((q) => {
               const qNum = globalOffset + q.question_number;
               return (
-                <div key={q.id} data-question-id={q.id} className="flex items-center gap-3 py-1">
+                <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-center gap-3 py-1">
                   <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
                   <select
                     value={answers[q.id] || ''}
@@ -352,7 +352,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
               ? `Statement ${qNum}`
               : `Paragraph ${String.fromCharCode(66 + idx)}`;
             return (
-              <div key={q.id} data-question-id={q.id} className="flex items-center gap-4 py-1">
+              <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-center gap-4 py-1">
                 <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
                 <div className="flex-1 flex items-center gap-3">
                   <select
@@ -415,7 +415,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       const parts = template.split('[BLANK]');
       
       return (
-        <div key={q.id} data-question-id={q.id} className="mb-3">
+        <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="mb-3">
           <div style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', fontSize: '14px' }}>
             <RenderHtml html={parts[0]} />
             {parts.length > 1 && (
@@ -442,7 +442,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
+        <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
           <input 
             type="text"
@@ -506,15 +506,16 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                 blankCount++;
                 
                 return (
-                  <BlankInput 
-                    key={idx}
-                    questionNumber={qNum}
-                    value={answers[qId] || ''}
-                    onChange={(e) => {
-                      setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
-                      if (saveAnswers) saveAnswers();
-                    }}
-                  />
+                  <span key={idx} data-question-id={qId} data-question-number={qNum}>
+                    <BlankInput 
+                      questionNumber={qNum}
+                      value={answers[qId] || ''}
+                      onChange={(e) => {
+                        setAnswers(prev => ({ ...prev, [qId]: e.target.value }));
+                        if (saveAnswers) saveAnswers();
+                      }}
+                    />
+                  </span>
                 );
               }
               return part.split('\n').map((line, lineIdx, arr) => (
@@ -549,7 +550,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {groupQuestions.map((q, idx) => {
           const qNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
+            <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
               <span className="font-bold text-gray-700">{qNum}.</span>
               <input 
                 type="text"
@@ -580,7 +581,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     return groupQuestions.map((q, idx) => {
       const qNum = globalOffset + q.question_number;
       return (
-        <div key={q.id} data-question-id={q.id} className="flex items-start gap-3 mb-3">
+        <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
           <input 
             type="text"
@@ -647,14 +648,19 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     });
   };
 
-  const getPassageStorageKey = () => `reading_highlights_${examId || 'anonymous'}_${userId || 'nouser'}_${section?.id || 'unknown'}`;
+  const getPassageStorageKey = () => {
+    if (!examId || !userId || !section?.id) return null;
+    return `reading_highlights_${examId}_${userId}_${section.id}`;
+  };
 
   const persistPassageHighlights = () => {
     if (!passageContentRef.current) return;
     const html = passageContentRef.current.innerHTML;
     setPassageHtml(html);
     try {
-      localStorage.setItem(getPassageStorageKey(), html);
+      const storageKey = getPassageStorageKey();
+      if (!storageKey) return;
+      localStorage.setItem(storageKey, html);
     } catch {
       // ignore storage errors
     }
@@ -663,14 +669,19 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   useEffect(() => {
     const baseHtml = (section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ');
     try {
-      const savedHtml = localStorage.getItem(getPassageStorageKey());
-      setPassageHtml(savedHtml || baseHtml);
+      const storageKey = getPassageStorageKey();
+      if (!storageKey) {
+        setPassageHtml(baseHtml);
+      } else {
+        const savedHtml = localStorage.getItem(storageKey);
+        setPassageHtml(savedHtml || baseHtml);
+      }
     } catch {
       setPassageHtml(baseHtml);
     }
     closeHighlightMenu();
     closeSelectionAction();
-  }, [examId, section?.id, section?.content]);
+  }, [examId, userId, section?.id, section?.content]);
 
   useEffect(() => {
     closeHighlightMenu();

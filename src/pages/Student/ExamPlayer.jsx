@@ -1367,6 +1367,37 @@ export default function ExamPlayer() {
     sections.some((section) => section.module_type === moduleType)
   );
 
+  const jumpToQuestion = useCallback((targetPart, targetQuestionId = null, targetQuestionNumber = null, block = 'center') => {
+    setCurrentPart(targetPart);
+
+    let attempts = 0;
+    const maxAttempts = 24;
+
+    const tryScroll = () => {
+      const selectors = [];
+      if (targetQuestionId) selectors.push(`[data-question-id="${targetQuestionId}"]`);
+      if (targetQuestionNumber !== null && targetQuestionNumber !== undefined) {
+        selectors.push(`[data-question-number="${targetQuestionNumber}"]`);
+        selectors.push(`#question-${targetQuestionNumber}`);
+      }
+
+      for (const selector of selectors) {
+        const node = document.querySelector(selector);
+        if (node) {
+          node.scrollIntoView({ behavior: 'smooth', block });
+          return;
+        }
+      }
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryScroll);
+      }
+    };
+
+    requestAnimationFrame(tryScroll);
+  }, []);
+
   return (
     <div className="h-screen flex flex-col bg-white">
       {/* Header */}
@@ -1757,8 +1788,7 @@ export default function ExamPlayer() {
                         // Also try to scroll to the first question
                         const firstQuestion = partQuestions[0];
                         if (firstQuestion) {
-                          const el = document.querySelector(`[data-question-id="${firstQuestion.id}"]`);
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          jumpToQuestion(partNumber, firstQuestion.id, globalOffset + firstQuestion.question_number, 'start');
                         }
                       }, 150);
                     }}
@@ -1778,11 +1808,7 @@ export default function ExamPlayer() {
                           <button
                             key={q.id}
                             onClick={() => {
-                              setCurrentPart(partNumber);
-                              setTimeout(() => {
-                                const el = document.querySelector(`[data-question-id="${q.id}"]`);
-                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 150);
+                              jumpToQuestion(partNumber, q.id, globalNum, 'center');
                             }}
                             className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
                               isAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
@@ -1798,11 +1824,7 @@ export default function ExamPlayer() {
                           <button
                             key={`group-${item.groupId}`}
                             onClick={() => {
-                              setCurrentPart(partNumber);
-                              setTimeout(() => {
-                                const el = item.firstQ && document.querySelector(`[data-question-id="${item.firstQ.id}"]`);
-                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              }, 150);
+                              jumpToQuestion(partNumber, item.firstQ?.id || null, item.start, 'center');
                             }}
                             className={`h-7 px-2 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer transition hover:scale-110 ${
                               item.isAnyAnswered ? 'bg-green-400 text-white hover:bg-green-500' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
