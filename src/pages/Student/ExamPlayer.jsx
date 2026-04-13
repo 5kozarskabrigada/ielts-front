@@ -438,6 +438,31 @@ export default function ExamPlayer() {
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [hasStarted, examSubmitted, logViolation, isAdminPreview]);
 
+  // Screen-share prevention — intercept the browser's display-media API so that
+  // attempts made through Zoom, Discord, Teams, OBS browser capture, etc. are
+  // blocked and logged.  OS-level screen capture (PrintScreen, external tools)
+  // cannot be blocked client-side, but this covers the most common cheating path.
+  useEffect(() => {
+    if (isAdminPreview) return;
+    if (!hasStarted || examSubmitted) return;
+    if (!navigator.mediaDevices?.getDisplayMedia) return;
+
+    const original = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+
+    navigator.mediaDevices.getDisplayMedia = async function(constraints) {
+      logViolation('screen_share_attempt', 'Student attempted to initiate screen sharing during the exam');
+      // Reject the promise so the calling app (Zoom etc.) sees a denied permission
+      throw new DOMException('Screen sharing is not permitted during the exam.', 'NotAllowedError');
+    };
+
+    return () => {
+      // Restore original when exam ends / component unmounts
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getDisplayMedia = original;
+      }
+    };
+  }, [hasStarted, examSubmitted, isAdminPreview, logViolation]);
+
   // ============================================
   // MODULE TIMER
   // ============================================
@@ -927,6 +952,20 @@ export default function ExamPlayer() {
         console.warn('Failed to clean up local storage backup:', cleanupErr);
       }
 
+      // Clear reading highlights for this student + exam so the next student
+      // on the same browser never sees a previous student's highlights.
+      try {
+        const highlightPrefix = `reading_highlights_${examId}_${user?.id}_`;
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(highlightPrefix)) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (_) {
+        // ignore storage errors
+      }
+
       if (document.fullscreenElement) {
         try {
           await document.exitFullscreen();
@@ -1092,7 +1131,37 @@ export default function ExamPlayer() {
     setCurrentPart(targetPart);
 
     let attempts = 0;
-    const maxAttempts = 24;
+    const maxAttempts = 40;
+
+    // Scroll within the nearest scrollable ancestor – works reliably across
+    // all browsers (Safari/macOS, Firefox/Linux, Chrome/Windows) and avoids
+    // the quirk where smooth scrollIntoView is a no-op inside overflow containers
+    // on older WebKit.
+    const scrollNode = (node) => {
+      let el = node.parentElement;
+      while (el && el !== document.documentElement) {
+        const style = window.getComputedStyle(el);
+        const oy = style.overflowY;
+        const o  = style.overflow;
+        if (oy === 'auto' || oy === 'scroll' || o === 'auto' || o === 'scroll') {
+          const containerRect = el.getBoundingClientRect();
+          const nodeRect      = node.getBoundingClientRect();
+          const relativeTop   = nodeRect.top - containerRect.top + el.scrollTop;
+          const targetTop = block === 'center'
+            ? relativeTop - containerRect.height / 2 + nodeRect.height / 2
+            : relativeTop - 16;
+          el.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+          return;
+        }
+        el = el.parentElement;
+      }
+      // Fallback (no scrollable ancestor found — e.g. a full-page layout)
+      try {
+        node.scrollIntoView({ behavior: 'smooth', block, inline: 'nearest' });
+      } catch (_) {
+        node.scrollIntoView(block !== 'start');
+      }
+    };
 
     const tryScroll = () => {
       const selectors = [];
@@ -1105,14 +1174,21 @@ export default function ExamPlayer() {
       for (const selector of selectors) {
         const node = document.querySelector(selector);
         if (node) {
-          node.scrollIntoView({ behavior: 'smooth', block });
+          scrollNode(node);
           return;
         }
       }
 
       attempts += 1;
       if (attempts < maxAttempts) {
-        requestAnimationFrame(tryScroll);
+        // First ~10 attempts: every animation frame (fast, covers same-part clicks)
+        // After that: 50 ms intervals so we don't spam the main thread while
+        // waiting for React to finish re-rendering the switched part.
+        if (attempts < 10) {
+          requestAnimationFrame(tryScroll);
+        } else {
+          setTimeout(tryScroll, 50);
+        }
       }
     };
 

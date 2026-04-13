@@ -470,7 +470,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {groupQuestions.map((q, idx) => {
           const globalNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} className="py-2">
+            <div key={q.id} id={`question-${globalNum}`} data-question-id={q.id} data-question-number={globalNum} className="py-2">
               <div className="flex items-start gap-3 mb-2">
                 <span className="font-bold text-gray-900 min-w-[30px]">{globalNum}.</span>
                 <div className="flex-1">
@@ -510,7 +510,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {groupQuestions.map((q, idx) => {
           const globalNum = globalOffset + q.question_number;
           return (
-            <div key={q.id} className="flex flex-col gap-2" data-question-id={q.id}>
+            <div key={q.id} id={`question-${globalNum}`} data-question-id={q.id} data-question-number={globalNum} className="flex flex-col gap-2">
               <p style={{
                 color: 'rgb(40, 40, 40)',
                 fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
@@ -555,7 +555,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           {groupQuestions.map((q, idx) => {
             const globalNum = globalOffset + q.question_number;
             return (
-              <div key={q.id} className="flex flex-col gap-2" data-question-id={q.id}>
+              <div key={q.id} id={`question-${globalNum}`} data-question-id={q.id} data-question-number={globalNum} className="flex flex-col gap-2">
                 <p style={{
                   color: 'rgb(40, 40, 40)',
                   fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
