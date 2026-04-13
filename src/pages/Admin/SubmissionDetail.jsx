@@ -72,6 +72,35 @@ export default function SubmissionDetail() {
       // Remove buttons and interactive UI elements
       clone.querySelectorAll('button').forEach(b => b.remove());
 
+      // Remove AI hint / feedback text elements (keep score numbers)
+      clone.querySelectorAll('.pdf-hide').forEach(el => el.remove());
+
+      // Force every question row to never split across pages
+      clone.querySelectorAll('.pdf-keep-together').forEach(el => {
+        el.style.pageBreakInside = 'avoid';
+        el.style.breakInside = 'avoid';
+        el.style.webkitColumnBreakInside = 'avoid';
+      });
+
+      // Fix SVG icon vertical alignment (html2canvas renders them offset otherwise)
+      clone.querySelectorAll('svg').forEach(svg => {
+        svg.style.display = 'inline-block';
+        svg.style.verticalAlign = 'middle';
+        svg.style.position = 'relative';
+        svg.style.top = '0px';
+        svg.style.flexShrink = '0';
+      });
+
+      // Ensure inline-flex spans (status badges) render correctly in canvas
+      clone.querySelectorAll('span').forEach(span => {
+        const cl = span.className || '';
+        if (cl.includes('inline-flex') || window.getComputedStyle(span).display === 'inline-flex') {
+          span.style.display = 'inline-flex';
+          span.style.alignItems = 'center';
+          span.style.verticalAlign = 'middle';
+        }
+      });
+
       // Fully expand every height-constrained / scrollable container
       clone.querySelectorAll('*').forEach(el => {
         const cs = window.getComputedStyle(el);
@@ -349,7 +378,7 @@ export default function SubmissionDetail() {
 
       {/* Detailed Answers by Module */}
       {submission.answers_by_module && (
-        <div className="space-y-6" data-pdf-page-break="true">
+        <div className="space-y-6">
           {['listening', 'reading'].map(module => {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
@@ -369,7 +398,7 @@ export default function SubmissionDetail() {
               .sort(([, a], [, b]) => a.order - b.order);
 
             return (
-              <div key={module} className="bg-white rounded-xl border shadow-sm" data-pdf-page-break={module !== 'listening' ? 'true' : undefined}>
+              <div key={module} className="bg-white rounded-xl border shadow-sm" data-pdf-page-break="true">
                 <div className="bg-gray-50 px-6 py-4 border-b pdf-keep-together">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-gray-900 capitalize flex items-center space-x-2">
@@ -464,19 +493,19 @@ export default function SubmissionDetail() {
                                 </div>
                                 
                                 {/* Status Badge */}
-                                <div className="flex-shrink-0">
+                                <div style={{flexShrink:0,display:'flex',alignItems:'center'}}>
                                   {!userAnswer ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-gray-200 text-gray-600 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#e5e7eb',color:'#4b5563',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
                                       Skipped
                                     </span>
                                   ) : ans.is_correct ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
-                                      <CheckCircle size={12} className="mr-1" />
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#bbf7d0',color:'#166534',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
+                                      <CheckCircle size={12} style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}} />
                                       Correct
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs font-semibold" style={{whiteSpace: 'nowrap'}}>
-                                      <XCircle size={12} className="mr-1" />
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#fecaca',color:'#991b1b',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
+                                      <XCircle size={12} style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}} />
                                       Wrong
                                     </span>
                                   )}
@@ -588,19 +617,19 @@ export default function SubmissionDetail() {
                           ))}
                         </div>
 
-                        {/* Per-criteria feedback */}
+                        {/* Per-criteria feedback — hidden in PDF via pdf-hide */}
                         {(() => {
                           const criteriaFeedback = [
-                            { label: 'Task Response', text: aiFeedback?.task_response_feedback, score: wr.ai_task_response_score, color: 'blue' },
-                            { label: 'Coherence & Cohesion', text: aiFeedback?.coherence_feedback, score: wr.ai_coherence_score, color: 'purple' },
-                            { label: 'Lexical Resource', text: aiFeedback?.lexical_feedback, score: wr.ai_lexical_score, color: 'teal' },
-                            { label: 'Grammatical Range & Accuracy', text: aiFeedback?.grammar_feedback, score: wr.ai_grammar_score, color: 'orange' },
+                            { label: 'Task Response', text: aiFeedback?.task_response_feedback, score: wr.ai_task_response_score },
+                            { label: 'Coherence & Cohesion', text: aiFeedback?.coherence_feedback, score: wr.ai_coherence_score },
+                            { label: 'Lexical Resource', text: aiFeedback?.lexical_feedback, score: wr.ai_lexical_score },
+                            { label: 'Grammatical Range & Accuracy', text: aiFeedback?.grammar_feedback, score: wr.ai_grammar_score },
                           ].filter(c => c.text);
                           if (criteriaFeedback.length === 0) return null;
                           return (
-                            <div className="space-y-3 mb-4">
+                            <div className="space-y-3 mb-4 pdf-hide">
                               {criteriaFeedback.map(({ label, text, score }) => (
-                                <div key={label} className="bg-gray-50 border rounded-lg p-4 pdf-keep-together">
+                                <div key={label} className="bg-gray-50 border rounded-lg p-4">
                                   <div className="flex items-center justify-between mb-2">
                                     <p className="text-sm font-semibold text-gray-800">{label}</p>
                                     <span className={`text-sm font-bold px-2 py-0.5 rounded ${
@@ -617,14 +646,14 @@ export default function SubmissionDetail() {
                         })()}
 
                         {aiFeedback?.feedback && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3 pdf-hide">
                             <p className="text-sm font-semibold text-blue-800 mb-2">Overall Feedback</p>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiFeedback.feedback}</p>
                           </div>
                         )}
 
                         {aiFeedback?.key_improvements?.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-3">
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-3 pdf-hide">
                             <p className="text-sm font-semibold text-amber-800 mb-2">Key Improvements</p>
                             <ul className="text-sm text-gray-700 space-y-1">
                               {aiFeedback.key_improvements.map((imp, i) => (
