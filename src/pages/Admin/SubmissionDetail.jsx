@@ -59,32 +59,62 @@ export default function SubmissionDetail() {
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
-      // Temporarily expand all scrollable containers so full content is captured
-      const container = pageRef.current;
-      const scrollables = container.querySelectorAll('.pdf-expand');
-      scrollables.forEach(el => {
-        el.dataset.origMaxH = el.style.maxHeight;
-        el.dataset.origOverflow = el.style.overflow;
-        el.style.maxHeight = 'none';
-        el.style.overflow = 'visible';
+      // Clone the container so the page stays fully interactive during rendering
+      const clone = pageRef.current.cloneNode(true);
+      clone.style.cssText = [
+        'position:absolute', 'left:-9999px', 'top:0',
+        'width:860px', 'background:#fff', 'padding:28px 36px',
+        'box-sizing:border-box',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'
+      ].join(';');
+      document.body.appendChild(clone);
+
+      // Remove buttons and interactive UI elements
+      clone.querySelectorAll('button').forEach(b => b.remove());
+
+      // Fully expand every height-constrained / scrollable container
+      clone.querySelectorAll('*').forEach(el => {
+        const cs = window.getComputedStyle(el);
+        if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' ||
+            cs.overflow  === 'auto' || cs.overflow  === 'scroll') {
+          el.style.overflow  = 'visible';
+          el.style.overflowY = 'visible';
+          el.style.maxHeight = 'none';
+          el.style.height    = 'auto';
+        }
+        if (cs.maxHeight && cs.maxHeight !== 'none' && cs.maxHeight !== '0px') {
+          el.style.maxHeight = 'none';
+        }
+      });
+
+      // Inject an html2pdf page-break element before every marked section
+      clone.querySelectorAll('[data-pdf-page-break]').forEach(el => {
+        const br = document.createElement('div');
+        br.className = 'html2pdf__page-break';
+        br.style.cssText = 'page-break-before:always;break-before:page;height:1px;display:block;margin:0;padding:0;';
+        el.parentNode.insertBefore(br, el);
       });
 
       const opt = {
         margin: [10, 8, 10, 8],
         filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 1200 },
+        image: { type: 'jpeg', quality: 0.97 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          scrollY: 0,
+          scrollX: 0,
+          windowWidth: 940,
+          logging: false,
+          letterRendering: true,
+          allowTaint: false
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-keep-together'] }
+        pagebreak: { mode: ['legacy', 'css'], avoid: ['.pdf-keep-together'] }
       };
 
-      await html2pdf().set(opt).from(container).save();
-
-      // Restore scrollable containers
-      scrollables.forEach(el => {
-        el.style.maxHeight = el.dataset.origMaxH || '';
-        el.style.overflow = el.dataset.origOverflow || '';
-      });
+      await html2pdf().set(opt).from(clone).save();
+      document.body.removeChild(clone);
     } catch (err) {
       console.error('PDF generation failed:', err);
       setNotification({
@@ -271,9 +301,55 @@ export default function SubmissionDetail() {
         </div>
       )}
 
+      {/* Writing Assessment Summary — teacher overview shown on the PDF cover page */}
+      {(submission.writing_responses || []).some(wr => wr.ai_overall_band != null) && (
+        <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
+            <PenTool size={20} />
+            <span>Writing Assessment Summary</span>
+          </h3>
+          {(submission.writing_responses || []).filter(wr => wr.ai_overall_band != null).map(wr => {
+            const fb = (() => {
+              if (!wr.ai_feedback) return null;
+              try { return typeof wr.ai_feedback === 'string' ? JSON.parse(wr.ai_feedback) : wr.ai_feedback; } catch { return null; }
+            })();
+            const multiTask = (submission.writing_responses || []).filter(w => w.ai_overall_band != null).length > 1;
+            return (
+              <div key={wr.id} className="mb-5 last:mb-0">
+                {multiTask && (
+                  <p className="text-sm font-semibold text-gray-700 mb-3">
+                    Task {wr.task_number}: {wr.section_title || `Writing Task ${wr.task_number}`}
+                  </p>
+                )}
+                <div className="grid grid-cols-5 gap-3 mb-3">
+                  {[
+                    { label: 'Task Response', score: wr.ai_task_response_score },
+                    { label: 'Coherence',     score: wr.ai_coherence_score },
+                    { label: 'Lexical',       score: wr.ai_lexical_score },
+                    { label: 'Grammar',       score: wr.ai_grammar_score },
+                    { label: 'Overall',       score: wr.ai_overall_band },
+                  ].map(({ label, score }) => (
+                    <div key={label} className={`rounded-lg p-3 text-center border ${getBandColor(score)}`}>
+                      <p className="text-xs text-gray-500 mb-1">{label}</p>
+                      <p className="text-xl font-bold">{score != null ? parseFloat(score).toFixed(1) : 'N/A'}</p>
+                    </div>
+                  ))}
+                </div>
+                {fb?.feedback && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-800 mb-2">Overall Feedback</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{fb.feedback}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Detailed Answers by Module */}
       {submission.answers_by_module && (
-        <div className="space-y-6">
+        <div className="space-y-6" data-pdf-page-break="true">
           {['listening', 'reading'].map(module => {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
@@ -293,7 +369,7 @@ export default function SubmissionDetail() {
               .sort(([, a], [, b]) => a.order - b.order);
 
             return (
-              <div key={module} className="bg-white rounded-xl border shadow-sm">
+              <div key={module} className="bg-white rounded-xl border shadow-sm" data-pdf-page-break={module !== 'listening' ? 'true' : undefined}>
                 <div className="bg-gray-50 px-6 py-4 border-b pdf-keep-together">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-gray-900 capitalize flex items-center space-x-2">
@@ -424,7 +500,7 @@ export default function SubmissionDetail() {
         if (writingResponses.length === 0) return null;
 
         return (
-          <div className="bg-white rounded-xl border shadow-sm">
+          <div className="bg-white rounded-xl border shadow-sm" data-pdf-page-break="true">
             <div className="bg-gray-50 px-6 py-4 border-b">
               <h3 className="text-xl font-bold text-gray-900 flex items-center space-x-2">
                 <PenTool size={24} />
