@@ -1088,6 +1088,37 @@ export default function ExamPlayer() {
     return questionGroups.filter(g => g.section_id === currentSection.id);
   }, [questionGroups, currentSection?.id]);
 
+  const jumpToQuestion = useCallback((targetPart, targetQuestionId = null, targetQuestionNumber = null, block = 'center') => {
+    setCurrentPart(targetPart);
+
+    let attempts = 0;
+    const maxAttempts = 24;
+
+    const tryScroll = () => {
+      const selectors = [];
+      if (targetQuestionId) selectors.push(`[data-question-id="${targetQuestionId}"]`);
+      if (targetQuestionNumber !== null && targetQuestionNumber !== undefined) {
+        selectors.push(`[data-question-number="${targetQuestionNumber}"]`);
+        selectors.push(`#question-${targetQuestionNumber}`);
+      }
+
+      for (const selector of selectors) {
+        const node = document.querySelector(selector);
+        if (node) {
+          node.scrollIntoView({ behavior: 'smooth', block });
+          return;
+        }
+      }
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        requestAnimationFrame(tryScroll);
+      }
+    };
+
+    requestAnimationFrame(tryScroll);
+  }, []);
+
   const currentGlobalOffset = useMemo(() => {
     return allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
       const dbCount = questions.filter(q => q.section_id === s.id).length;
@@ -1366,37 +1397,6 @@ export default function ExamPlayer() {
   const moduleSwitchTargets = MODULE_ORDER.filter((moduleType) =>
     sections.some((section) => section.module_type === moduleType)
   );
-
-  const jumpToQuestion = useCallback((targetPart, targetQuestionId = null, targetQuestionNumber = null, block = 'center') => {
-    setCurrentPart(targetPart);
-
-    let attempts = 0;
-    const maxAttempts = 24;
-
-    const tryScroll = () => {
-      const selectors = [];
-      if (targetQuestionId) selectors.push(`[data-question-id="${targetQuestionId}"]`);
-      if (targetQuestionNumber !== null && targetQuestionNumber !== undefined) {
-        selectors.push(`[data-question-number="${targetQuestionNumber}"]`);
-        selectors.push(`#question-${targetQuestionNumber}`);
-      }
-
-      for (const selector of selectors) {
-        const node = document.querySelector(selector);
-        if (node) {
-          node.scrollIntoView({ behavior: 'smooth', block });
-          return;
-        }
-      }
-
-      attempts += 1;
-      if (attempts < maxAttempts) {
-        requestAnimationFrame(tryScroll);
-      }
-    };
-
-    requestAnimationFrame(tryScroll);
-  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-white">
