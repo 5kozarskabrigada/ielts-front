@@ -414,7 +414,7 @@ function ExamEditorContent() {
       return;
     }
     // Open in new tab with admin preview mode
-    window.open(`/student/exam/${id}?preview=admin`, '_blank');
+    window.open(`/admin/exam-preview/${id}?preview=admin`, '_blank');
   };
 
   const openModuleFullScreen = (module) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { 
   Clock, AlertTriangle, CheckCircle, ArrowRight, ChevronRight, 
@@ -15,6 +15,11 @@ export default function ExamPlayer() {
   const { id: examId } = useParams();
   const { token, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const isAdminPreview = user?.role === "admin" && (
+    searchParams.get("preview") === "admin" || location.pathname.includes("/admin/exam-preview/")
+  );
 
   // Exam data
   const [exam, setExam] = useState(null);
@@ -95,6 +100,12 @@ export default function ExamPlayer() {
   // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
   const MODULE_DURATIONS = { listening: 30, reading: 60, writing: 60 };
+
+  useEffect(() => {
+    if (isAdminPreview) {
+      setHasStarted(true);
+    }
+  }, [isAdminPreview]);
 
   const stableSerialize = useCallback((value) => {
     if (Array.isArray(value)) {
@@ -217,49 +228,51 @@ export default function ExamPlayer() {
           }
         };
 
-        // First, check if exam was already submitted or has autosave data
-        const statusResponse = await fetchWithRetry(`${API_URL}/exams/${examId}/status`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        if (!isAdminPreview) {
+          // First, check if exam was already submitted or has autosave data
+          const statusResponse = await fetchWithRetry(`${API_URL}/exams/${examId}/status`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
 
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          
-          // If already submitted, redirect to dashboard
-          if (statusData.submitted) {
-            setNotification({
-              isOpen: true,
-              type: 'warning',
-              title: 'Exam Already Submitted',
-              message: 'You have already submitted this exam. You cannot retake it.',
-              confirmText: 'Go to Dashboard',
-              onConfirm: () => navigate("/student/dashboard")
-            });
-            return;
-          }
-
-          let localBackupData = null;
-          try {
-            const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
-            // Clean up old key format (no user ID) to prevent cross-student contamination
-            try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
-            if (localBackup) {
-              localBackupData = JSON.parse(localBackup);
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            
+            // If already submitted, redirect to dashboard
+            if (statusData.submitted) {
+              setNotification({
+                isOpen: true,
+                type: 'warning',
+                title: 'Exam Already Submitted',
+                message: 'You have already submitted this exam. You cannot retake it.',
+                confirmText: 'Go to Dashboard',
+                onConfirm: () => navigate("/student/dashboard")
+              });
+              return;
             }
-          } catch (localErr) {
-            console.warn('Failed to restore from local storage:', localErr);
-          }
 
-          const serverAutosave = statusData.has_autosave ? statusData.autosave : null;
-          const serverTimestamp = serverAutosave?.last_updated ? new Date(serverAutosave.last_updated).getTime() : 0;
-          const localTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
+            let localBackupData = null;
+            try {
+              const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
+              // Clean up old key format (no user ID) to prevent cross-student contamination
+              try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
+              if (localBackup) {
+                localBackupData = JSON.parse(localBackup);
+              }
+            } catch (localErr) {
+              console.warn('Failed to restore from local storage:', localErr);
+            }
 
-          if (localBackupData && (!serverAutosave || (Number.isFinite(localTimestamp) && localTimestamp > serverTimestamp))) {
-            console.log('[ExamPlayer] Restoring from local storage backup:', localBackupData);
-            await restoreSavedProgress(localBackupData, 'local');
-          } else if (serverAutosave) {
-            console.log('[ExamPlayer] Restoring from autosave:', serverAutosave);
-            await restoreSavedProgress(serverAutosave, 'server');
+            const serverAutosave = statusData.has_autosave ? statusData.autosave : null;
+            const serverTimestamp = serverAutosave?.last_updated ? new Date(serverAutosave.last_updated).getTime() : 0;
+            const localTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
+
+            if (localBackupData && (!serverAutosave || (Number.isFinite(localTimestamp) && localTimestamp > serverTimestamp))) {
+              console.log('[ExamPlayer] Restoring from local storage backup:', localBackupData);
+              await restoreSavedProgress(localBackupData, 'local');
+            } else if (serverAutosave) {
+              console.log('[ExamPlayer] Restoring from autosave:', serverAutosave);
+              await restoreSavedProgress(serverAutosave, 'server');
+            }
           }
         }
 
@@ -295,29 +308,34 @@ export default function ExamPlayer() {
     if (token && examId) {
       fetchExamData();
     }
-  }, [token, examId, navigate, restoreSavedProgress]);
+  }, [token, examId, navigate, restoreSavedProgress, isAdminPreview, user?.id]);
 
   // ============================================
   // FULLSCREEN ENFORCEMENT
   // ============================================
   const handleFullscreenChange = useCallback(() => {
+    if (isAdminPreview) return;
+
     const isNowFullscreen = !!document.fullscreenElement;
     setIsFullscreen(isNowFullscreen);
 
     if (!isNowFullscreen && hasStarted && !examSubmitted) {
       logViolation("fullscreen_exit", "User exited fullscreen mode (Esc key or browser action)");
     }
-  }, [hasStarted, examSubmitted]);
+  }, [hasStarted, examSubmitted, isAdminPreview]);
 
   useEffect(() => {
+    if (isAdminPreview) return;
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [handleFullscreenChange]);
+  }, [handleFullscreenChange, isAdminPreview]);
 
   // ============================================
   // VIOLATION LOGGING
   // ============================================
   const logViolation = useCallback(async (type, detail = '') => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
 
     const violation = {
@@ -364,10 +382,11 @@ export default function ExamPlayer() {
         enterFullscreen();
       }
     }, 5000);
-  }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen, violations.length]);
+  }, [hasStarted, examSubmitted, currentModule, examId, token, enterFullscreen, violations.length, isAdminPreview]);
 
   // Window blur detection (catches Alt+Tab, clicking another window, devtools opening)
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
 
     const handleWindowBlur = () => {
@@ -378,10 +397,12 @@ export default function ExamPlayer() {
 
     window.addEventListener("blur", handleWindowBlur);
     return () => window.removeEventListener("blur", handleWindowBlur);
-  }, [hasStarted, examSubmitted, logViolation]);
+  }, [hasStarted, examSubmitted, logViolation, isAdminPreview]);
 
   // Tab visibility detection (fires on minimization or tab switch, debounced to avoid double-logging with blur)
   useEffect(() => {
+    if (isAdminPreview) return;
+
     const handleVisibilityChange = () => {
       if (document.hidden && hasStarted && !examSubmitted) {
         // Small delay to avoid double-logging when blur already fired
@@ -393,10 +414,11 @@ export default function ExamPlayer() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [hasStarted, examSubmitted, logViolation]);
+  }, [hasStarted, examSubmitted, logViolation, isAdminPreview]);
 
   // Disable common keyboard shortcuts for devtools/extensions
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
 
     const handleKeyDown = (e) => {
@@ -414,12 +436,13 @@ export default function ExamPlayer() {
 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
-  }, [hasStarted, examSubmitted, logViolation]);
+  }, [hasStarted, examSubmitted, logViolation, isAdminPreview]);
 
   // ============================================
   // MODULE TIMER
   // ============================================
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
 
     const interval = setInterval(() => {
@@ -457,7 +480,7 @@ export default function ExamPlayer() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasStarted, currentModule, currentWritingTask, examSubmitted]);
+  }, [hasStarted, currentModule, currentWritingTask, examSubmitted, isAdminPreview]);
 
   // ============================================
   // AUTO-SAVE
@@ -568,6 +591,7 @@ export default function ExamPlayer() {
   }, [examId, token, maxRetries]);
 
   const saveAnswers = useCallback(async (answerData, options = {}) => {
+    if (isAdminPreview) return Promise.resolve();
     if (!hasStartedRef.current || examSubmittedRef.current) return Promise.resolve();
 
     const force = options.force === true;
@@ -632,7 +656,7 @@ export default function ExamPlayer() {
     });
 
     return activeSavePromiseRef.current;
-  }, [buildAutosaveSignature, performAutosaveRequest]);
+  }, [buildAutosaveSignature, performAutosaveRequest, isAdminPreview]);
 
   const flushPendingAutosave = useCallback(async (answerData) => {
     if (autoSaveTimeoutRef.current) {
@@ -655,6 +679,7 @@ export default function ExamPlayer() {
   // ============================================
   // Auto-save on answer change - immediate save
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
     if (JSON.stringify(answers) === JSON.stringify(lastSaveRef.current)) return;
 
@@ -674,22 +699,24 @@ export default function ExamPlayer() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [answers, hasStarted, examSubmitted, saveAnswers]);
+  }, [answers, hasStarted, examSubmitted, saveAnswers, isAdminPreview]);
 
   // Auto-save on module/part/task change
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
     
     // Save immediately when navigation changes
     saveAnswers(answersRef.current).catch((err) => {
       console.error("Navigation auto-save failed:", err);
     });
-  }, [hasStarted, examSubmitted, currentModule, currentPart, currentWritingTask, saveAnswers]);
+  }, [hasStarted, examSubmitted, currentModule, currentPart, currentWritingTask, saveAnswers, isAdminPreview]);
 
   // Periodic auto-save (every 60 seconds) to persist time spent data
   // Since timeSpent is excluded from the signature, this forces a save
   // so that the server has up-to-date time tracking.
   useEffect(() => {
+    if (isAdminPreview) return;
     if (!hasStarted || examSubmitted) return;
 
     const periodicSave = setInterval(() => {
@@ -699,12 +726,17 @@ export default function ExamPlayer() {
     }, 60000); // Save every 60 seconds
 
     return () => clearInterval(periodicSave);
-  }, [hasStarted, examSubmitted, saveAnswers]);
+  }, [hasStarted, examSubmitted, saveAnswers, isAdminPreview]);
 
   // ============================================
   // START EXAM
   // ============================================
   const handleStartExam = async () => {
+    if (isAdminPreview) {
+      setHasStarted(true);
+      return;
+    }
+
     await enterFullscreen();
     setHasStarted(true);
 
@@ -745,6 +777,17 @@ export default function ExamPlayer() {
   // MODULE SUBMISSION
   // ============================================
   const handleModuleSubmit = async (autoSubmit = false, bypassConfirmation = false) => {
+    if (isAdminPreview) {
+      const currentIndex = MODULE_ORDER.indexOf(currentModule);
+      if (currentIndex < MODULE_ORDER.length - 1) {
+        const nextModule = MODULE_ORDER[currentIndex + 1];
+        setCurrentModule(nextModule);
+        setCurrentPart(1);
+        setCurrentWritingTask(1);
+      }
+      return;
+    }
+
     if (isSubmitting) return;
 
     if (!autoSubmit && !bypassConfirmation && (currentModule === 'listening' || currentModule === 'reading')) {
@@ -829,6 +872,7 @@ export default function ExamPlayer() {
   // FINAL SUBMISSION
   // ============================================
   const handleFinalSubmit = async (bypassConfirmation = false, autoSubmit = false) => {
+    if (isAdminPreview) return;
     if (isSubmitting || examSubmitted) return;
 
     if (!bypassConfirmation && !autoSubmit) {
@@ -1155,10 +1199,10 @@ export default function ExamPlayer() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Exam</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => navigate("/student/dashboard")}
+            onClick={() => navigate(isAdminPreview ? "/admin/exams" : "/student/dashboard")}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Back to Dashboard
+            {isAdminPreview ? "Back to Exams" : "Back to Dashboard"}
           </button>
         </div>
       </div>
@@ -1317,9 +1361,11 @@ export default function ExamPlayer() {
   // MAIN EXAM INTERFACE
   // ============================================
   const timerKey = currentModule === 'writing' ? `writing_task${currentWritingTask}` : currentModule;
-  const timeColor = moduleTimeRemaining[timerKey] < 300 ? "text-red-600" : "text-gray-700";
   const isLastModule = currentModule === MODULE_ORDER[MODULE_ORDER.length - 1] && 
                        (currentModule !== 'writing' || currentWritingTask === 2);
+  const moduleSwitchTargets = MODULE_ORDER.filter((moduleType) =>
+    sections.some((section) => section.module_type === moduleType)
+  );
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -1329,6 +1375,27 @@ export default function ExamPlayer() {
           <h2 className="text-xl font-bold">{exam?.title}</h2>
           <div className="flex items-center space-x-4 text-sm">
             <span className="px-3 py-1 bg-white/10 rounded-full capitalize">{currentModule}</span>
+            {isAdminPreview && (
+              <div className="flex items-center space-x-2">
+                {moduleSwitchTargets.map((moduleType) => (
+                  <button
+                    key={moduleType}
+                    onClick={() => {
+                      setCurrentModule(moduleType);
+                      setCurrentPart(1);
+                      setCurrentWritingTask(1);
+                    }}
+                    className={`px-3 py-1 rounded-full capitalize transition ${
+                      currentModule === moduleType
+                        ? 'bg-cyan-500/30 text-cyan-100 border border-cyan-400/40'
+                        : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                    }`}
+                  >
+                    {moduleType}
+                  </button>
+                ))}
+              </div>
+            )}
             {violations.length > 0 && (
               <span className="px-3 py-1 bg-red-500/20 text-red-200 rounded-full flex items-center space-x-1">
                 <AlertTriangle size={14} />
@@ -1403,38 +1470,48 @@ export default function ExamPlayer() {
         </div>
         
         <div className="flex items-center space-x-6">
-          <div className={`flex items-center space-x-2 font-bold text-lg text-white`}>
-            <Clock size={20} />
-            <span>{formatTime(moduleTimeRemaining[timerKey])}</span>
-            {currentModule === 'writing' && (
-              <span className="text-sm font-normal ml-2">Task {currentWritingTask}</span>
-            )}
-          </div>
+          {!isAdminPreview ? (
+            <div className="flex items-center space-x-2 font-bold text-lg text-white">
+              <Clock size={20} />
+              <span>{formatTime(moduleTimeRemaining[timerKey])}</span>
+              {currentModule === 'writing' && (
+                <span className="text-sm font-normal ml-2">Task {currentWritingTask}</span>
+              )}
+            </div>
+          ) : (
+            <div className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 text-sm font-semibold">
+              Admin Preview (no timer, no submission)
+            </div>
+          )}
           
           {/* Save Status Indicator */}
-          <div className="flex items-center space-x-2 text-sm">
-            {saveStatus === 'saving' && (
-              <span className="text-yellow-300 flex items-center space-x-1">
-                <span className="animate-spin">⟳</span>
-                <span>Saving...</span>
-              </span>
-            )}
-            {saveStatus === 'saved' && lastSaveTime && (
-              <span className="text-green-300 flex items-center space-x-1">
-                <CheckCircle size={16} />
-                <span>Saved</span>
-              </span>
-            )}
-          </div>
+          {!isAdminPreview && (
+            <div className="flex items-center space-x-2 text-sm">
+              {saveStatus === 'saving' && (
+                <span className="text-yellow-300 flex items-center space-x-1">
+                  <span className="animate-spin">⟳</span>
+                  <span>Saving...</span>
+                </span>
+              )}
+              {saveStatus === 'saved' && lastSaveTime && (
+                <span className="text-green-300 flex items-center space-x-1">
+                  <CheckCircle size={16} />
+                  <span>Saved</span>
+                </span>
+              )}
+            </div>
+          )}
           
-          <button
-            onClick={isLastModule ? () => handleFinalSubmit(false, false) : () => handleModuleSubmit(false)}
-            disabled={isSubmitting}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center space-x-2 transition disabled:opacity-50"
-          >
-            <span>{isLastModule ? "Submit Exam" : `Submit ${currentModule}`}</span>
-            {isLastModule ? <Send size={18} /> : <ChevronRight size={18} />}
-          </button>
+          {!isAdminPreview && (
+            <button
+              onClick={isLastModule ? () => handleFinalSubmit(false, false) : () => handleModuleSubmit(false)}
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center space-x-2 transition disabled:opacity-50"
+            >
+              <span>{isLastModule ? "Submit Exam" : `Submit ${currentModule}`}</span>
+              {isLastModule ? <Send size={18} /> : <ChevronRight size={18} />}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1577,7 +1654,7 @@ export default function ExamPlayer() {
                       />
                       
                       {/* Task 1 -> Task 2 Navigation */}
-                      {currentWritingTask === 1 && (
+                      {currentWritingTask === 1 && !isAdminPreview && (
                         <div className="mt-6 flex justify-end">
                           <button
                             onClick={() => confirmMoveToTask2('Do you want to move to Task 2?')}
@@ -1748,13 +1825,17 @@ export default function ExamPlayer() {
             const taskKey = `writing_task_${taskNumber}`;
             const isAnswered = (answers[taskKey] || '').trim().length > 0;
             const isCurrentTask = taskNumber === currentWritingTask;
-            const isLocked = taskNumber > currentWritingTask;
-            const isCompleted = taskNumber < currentWritingTask;
+            const isLocked = !isAdminPreview && taskNumber > currentWritingTask;
+            const isCompleted = !isAdminPreview && taskNumber < currentWritingTask;
             
             return (
               <button 
                 key={section.id} 
                 onClick={() => {
+                  if (isAdminPreview) {
+                    setCurrentWritingTask(taskNumber);
+                    return;
+                  }
                   if (taskNumber === currentWritingTask) return;
                   if (taskNumber > currentWritingTask) {
                     confirmMoveToTask2('Submit Task 1 and move to Task 2? You cannot return to Task 1.');
@@ -1786,7 +1867,7 @@ export default function ExamPlayer() {
       </div>
 
       {/* Fullscreen Exit Warning */}
-      {!isFullscreen && (
+      {!isAdminPreview && !isFullscreen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl p-8 max-w-md text-center">
             <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />

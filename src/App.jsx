@@ -99,6 +99,15 @@ function App() {
             }
           />
 
+          <Route
+            path="/admin/exam-preview/:id"
+            element={
+              <PrivateRoute role="admin">
+                <ExamPlayerKeyed />
+              </PrivateRoute>
+            }
+          />
+
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
