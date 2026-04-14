@@ -432,7 +432,13 @@ export default function SubmissionDetail() {
         const moduleData = submission.answers_by_module?.[moduleKey];
         if (!moduleData) return null;
 
-        const baseAnswers = Array.isArray(moduleData.answers) ? moduleData.answers : [];
+        const baseAnswers = Array.isArray(moduleData.answers)
+          ? moduleData.answers.filter((a) => {
+              const qType = String(a?.question_type || '').toLowerCase();
+              const sectionTitle = String(a?.section_title || '').toLowerCase();
+              return qType !== 'structured_recovered' && !sectionTitle.includes('recovered questions');
+            })
+          : [];
 
         const moduleTotal = getModuleTotal(moduleKey, moduleData);
         if (baseAnswers.length === 0 && moduleTotal <= 0) return null;
@@ -854,7 +860,11 @@ export default function SubmissionDetail() {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
 
-            const mergedAnswers = [...(moduleData.answers || [])];
+            const mergedAnswers = (moduleData.answers || []).filter((ans) => {
+              const qType = String(ans?.question_type || '').toLowerCase();
+              const sectionTitle = String(ans?.section_title || '').toLowerCase();
+              return qType !== 'structured_recovered' && !sectionTitle.includes('recovered questions');
+            });
 
             // Group answers by section
             const answersBySection = {};

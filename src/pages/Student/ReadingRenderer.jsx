@@ -648,6 +648,37 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     });
   };
 
+  const resolveElementNode = (node) => {
+    if (!node) return null;
+    return node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+  };
+
+  const findClosestBlock = (node) => {
+    const el = resolveElementNode(node);
+    if (!el || !(el instanceof Element)) return null;
+    return el.closest('p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, figcaption, div');
+  };
+
+  const isRangeHighlightSafe = (range) => {
+    if (!range || range.collapsed) return false;
+
+    const startEl = resolveElementNode(range.startContainer);
+    const endEl = resolveElementNode(range.endContainer);
+    if (!startEl || !endEl || !passageContentRef.current) return false;
+
+    if (!passageContentRef.current.contains(startEl) || !passageContentRef.current.contains(endEl)) {
+      return false;
+    }
+
+    const startBlock = findClosestBlock(startEl);
+    const endBlock = findClosestBlock(endEl);
+    if (startBlock && endBlock && startBlock !== endBlock) {
+      return false;
+    }
+
+    return true;
+  };
+
   const getPassageStorageKey = () => {
     if (!examId || !userId || !section?.id) return null;
     return `reading_highlights_${examId}_${userId}_${section.id}`;
@@ -706,6 +737,11 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       : range.commonAncestorContainer;
 
     if (!passageContentRef.current.contains(anchorNode)) {
+      closeSelectionAction();
+      return;
+    }
+
+    if (!isRangeHighlightSafe(range)) {
       closeSelectionAction();
       return;
     }
@@ -851,6 +887,11 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       : range.commonAncestorContainer;
 
     if (!passageContentRef.current.contains(anchorNode)) {
+      closeSelectionAction();
+      return;
+    }
+
+    if (!isRangeHighlightSafe(range)) {
       closeSelectionAction();
       return;
     }
