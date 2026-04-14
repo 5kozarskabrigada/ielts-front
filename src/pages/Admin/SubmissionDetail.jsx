@@ -66,7 +66,12 @@ export default function SubmissionDetail() {
     { min: 16, max: 17, band: 5.0 },
     { min: 13, max: 15, band: 4.5 },
     { min: 10, max: 12, band: 4.0 },
-    { min: 0, max: 9, band: 0.0 },
+    { min: 7, max: 9, band: 3.5 },
+    { min: 4, max: 6, band: 3.0 },
+    { min: 3, max: 3, band: 2.5 },
+    { min: 2, max: 2, band: 2.0 },
+    { min: 1, max: 1, band: 1.0 },
+    { min: 0, max: 0, band: 0.0 },
   ];
 
   const ACADEMIC_READING_BAND_TABLE = [
@@ -82,10 +87,12 @@ export default function SubmissionDetail() {
     { min: 13, max: 14, band: 4.5 },
     { min: 10, max: 12, band: 4.0 },
     { min: 8, max: 9, band: 3.5 },
-    { min: 6, max: 7, band: 3.0 },
-    { min: 4, max: 5, band: 2.5 },
-    { min: 3, max: 3, band: 2.0 },
-    { min: 2, max: 2, band: 1.5 },
+    { min: 7, max: 7, band: 3.5 },
+    { min: 6, max: 6, band: 3.0 },
+    { min: 5, max: 5, band: 3.0 },
+    { min: 4, max: 4, band: 3.0 },
+    { min: 3, max: 3, band: 2.5 },
+    { min: 2, max: 2, band: 2.0 },
     { min: 1, max: 1, band: 1.0 },
     { min: 0, max: 0, band: 0.0 },
   ];
@@ -841,9 +848,34 @@ export default function SubmissionDetail() {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
 
+            const moduleTotal = getModuleTotal(module, moduleData);
+            const existingNumbers = new Set(
+              (moduleData.answers || [])
+                .map((ans) => Number(ans?.question_number || 0))
+                .filter((n) => Number.isFinite(n) && n > 0)
+            );
+
+            const recoveredRows = [];
+            for (let q = 1; q <= moduleTotal; q += 1) {
+              if (!existingNumbers.has(q)) {
+                recoveredRows.push({
+                  question_number: q,
+                  question_text: `Question ${q} (recovered placeholder row)`,
+                  user_answer: null,
+                  correct_answer: null,
+                  is_correct: null,
+                  section_title: 'Recovered Questions',
+                  section_order: 999,
+                  question_type: 'structured_recovered',
+                });
+              }
+            }
+
+            const mergedAnswers = [...(moduleData.answers || []), ...recoveredRows];
+
             // Group answers by section
             const answersBySection = {};
-            moduleData.answers.forEach(ans => {
+            mergedAnswers.forEach(ans => {
               const sectionKey = ans.section_title || 'Unknown Section';
               if (!answersBySection[sectionKey]) {
                 answersBySection[sectionKey] = { order: ans.section_order, answers: [] };
