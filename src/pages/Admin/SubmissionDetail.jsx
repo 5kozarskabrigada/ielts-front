@@ -52,6 +52,25 @@ export default function SubmissionDetail() {
     return new Date(dateString).toLocaleString();
   };
 
+  const EXAMROOM_LOGO_URL = 'https://www.image2url.com/r2/default/images/1776184637206-291b37c3-761a-40e8-9a97-ff58706b8eb2.jpg';
+
+  const loadLogoAsDataUrl = async (url) => {
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      return typeof dataUrl === 'string' ? dataUrl : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!submission || downloadingPdf) return;
     setDownloadingPdf(true);
@@ -72,6 +91,7 @@ export default function SubmissionDetail() {
       const green = [22, 163, 74];
       const red = [220, 38, 38];
       const amber = [217, 119, 6];
+      const logoDataUrl = await loadLogoAsDataUrl(EXAMROOM_LOGO_URL);
 
       const totalScore = submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A';
       const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
@@ -80,21 +100,25 @@ export default function SubmissionDetail() {
         pdf.setFillColor(...dark);
         pdf.roundedRect(margin, margin, contentWidth, 54, 4, 4, 'F');
 
-        // Logo wordmark + clock icon
+        // Brand logo from provided URL
+        if (logoDataUrl) {
+          try {
+            pdf.addImage(logoDataUrl, 'JPEG', margin + 8, margin + 6, 38, 18, undefined, 'FAST');
+          } catch {
+            // If format detection fails, keep text fallback below.
+          }
+        }
+
+        // Brand text fallback / companion text
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(19);
-        pdf.text('EXAMROOM', margin + 9, margin + 15);
-        pdf.setDrawColor(56, 189, 248);
-        pdf.setLineWidth(0.8);
-        pdf.circle(margin + 66, margin + 11, 3.2);
-        pdf.line(margin + 66, margin + 11, margin + 67.8, margin + 9.8);
-        pdf.line(margin + 66, margin + 11, margin + 64.8, margin + 12.5);
+        pdf.text('EXAMROOM', margin + 49, margin + 15);
 
         pdf.setTextColor(156, 163, 175);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
-        pdf.text(submission.exam_title || 'Exam Submission Report', margin + 9, margin + 23);
+        pdf.text(submission.exam_title || 'Exam Submission Report', margin + 49, margin + 23);
 
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
