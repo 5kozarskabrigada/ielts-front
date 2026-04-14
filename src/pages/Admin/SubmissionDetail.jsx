@@ -170,7 +170,7 @@ export default function SubmissionDetail() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: {
           mode: ['css', 'legacy'],
-          before: '[data-pdf-page-break]',
+          before: '[data-pdf-page-break], [data-pdf-part-break]',
           avoid: ['.pdf-keep-together']
         }
       };
@@ -452,7 +452,7 @@ export default function SubmissionDetail() {
                 </div>
                 
                 {sortedSections.map(([sectionTitle, sectionData], sIdx) => (
-                  <div key={sIdx}>
+                  <div key={sIdx} data-pdf-part-break={sIdx > 0 ? 'true' : undefined}>
                     <div className="px-6 py-2 bg-blue-50 border-b border-blue-100">
                       <span className="text-sm font-semibold text-blue-800">
                         Part {sIdx + 1}: {sectionTitle}
