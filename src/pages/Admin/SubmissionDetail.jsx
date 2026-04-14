@@ -81,6 +81,25 @@ export default function SubmissionDetail() {
     return null;
   };
 
+  const getModuleTotal = (moduleKey, moduleAnswers) => {
+    const correct = Number(moduleAnswers?.correct || 0);
+    const wrong = Number(moduleAnswers?.wrong || 0);
+    const skipped = Number(moduleAnswers?.skipped || 0);
+    const explicitTotal = Number(moduleAnswers?.total_questions || 0);
+    const answersLen = Array.isArray(moduleAnswers?.answers) ? moduleAnswers.answers.length : 0;
+    const maxQuestionNumber = Array.isArray(moduleAnswers?.answers)
+      ? moduleAnswers.answers.reduce((m, a) => Math.max(m, Number(a?.question_number || 0)), 0)
+      : 0;
+
+    let total = Math.max(explicitTotal, answersLen, correct + wrong + skipped, maxQuestionNumber);
+
+    if ((moduleKey === 'reading' || moduleKey === 'listening') && total > 0 && total < 40) {
+      total = 40;
+    }
+
+    return total;
+  };
+
   const handleDownloadPdf = async () => {
     if (!submission || downloadingPdf) return;
     setDownloadingPdf(true);
@@ -108,65 +127,79 @@ export default function SubmissionDetail() {
       const getModuleStats = (moduleKey) => {
         const m = submission.answers_by_module?.[moduleKey] || {};
         const correct = Number(m.correct || 0);
-        const wrong = Number(m.wrong || 0);
-        const skipped = Number(m.skipped || 0);
-        const answersLen = Array.isArray(m.answers) ? m.answers.length : 0;
-        const total = Number(m.total_questions || 0) || answersLen || (correct + wrong + skipped);
+        const total = getModuleTotal(moduleKey, m);
         return { correct, total };
       };
 
       const drawCover = () => {
-        pdf.setFillColor(...dark);
-        pdf.roundedRect(margin, margin, contentWidth, 54, 4, 4, 'F');
+        const brandY = margin;
+        const brandH = 18;
+        const coverY = margin + 22;
+
+        // Put logo at the very beginning of the page in a dedicated brand strip.
+        pdf.setFillColor(...panel);
+        pdf.setDrawColor(...border);
+        pdf.roundedRect(margin, brandY, contentWidth, brandH, 3, 3, 'FD');
 
         // Brand logo from provided URL
         if (logoDataUrl) {
           try {
-            pdf.addImage(logoDataUrl, 'JPEG', margin + 8, margin + 6, 38, 18, undefined, 'FAST');
+            const imageType = logoDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            pdf.addImage(logoDataUrl, imageType, margin + (contentWidth - 56) / 2, brandY + 1.2, 56, 15, undefined, 'FAST');
           } catch {
             // If format detection fails, keep text fallback below.
           }
         }
 
-        // Brand text fallback / companion text
+        if (!logoDataUrl) {
+          pdf.setTextColor(...dark);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          pdf.text('EXAMROOM', pageWidth / 2, brandY + 11.5, { align: 'center' });
+        }
+
+        pdf.setFillColor(...dark);
+        pdf.roundedRect(margin, coverY, contentWidth, 54, 4, 4, 'F');
+
+        // Cover text
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(19);
-        pdf.text('EXAMROOM', margin + 49, margin + 15);
+        pdf.text('Submission Results', margin + 8, coverY + 15);
 
         pdf.setTextColor(156, 163, 175);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(10);
-        pdf.text(submission.exam_title || 'Exam Submission Report', margin + 49, margin + 23);
+        pdf.text(submission.exam_title || 'Exam Submission Report', margin + 8, coverY + 23);
 
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(26);
-        pdf.text(`${totalScore}`, pageWidth - margin - 8, margin + 18, { align: 'right' });
+        pdf.text(`${totalScore}`, pageWidth - margin - 8, coverY + 18, { align: 'right' });
 
         pdf.setTextColor(156, 163, 175);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
-        pdf.text('TOTAL BAND', pageWidth - margin - 8, margin + 25, { align: 'right' });
+        pdf.text('TOTAL BAND', pageWidth - margin - 8, coverY + 25, { align: 'right' });
 
         pdf.setDrawColor(55, 65, 81);
-        pdf.line(margin + 8, margin + 35, pageWidth - margin - 8, margin + 35);
+        pdf.line(margin + 8, coverY + 35, pageWidth - margin - 8, coverY + 35);
 
         pdf.setTextColor(156, 163, 175);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
-        pdf.text('STUDENT', margin + 8, margin + 43);
-        pdf.text('DATE', pageWidth - margin - 8, margin + 43, { align: 'right' });
+        pdf.text('STUDENT', margin + 8, coverY + 43);
+        pdf.text('DATE', pageWidth - margin - 8, coverY + 43, { align: 'right' });
 
         pdf.setTextColor(255, 255, 255);
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(12);
-        pdf.text(submission.user_name || 'Unknown Student', margin + 8, margin + 49);
-        pdf.text(completedDate, pageWidth - margin - 8, margin + 49, { align: 'right' });
+        pdf.text(submission.user_name || 'Unknown Student', margin + 8, coverY + 49);
+        pdf.text(completedDate, pageWidth - margin - 8, coverY + 49, { align: 'right' });
       };
 
       const drawSummaryCards = () => {
-        const y = margin + 64;
+        const y = margin + 86;
         const gap = 4;
         const cardW = (contentWidth - gap * 3) / 4;
         const listeningStats = getModuleStats('listening');
@@ -592,7 +625,7 @@ export default function SubmissionDetail() {
               const score = parseFloat(submission.scores_by_module?.[module]) || 0;
               const moduleAnswers = submission.answers_by_module?.[module];
               const correct = moduleAnswers?.correct || 0;
-              const total = moduleAnswers?.total_questions || (Array.isArray(moduleAnswers?.answers) ? moduleAnswers.answers.length : (correct + (moduleAnswers?.wrong || 0) + (moduleAnswers?.skipped || 0)));
+              const total = getModuleTotal(module, moduleAnswers);
               return (
                 <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
