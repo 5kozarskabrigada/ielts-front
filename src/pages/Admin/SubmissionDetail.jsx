@@ -54,6 +54,27 @@ export default function SubmissionDetail() {
 
   const EXAMROOM_LOGO_URL = 'https://www.image2url.com/r2/default/images/1776187544241-f8e0bf3d-2418-475d-ad65-2a9b6939d231.png';
 
+  const ACADEMIC_READING_SCORE_TABLE = [
+    { range: '39 - 40', band: 9.0 },
+    { range: '37 - 38', band: 8.5 },
+    { range: '35 - 36', band: 8.0 },
+    { range: '33 - 34', band: 7.5 },
+    { range: '30 - 32', band: 7.0 },
+    { range: '27 - 29', band: 6.5 },
+    { range: '23 - 26', band: 6.0 },
+    { range: '19 - 22', band: 5.5 },
+    { range: '15 - 18', band: 5.0 },
+    { range: '13 - 14', band: 4.5 },
+    { range: '10 - 12', band: 4.0 },
+    { range: '8 - 9', band: 3.5 },
+    { range: '6 - 7', band: 3.0 },
+    { range: '4 - 5', band: 2.5 },
+    { range: '3', band: 2.0 },
+    { range: '2', band: 1.5 },
+    { range: '1', band: 1.0 },
+    { range: '0', band: 0.0 },
+  ];
+
   const loadLogoAsDataUrl = async (url) => {
     const candidates = [
       url,
@@ -525,10 +546,52 @@ export default function SubmissionDetail() {
         });
       };
 
+      const addAcademicReadingScoringSection = () => {
+        const readingData = submission.answers_by_module?.reading || {};
+        const readingCorrect = Number(readingData.correct || 0);
+        const readingBand = getModuleBandScore('reading');
+
+        let y = addPageHeader('Academic Reading Scoring', 'Academic Reading conversion guide only');
+
+        pdf.setFillColor(241, 245, 249);
+        pdf.setDrawColor(...border);
+        pdf.roundedRect(margin, y - 4, contentWidth, 14, 2, 2, 'FD');
+        pdf.setTextColor(...dark);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.text(`Student Reading: ${readingCorrect}/40`, margin + 4, y + 1.8);
+        pdf.text(`Band: ${readingBand != null ? readingBand.toFixed(1) : 'N/A'}`, pageWidth - margin - 4, y + 1.8, { align: 'right' });
+
+        autoTable(pdf, {
+          startY: y + 14,
+          head: [['Correct Answers (40)', 'Band Score']],
+          body: ACADEMIC_READING_SCORE_TABLE.map((row) => [row.range, row.band.toFixed(1)]),
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          headStyles: {
+            fillColor: dark,
+            textColor: 255,
+            fontSize: 9,
+            halign: 'left',
+          },
+          styles: {
+            fontSize: 8.5,
+            cellPadding: 2.8,
+            lineColor: border,
+            lineWidth: 0.1,
+          },
+          columnStyles: {
+            0: { cellWidth: 90 },
+            1: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
+          },
+        });
+      };
+
       drawCover();
       drawSummaryCards();
       addModuleBreakdown('listening', 'Listening');
       addModuleBreakdown('reading', 'Reading');
+      addAcademicReadingScoringSection();
       addWritingSection();
 
       const pageCount = pdf.getNumberOfPages();
@@ -726,6 +789,42 @@ export default function SubmissionDetail() {
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
+        <h3 className="text-xl font-bold text-gray-900 mb-4">Academic Reading Scoring</h3>
+        <p className="text-sm text-gray-600 mb-4">Academic Reading conversion table (40 questions).</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Student Reading Correct</p>
+            <p className="text-2xl font-bold text-gray-900">{submission.answers_by_module?.reading?.correct || 0} / 40</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Reading Band</p>
+            <p className="text-2xl font-bold text-gray-900">{(() => {
+              const readingBand = getModuleBandScore('reading');
+              return readingBand != null ? readingBand.toFixed(1) : 'N/A';
+            })()}</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
+            <thead className="bg-gray-900 text-white">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold">Correct Answers (40)</th>
+                <th className="px-4 py-2 text-left font-semibold">Band Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ACADEMIC_READING_SCORE_TABLE.map((row) => (
+                <tr key={`${row.range}-${row.band}`} className="border-t border-gray-200">
+                  <td className="px-4 py-2 text-gray-800">{row.range}</td>
+                  <td className="px-4 py-2 font-semibold text-gray-900">{row.band.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Writing Assessment Summary — teacher overview shown on the PDF cover page */}
       {(submission.writing_responses || []).some(wr => wr.ai_overall_band != null) && (

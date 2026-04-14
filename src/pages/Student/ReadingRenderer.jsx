@@ -852,7 +852,9 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       span.className = 'reading-user-highlight';
       span.style.backgroundColor = '#fff59d';
       span.style.cursor = 'pointer';
-      span.style.padding = '0 1px';
+      span.style.padding = '0';
+      span.style.margin = '0';
+      span.style.display = 'inline';
       return span;
     };
 
@@ -869,17 +871,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
         range.insertNode(highlightSpan);
         applied = true;
       } catch {
-        try {
-          const text = range.toString();
-          if (!text || !text.trim()) return;
-          const highlightSpan = createHighlightSpan();
-          highlightSpan.textContent = text;
-          range.deleteContents();
-          range.insertNode(highlightSpan);
-          applied = true;
-        } catch {
-          return;
-        }
+        return;
       }
     }
 

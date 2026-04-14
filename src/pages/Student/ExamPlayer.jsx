@@ -50,19 +50,23 @@ export default function ExamPlayer() {
     showCancel: false
   });
 
-  // Timer state
-  const [moduleTimeRemaining, setModuleTimeRemaining] = useState({
+  const DEFAULT_TIME_REMAINING = {
     listening: 30 * 60,
     reading: 60 * 60,
-    writing_task1: 20 * 60, // Task 1: 20 minutes
-    writing_task2: 40 * 60  // Task 2: 40 minutes
-  });
-  const [timeSpent, setTimeSpent] = useState({
+    writing_task1: 20 * 60,
+    writing_task2: 40 * 60,
+  };
+
+  const DEFAULT_TIME_SPENT = {
     listening: 0,
     reading: 0,
     writing_task1: 0,
-    writing_task2: 0
-  });
+    writing_task2: 0,
+  };
+
+  // Timer state
+  const [moduleTimeRemaining, setModuleTimeRemaining] = useState(DEFAULT_TIME_REMAINING);
+  const [timeSpent, setTimeSpent] = useState(DEFAULT_TIME_SPENT);
 
   // Fullscreen & violation state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -96,6 +100,7 @@ export default function ExamPlayer() {
   const currentPartRef = useRef(1);
   const currentWritingTaskRef = useRef(1);
   const timeSpentRef = useRef(timeSpent);
+  const moduleTimeRemainingRef = useRef(moduleTimeRemaining);
 
   // Module order
   const MODULE_ORDER = ["listening", "reading", "writing"];
@@ -157,12 +162,23 @@ export default function ExamPlayer() {
     const restoredModule = savedProgress.current_module || savedProgress.module || 'listening';
     const restoredPart = savedProgress.current_part || savedProgress.currentPart || 1;
     const restoredWritingTask = savedProgress.current_writing_task || savedProgress.currentWritingTask || 1;
-    const restoredTimeSpent = savedProgress.time_spent || savedProgress.timeSpent || {
-      listening: 0,
-      reading: 0,
-      writing_task1: 0,
-      writing_task2: 0,
+    const restoredTimeSpent = {
+      ...DEFAULT_TIME_SPENT,
+      ...(savedProgress.time_spent || savedProgress.timeSpent || {})
     };
+
+    const restoredModuleTimeRemainingRaw = savedProgress.module_time_remaining || savedProgress.moduleTimeRemaining || null;
+    const restoredModuleTimeRemaining = restoredModuleTimeRemainingRaw && typeof restoredModuleTimeRemainingRaw === 'object'
+      ? {
+          ...DEFAULT_TIME_REMAINING,
+          ...restoredModuleTimeRemainingRaw,
+        }
+      : {
+          listening: Math.max(0, DEFAULT_TIME_REMAINING.listening - Number(restoredTimeSpent.listening || 0)),
+          reading: Math.max(0, DEFAULT_TIME_REMAINING.reading - Number(restoredTimeSpent.reading || 0)),
+          writing_task1: Math.max(0, DEFAULT_TIME_REMAINING.writing_task1 - Number(restoredTimeSpent.writing_task1 || 0)),
+          writing_task2: Math.max(0, DEFAULT_TIME_REMAINING.writing_task2 - Number(restoredTimeSpent.writing_task2 || 0)),
+        };
 
     setCurrentModule(restoredModule);
     setCurrentPart(restoredPart);
@@ -171,6 +187,7 @@ export default function ExamPlayer() {
     if (restoredTimeSpent && typeof restoredTimeSpent === 'object') {
       setTimeSpent(restoredTimeSpent);
     }
+    setModuleTimeRemaining(restoredModuleTimeRemaining);
 
     lastSavedSignatureRef.current = buildAutosaveSignature(
       savedProgress.answers_data && typeof savedProgress.answers_data === 'object'
@@ -251,15 +268,32 @@ export default function ExamPlayer() {
             }
 
             let localBackupData = null;
+            let timerCheckpointData = null;
             try {
               const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
+              const timerCheckpoint = localStorage.getItem(`exam_${examId}_user_${user?.id}_timer_checkpoint`);
               // Clean up old key format (no user ID) to prevent cross-student contamination
               try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
               if (localBackup) {
                 localBackupData = JSON.parse(localBackup);
               }
+              if (timerCheckpoint) {
+                timerCheckpointData = JSON.parse(timerCheckpoint);
+              }
             } catch (localErr) {
               console.warn('Failed to restore from local storage:', localErr);
+            }
+
+            const localBackupTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
+            const timerCheckpointTimestamp = timerCheckpointData?.timestamp ? new Date(timerCheckpointData.timestamp).getTime() : 0;
+
+            if (timerCheckpointData && Number.isFinite(timerCheckpointTimestamp) && timerCheckpointTimestamp > localBackupTimestamp) {
+              localBackupData = {
+                ...(localBackupData || {}),
+                ...(timerCheckpointData || {}),
+                answers: localBackupData?.answers || localBackupData?.answers_data || {},
+                timestamp: timerCheckpointData.timestamp,
+              };
             }
 
             const serverAutosave = statusData.has_autosave ? statusData.autosave : null;
@@ -538,6 +572,10 @@ export default function ExamPlayer() {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
 
+  useEffect(() => {
+    moduleTimeRemainingRef.current = moduleTimeRemaining;
+  }, [moduleTimeRemaining]);
+
   const performAutosaveRequest = useCallback(async (saveContext, retryCount = 0) => {
     const {
       answers: payloadAnswersSnapshot,
@@ -556,6 +594,9 @@ export default function ExamPlayer() {
         currentPart: payloadPartSnapshot,
         currentWritingTask: payloadWritingTaskSnapshot,
         timeSpent: payloadTimeSpentSnapshot,
+        moduleTimeRemaining: {
+          ...moduleTimeRemainingRef.current,
+        },
         timestamp: saveTimestamp
       }));
     } catch (localStorageErr) {
@@ -577,6 +618,9 @@ export default function ExamPlayer() {
           currentPart: payloadPartSnapshot,
           currentWritingTask: payloadWritingTaskSnapshot,
           timeSpent: payloadTimeSpentSnapshot,
+          moduleTimeRemaining: {
+            ...moduleTimeRemainingRef.current,
+          },
           timestamp: saveTimestamp
         })
       });
@@ -752,6 +796,39 @@ export default function ExamPlayer() {
 
     return () => clearInterval(periodicSave);
   }, [hasStarted, examSubmitted, saveAnswers, isAdminPreview]);
+
+  // Keep a local timer checkpoint so refresh can restore near-exact remaining time.
+  useEffect(() => {
+    if (isAdminPreview) return;
+    if (!hasStarted || examSubmitted) return;
+
+    try {
+      localStorage.setItem(
+        `exam_${examId}_user_${user?.id}_timer_checkpoint`,
+        JSON.stringify({
+          moduleTimeRemaining,
+          timeSpent,
+          module: currentModule,
+          currentPart,
+          currentWritingTask,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    } catch (checkpointErr) {
+      console.warn('Failed to persist timer checkpoint:', checkpointErr);
+    }
+  }, [
+    isAdminPreview,
+    hasStarted,
+    examSubmitted,
+    examId,
+    user?.id,
+    moduleTimeRemaining,
+    timeSpent,
+    currentModule,
+    currentPart,
+    currentWritingTask,
+  ]);
 
   // ============================================
   // START EXAM
@@ -947,6 +1024,7 @@ export default function ExamPlayer() {
         localStorage.removeItem(`exam_${examId}_user_${user?.id}_backup`);
         // Also clean up legacy key
         localStorage.removeItem(`exam_${examId}_backup`);
+        localStorage.removeItem(`exam_${examId}_user_${user?.id}_timer_checkpoint`);
         console.log('[ExamPlayer] Cleaned up local storage backup after successful submission');
       } catch (cleanupErr) {
         console.warn('Failed to clean up local storage backup:', cleanupErr);
@@ -1560,8 +1638,8 @@ export default function ExamPlayer() {
                 guard.ignoreSeekingEvent = true;
                 e.currentTarget.currentTime = guard.lastAllowedTime;
               }}
-              onRateChange={(e) => { if (e.currentTarget.playbackRate !== 1) e.currentTarget.playbackRate = 1; }}
-              onVolumeChange={(e) => {
+              onRateChange={(e) => {
+                if (e.currentTarget.playbackRate !== 1) e.currentTarget.playbackRate = 1;
                 if (e.currentTarget.muted) e.currentTarget.muted = false;
                 if (e.currentTarget.volume !== 1) e.currentTarget.volume = 1;
               }}
