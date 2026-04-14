@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, Clock, AlertCircle, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, User, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw } from "lucide-react";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
-import html2pdf from "html2pdf.js";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { API_URL, apiGradeWritingWithAI } from "../../api";
 
 export default function SubmissionDetail() {
@@ -51,165 +52,330 @@ export default function SubmissionDetail() {
     return new Date(dateString).toLocaleString();
   };
 
-  const getPdfLogoDataUrl = async () => {
-    const candidates = [
-      `${window.location.origin}/examroom-logo.png`,
-      `${window.location.origin}/logo512.png`,
-      `${window.location.origin}/logo192.png`
-    ];
-
-    for (const url of candidates) {
-      try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) continue;
-        const blob = await res.blob();
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
-          return dataUrl;
-        }
-      } catch (_) {
-        // try next candidate
-      }
-    }
-
-    return null;
-  };
-
   const handleDownloadPdf = async () => {
-    if (!pageRef.current || downloadingPdf) return;
+    if (!submission || downloadingPdf) return;
     setDownloadingPdf(true);
+
     try {
       const studentName = (submission.user_name || 'Unknown').replace(/\s+/g, '_');
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 16;
+      const contentWidth = pageWidth - margin * 2;
+      const dark = [17, 24, 39];
+      const muted = [107, 114, 128];
+      const border = [229, 231, 235];
+      const panel = [249, 250, 251];
+      const green = [22, 163, 74];
+      const red = [220, 38, 38];
+      const amber = [217, 119, 6];
 
-      const logoDataUrl = await getPdfLogoDataUrl();
+      const totalScore = submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A';
+      const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
-      const opt = {
-        margin: [10, 8, 10, 8],
-        filename,
-        image: { type: 'jpeg', quality: 0.97 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          scrollY: 0,
-          scrollX: 0,
-          windowWidth: 940,
-          logging: false,
-          letterRendering: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          onclone: (clonedDoc) => {
-            const clonedRoot = clonedDoc.getElementById('submission-pdf-root');
-            if (!clonedRoot) return;
+      const drawCover = () => {
+        pdf.setFillColor(...dark);
+        pdf.roundedRect(margin, margin, contentWidth, 54, 4, 4, 'F');
 
-            clonedRoot.style.width = '860px';
-            clonedRoot.style.padding = '28px 36px';
-            clonedRoot.style.boxSizing = 'border-box';
-            clonedRoot.style.background = '#fff';
-            clonedRoot.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+        // Logo wordmark + clock icon
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(19);
+        pdf.text('EXAMROOM', margin + 9, margin + 15);
+        pdf.setDrawColor(56, 189, 248);
+        pdf.setLineWidth(0.8);
+        pdf.circle(margin + 66, margin + 11, 3.2);
+        pdf.line(margin + 66, margin + 11, margin + 67.8, margin + 9.8);
+        pdf.line(margin + 66, margin + 11, margin + 64.8, margin + 12.5);
 
-            const brandHeader = clonedDoc.createElement('div');
-            brandHeader.style.cssText = [
-              'display:flex',
-              'align-items:center',
-              'justify-content:space-between',
-              'padding:0 0 14px 0',
-              'margin:0 0 16px 0',
-              'border-bottom:2px solid #e5e7eb'
-            ].join(';');
-            const logoHtml = logoDataUrl
-              ? `<img src="${logoDataUrl}" alt="ExamRoom" style="width:38px;height:38px;object-fit:contain;border-radius:8px;display:block;" />`
-              : `<div style="width:38px;height:38px;border-radius:8px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">ER</div>`;
+        pdf.setTextColor(156, 163, 175);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(submission.exam_title || 'Exam Submission Report', margin + 9, margin + 23);
 
-            brandHeader.innerHTML = `
-              <div style="display:flex;align-items:center;gap:10px;">
-                ${logoHtml}
-                <div>
-                  <div style="font-size:18px;font-weight:800;letter-spacing:0.3px;color:#0f172a;line-height:1.1;">ExamRoom</div>
-                  <div style="font-size:12px;color:#64748b;line-height:1.1;">Student Submission Report</div>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <div style="font-size:12px;color:#64748b;">Generated</div>
-                <div style="font-size:12px;font-weight:600;color:#1f2937;">${new Date().toLocaleString()}</div>
-              </div>
-            `;
-            clonedRoot.prepend(brandHeader);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(26);
+        pdf.text(`${totalScore}`, pageWidth - margin - 8, margin + 18, { align: 'right' });
 
-            clonedRoot.querySelectorAll('button').forEach((b) => b.remove());
-            clonedRoot.querySelectorAll('.pdf-hide').forEach((el) => el.remove());
-            clonedRoot.querySelectorAll('.pdf-ai-label').forEach((el) => {
-              el.textContent = 'Writing Scores';
-            });
+        pdf.setTextColor(156, 163, 175);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('TOTAL BAND', pageWidth - margin - 8, margin + 25, { align: 'right' });
 
-            clonedRoot.querySelectorAll('.pdf-keep-together').forEach((el) => {
-              el.style.pageBreakInside = 'avoid';
-              el.style.breakInside = 'avoid-page';
-              el.style.breakInside = 'avoid';
-              el.style.webkitColumnBreakInside = 'avoid';
-            });
+        pdf.setDrawColor(55, 65, 81);
+        pdf.line(margin + 8, margin + 35, pageWidth - margin - 8, margin + 35);
 
-            clonedRoot.querySelectorAll('.pdf-answer-row').forEach((el) => {
-              el.style.pageBreakInside = 'avoid';
-              el.style.breakInside = 'avoid-page';
-              el.style.overflow = 'hidden';
-              el.style.position = 'relative';
-            });
+        pdf.setTextColor(156, 163, 175);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('STUDENT', margin + 8, margin + 43);
+        pdf.text('DATE', pageWidth - margin - 8, margin + 43, { align: 'right' });
 
-            clonedRoot.querySelectorAll('.pdf-status-badge').forEach((el) => {
-              el.style.display = 'inline-flex';
-              el.style.alignItems = 'center';
-              el.style.justifyContent = 'center';
-              el.style.minWidth = '82px';
-              el.style.boxSizing = 'border-box';
-              el.style.lineHeight = '1.2';
-            });
-
-            clonedRoot.querySelectorAll('svg').forEach((svg) => {
-              svg.style.display = 'inline-block';
-              svg.style.verticalAlign = 'middle';
-              svg.style.flexShrink = '0';
-            });
-
-            const getStyle = clonedDoc.defaultView?.getComputedStyle || window.getComputedStyle;
-            clonedRoot.querySelectorAll('span').forEach((span) => {
-              const cs = getStyle(span);
-              if (cs.display === 'inline-flex') {
-                span.style.display = 'inline-flex';
-                span.style.alignItems = 'center';
-                span.style.verticalAlign = 'middle';
-              }
-            });
-
-            clonedRoot.querySelectorAll('*').forEach((el) => {
-              const cs = getStyle(el);
-              if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflow === 'auto' || cs.overflow === 'scroll') {
-                el.style.overflow = 'visible';
-                el.style.overflowY = 'visible';
-                el.style.maxHeight = 'none';
-                el.style.height = 'auto';
-              }
-              if (cs.maxHeight && cs.maxHeight !== 'none' && cs.maxHeight !== '0px') {
-                el.style.maxHeight = 'none';
-              }
-            });
-          }
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: {
-          mode: ['css', 'legacy'],
-          before: '[data-pdf-page-break], [data-pdf-part-break]',
-          avoid: ['.pdf-keep-together', '.pdf-answer-row', '.pdf-status-badge']
-        }
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text(submission.user_name || 'Unknown Student', margin + 8, margin + 49);
+        pdf.text(completedDate, pageWidth - margin - 8, margin + 49, { align: 'right' });
       };
 
-      await html2pdf().set(opt).from(pageRef.current).save();
+      const drawSummaryCards = () => {
+        const y = margin + 64;
+        const gap = 4;
+        const cardW = (contentWidth - gap * 3) / 4;
+        const cards = [
+          {
+            title: 'Listening',
+            value: `${submission.answers_by_module?.listening?.correct || 0}/${(submission.answers_by_module?.listening?.correct || 0) + (submission.answers_by_module?.listening?.wrong || 0)}`,
+            sub: 'questions correct',
+            accent: dark,
+            bg: panel,
+          },
+          {
+            title: 'Reading',
+            value: `${submission.answers_by_module?.reading?.correct || 0}/${(submission.answers_by_module?.reading?.correct || 0) + (submission.answers_by_module?.reading?.wrong || 0)}`,
+            sub: 'questions correct',
+            accent: dark,
+            bg: panel,
+          },
+          {
+            title: 'Overall',
+            value: `${submission.total_correct || 0}/${submission.total_questions || 0}`,
+            sub: 'total correct',
+            accent: dark,
+            bg: panel,
+          },
+          {
+            title: 'Status',
+            value: String(submission.status || 'Submitted'),
+            sub: 'submission state',
+            accent: green,
+            bg: [220, 252, 231],
+          },
+        ];
+
+        cards.forEach((c, i) => {
+          const x = margin + (cardW + gap) * i;
+          pdf.setFillColor(...c.bg);
+          pdf.setDrawColor(...border);
+          pdf.roundedRect(x, y, cardW, 29, 3, 3, 'FD');
+          pdf.setTextColor(...muted);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          pdf.text(String(c.title).toUpperCase(), x + 5, y + 8);
+          pdf.setTextColor(...c.accent);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          pdf.text(String(c.value), x + 5, y + 18);
+          pdf.setTextColor(...muted);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7.5);
+          pdf.text(String(c.sub), x + 5, y + 25);
+        });
+      };
+
+      const addPageHeader = (title, subtitle) => {
+        pdf.addPage();
+        pdf.setFillColor(...dark);
+        pdf.rect(0, 0, pageWidth, 30, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(18);
+        pdf.text(title, margin, 13);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(subtitle, margin, 21);
+        return 40;
+      };
+
+      const fmtAnswer = (ans, qType) => {
+        if (ans === null || ans === undefined || ans === '') return 'Skipped';
+        if (typeof ans === 'object') return Array.isArray(ans) ? ans.join(', ') : JSON.stringify(ans);
+        const str = String(ans);
+        if (qType === 'multiple_choice_multiple') {
+          if (str.includes('/')) {
+            return str.split('/').map(s => s.trim()).filter(Boolean).sort().join(', ');
+          }
+          if (/^[A-Za-z]+$/.test(str) && str.length > 1) {
+            return str.toUpperCase().split('').sort().join(', ');
+          }
+        }
+        return str;
+      };
+
+      const addModuleBreakdown = (moduleKey, moduleTitle) => {
+        const moduleData = submission.answers_by_module?.[moduleKey];
+        if (!moduleData || !Array.isArray(moduleData.answers) || moduleData.answers.length === 0) return;
+
+        let y = addPageHeader(`${moduleTitle} Module`, `${moduleData.correct || 0} correct / ${moduleData.wrong || 0} wrong`);
+
+        const bySection = {};
+        moduleData.answers.forEach((a) => {
+          const key = a.section_title || 'Unknown Section';
+          if (!bySection[key]) bySection[key] = { order: a.section_order || 0, rows: [] };
+          bySection[key].rows.push(a);
+        });
+
+        const sections = Object.entries(bySection).sort(([, a], [, b]) => a.order - b.order);
+
+        sections.forEach(([sectionTitle, data]) => {
+          if (y > pageHeight - 28) y = addPageHeader(`${moduleTitle} Module`, `${moduleData.correct || 0} correct / ${moduleData.wrong || 0} wrong`);
+
+          pdf.setFillColor(241, 245, 249);
+          pdf.setDrawColor(...border);
+          pdf.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, 'FD');
+          pdf.setTextColor(30, 64, 175);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.text(String(sectionTitle), margin + 4, y + 2.5);
+          y += 9;
+
+          const body = data.rows
+            .sort((a, b) => (a.question_number || 0) - (b.question_number || 0))
+            .map((a) => {
+              const studentAns = fmtAnswer(a.user_answer, a.question_type);
+              const correctAns = fmtAnswer(a.correct_answer, a.question_type);
+              const result = studentAns === 'Skipped' ? 'Skipped' : (a.is_correct ? 'Correct' : 'Wrong');
+              return [
+                String(a.question_number || '-'),
+                String(a.question_text || '').replace(/\s+/g, ' ').trim(),
+                String(studentAns),
+                String(correctAns),
+                result,
+              ];
+            });
+
+          autoTable(pdf, {
+            startY: y,
+            head: [['#', 'Question', 'Student', 'Correct', 'Result']],
+            body,
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            headStyles: {
+              fillColor: dark,
+              textColor: 255,
+              fontSize: 8.5,
+              halign: 'left',
+            },
+            styles: {
+              fontSize: 8,
+              cellPadding: 2.6,
+              lineColor: border,
+              lineWidth: 0.1,
+              overflow: 'linebreak',
+              valign: 'middle',
+            },
+            bodyStyles: {
+              textColor: [31, 41, 55],
+            },
+            rowPageBreak: 'avoid',
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              1: { cellWidth: 82 },
+              2: { cellWidth: 30 },
+              3: { cellWidth: 30 },
+              4: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+            },
+            didParseCell: (hookData) => {
+              if (hookData.section !== 'body' || hookData.column.index !== 4) return;
+              const result = String(hookData.cell.raw);
+              if (result === 'Correct') hookData.cell.styles.textColor = green;
+              else if (result === 'Wrong') hookData.cell.styles.textColor = red;
+              else hookData.cell.styles.textColor = amber;
+            },
+            didDrawPage: () => {
+              pdf.setTextColor(...muted);
+              pdf.setFont('helvetica', 'normal');
+              pdf.setFontSize(8);
+              pdf.text('ExamRoom Submission Report', margin, pageHeight - 6);
+            },
+          });
+
+          y = (pdf.lastAutoTable?.finalY || y) + 6;
+        });
+      };
+
+      const addWritingSection = () => {
+        const writingResponses = submission.writing_responses || [];
+        if (!Array.isArray(writingResponses) || writingResponses.length === 0) return;
+
+        let y = addPageHeader('Writing Module', 'Task responses and scoring criteria');
+
+        writingResponses.forEach((wr, idx) => {
+          const finalBand = wr.admin_override_band || wr.final_band || wr.ai_overall_band;
+          const scores = [
+            ['Task Response', wr.ai_task_response_score],
+            ['Coherence', wr.ai_coherence_score],
+            ['Lexical', wr.ai_lexical_score],
+            ['Grammar', wr.ai_grammar_score],
+            ['Overall', wr.ai_overall_band],
+          ];
+
+          if (y > pageHeight - 70) y = addPageHeader('Writing Module', 'Task responses and scoring criteria');
+
+          pdf.setFillColor(241, 245, 249);
+          pdf.setDrawColor(...border);
+          pdf.roundedRect(margin, y - 4, contentWidth, 10, 2, 2, 'FD');
+          pdf.setTextColor(30, 64, 175);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.text(`Task ${wr.task_number}: ${wr.section_title || `Writing Task ${wr.task_number}`}`, margin + 4, y + 2.5);
+          y += 10;
+
+          autoTable(pdf, {
+            startY: y,
+            head: [['Criterion', 'Score']],
+            body: scores.map(([label, value]) => [label, value != null ? Number(value).toFixed(1) : 'N/A']),
+            theme: 'grid',
+            margin: { left: margin, right: margin + 70 },
+            headStyles: { fillColor: dark, textColor: 255, fontSize: 8.5 },
+            styles: { fontSize: 8.5, cellPadding: 2.5, lineColor: border, lineWidth: 0.1 },
+            columnStyles: {
+              0: { cellWidth: 44 },
+              1: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+            },
+          });
+
+          const scoreTableY = (pdf.lastAutoTable?.finalY || y) + 3;
+
+          const essay = String(wr.response_text || '').trim() || 'No response submitted';
+          const words = wr.word_count || (essay ? essay.split(/\s+/).filter(Boolean).length : 0);
+          const bandText = finalBand != null ? `Band ${typeof finalBand === 'number' ? finalBand.toFixed(1) : finalBand}` : 'Band N/A';
+
+          autoTable(pdf, {
+            startY: scoreTableY,
+            head: [[`Student Response (${words} words, ${bandText})`]],
+            body: [[essay]],
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5 },
+            styles: { fontSize: 8, cellPadding: 2.8, lineColor: border, lineWidth: 0.1, overflow: 'linebreak' },
+            rowPageBreak: 'avoid',
+          });
+
+          y = (pdf.lastAutoTable?.finalY || scoreTableY) + 8;
+        });
+      };
+
+      drawCover();
+      drawSummaryCards();
+      addModuleBreakdown('listening', 'Listening');
+      addModuleBreakdown('reading', 'Reading');
+      addWritingSection();
+
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i += 1) {
+        pdf.setPage(i);
+        pdf.setTextColor(...muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+      }
+
+      pdf.save(filename);
     } catch (err) {
       console.error('PDF generation failed:', err);
       setNotification({
