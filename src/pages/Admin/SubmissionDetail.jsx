@@ -61,15 +61,14 @@ export default function SubmissionDetail() {
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
-      // Clone into an in-viewport invisible layer. Off-screen clones can render blank in some browsers.
+      // Clone into an off-canvas but visible layer.
+      // IMPORTANT: avoid opacity:0 because html2canvas may capture a transparent/blank canvas.
       clone = pageRef.current.cloneNode(true);
       clone.style.cssText = [
         'position:fixed',
-        'left:0',
+        'left:-12000px',
         'top:0',
-        'opacity:0',
         'pointer-events:none',
-        'z-index:-1',
         'width:860px',
         'background:#fff',
         'padding:28px 36px',
