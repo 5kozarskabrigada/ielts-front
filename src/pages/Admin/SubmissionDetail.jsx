@@ -157,6 +157,10 @@ export default function SubmissionDetail() {
   };
 
   const getModuleBandScore = (moduleKey) => {
+    if (moduleKey === 'writing' && !submission?.writing_checked) {
+      return null;
+    }
+
     if (moduleKey === 'reading') {
       const readingCorrect = Number(submission?.answers_by_module?.reading?.correct || 0);
       const readingBand = getBandFromCorrect(readingCorrect, ACADEMIC_READING_BAND_TABLE);
@@ -188,6 +192,8 @@ export default function SubmissionDetail() {
     return null;
   };
 
+  const isWritingChecked = submission?.writing_checked === true;
+
   const handleDownloadPdf = async () => {
     if (!submission || downloadingPdf) return;
     setDownloadingPdf(true);
@@ -210,7 +216,9 @@ export default function SubmissionDetail() {
       const amber = [217, 119, 6];
       const logoDataUrl = await loadLogoAsDataUrl(EXAMROOM_LOGO_URL);
 
-      const totalScore = submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A';
+      const totalScore = (submission.band_score != null && isWritingChecked)
+        ? parseFloat(submission.band_score).toFixed(1)
+        : '-';
       const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
       const getModuleStats = (moduleKey) => {
         const m = submission.answers_by_module?.[moduleKey] || {};
@@ -305,7 +313,9 @@ export default function SubmissionDetail() {
         const listeningBand = getModuleBandScore('listening');
         const readingBand = getModuleBandScore('reading');
         const writingBand = getModuleBandScore('writing');
-        const overallBand = submission.band_score != null ? parseFloat(submission.band_score) : null;
+        const overallBand = (submission.band_score != null && isWritingChecked)
+          ? parseFloat(submission.band_score)
+          : null;
 
         const bandCards = [
           { title: 'Listening Band', value: listeningBand },
@@ -630,6 +640,7 @@ export default function SubmissionDetail() {
   };
 
   const getBandColor = (band) => {
+    if (!Number.isFinite(Number(band))) return "text-gray-600 bg-gray-100 border-gray-200";
     const n = parseFloat(band);
     if (n >= 7) return "text-green-600 bg-green-50 border-green-200";
     if (n >= 5) return "text-yellow-600 bg-yellow-50 border-yellow-200";
@@ -768,9 +779,9 @@ export default function SubmissionDetail() {
       <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
         <h3 className="text-xl font-bold text-gray-900 mb-4">Overall Score</h3>
         <div className="flex items-center justify-center">
-          <div className={`text-center px-8 py-6 rounded-xl border-2 ${getBandColor(submission.band_score)}`}>
+          <div className={`text-center px-8 py-6 rounded-xl border-2 ${getBandColor(isWritingChecked ? submission.band_score : null)}`}>
             <p className="text-sm font-semibold uppercase mb-2">Band Score</p>
-            <p className="text-6xl font-bold">{submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A'}</p>
+            <p className="text-6xl font-bold">{(submission.band_score != null && isWritingChecked) ? parseFloat(submission.band_score).toFixed(1) : '-'}</p>
             <p className="text-sm mt-2">
               {submission.total_correct || 0} / {submission.total_questions || 0} correct
             </p>
@@ -789,9 +800,9 @@ export default function SubmissionDetail() {
               const correct = moduleAnswers?.correct || 0;
               const total = getModuleTotal(module, moduleAnswers);
               return (
-                <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score ?? 0)}`}>
+                <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
-                  <p className="text-5xl font-bold">{score != null ? score.toFixed(1) : 'N/A'}</p>
+                  <p className="text-5xl font-bold">{score != null ? score.toFixed(1) : '-'}</p>
                   <p className="text-sm mt-2">
                     {correct} / {total} correct
                   </p>

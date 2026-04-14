@@ -60,9 +60,15 @@ export default function SubmissionsPage() {
   };
 
   const getBandColor = (band) => {
+    if (!Number.isFinite(Number(band))) return "text-gray-600 bg-gray-100";
     if (band >= 7) return "text-green-600 bg-green-50";
     if (band >= 5) return "text-yellow-600 bg-yellow-50";
     return "text-red-600 bg-red-50";
+  };
+
+  const formatBand = (band) => {
+    const parsed = Number(band);
+    return Number.isFinite(parsed) ? parsed.toFixed(1) : '-';
   };
 
   if (loading) {
@@ -108,9 +114,13 @@ export default function SubmissionsPage() {
             <div>
               <p className="text-sm text-gray-600">Avg Band Score</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">
-                {submissions.length > 0 
-                  ? (submissions.reduce((sum, s) => sum + (parseFloat(s.band_score) || 0), 0) / submissions.length).toFixed(1)
-                  : "0.0"}
+                {(() => {
+                  const graded = submissions
+                    .map((s) => Number(s.band_score))
+                    .filter((v) => Number.isFinite(v));
+                  if (graded.length === 0) return '-';
+                  return (graded.reduce((sum, v) => sum + v, 0) / graded.length).toFixed(1);
+                })()}
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -214,22 +224,26 @@ export default function SubmissionsPage() {
                       <p className="text-sm text-gray-900">{formatDate(submission.submitted_at)}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(parseFloat(submission.band_score))}`}>
-                        {submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : "N/A"}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getBandColor(submission.band_score)}`}>
+                        {formatBand(submission.band_score)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         {['listening', 'reading', 'writing'].map(mod => {
-                          const score = submission.scores_by_module?.[mod] ?? '-';
+                          const score = mod === 'writing' && !submission.writing_checked
+                            ? null
+                            : submission.scores_by_module?.[mod];
+                          const numericScore = Number(score);
+                          const hasScore = Number.isFinite(numericScore);
                           return (
                             <span key={mod} className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              score === '-' ? 'bg-gray-100 text-gray-500' :
-                              score >= 7 ? 'bg-green-100 text-green-700' :
-                              score >= 5 ? 'bg-yellow-100 text-yellow-700' :
+                              !hasScore ? 'bg-gray-100 text-gray-500' :
+                              numericScore >= 7 ? 'bg-green-100 text-green-700' :
+                              numericScore >= 5 ? 'bg-yellow-100 text-yellow-700' :
                               'bg-red-100 text-red-700'
                             }`}>
-                              {mod[0].toUpperCase()}:{typeof score === 'number' ? score.toFixed(1) : score}
+                              {mod[0].toUpperCase()}:{hasScore ? numericScore.toFixed(1) : '-'}
                             </span>
                           );
                         })}
