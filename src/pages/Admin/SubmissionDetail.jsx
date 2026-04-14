@@ -54,102 +54,12 @@ export default function SubmissionDetail() {
   const handleDownloadPdf = async () => {
     if (!pageRef.current || downloadingPdf) return;
     setDownloadingPdf(true);
-
-    let clone = null;
     try {
       const studentName = (submission.user_name || 'Unknown').replace(/\s+/g, '_');
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
-      // Clone into an off-canvas but visible layer.
-      // IMPORTANT: avoid opacity:0 because html2canvas may capture a transparent/blank canvas.
-      clone = pageRef.current.cloneNode(true);
-      clone.style.cssText = [
-        'position:fixed',
-        'left:-12000px',
-        'top:0',
-        'pointer-events:none',
-        'width:860px',
-        'background:#fff',
-        'padding:28px 36px',
-        'box-sizing:border-box',
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'
-      ].join(';');
-      document.body.appendChild(clone);
-
-      // Add PDF-only brand header with logo.
       const logoUrl = `${window.location.origin}/logo192.png`;
-      const brandHeader = document.createElement('div');
-      brandHeader.style.cssText = [
-        'display:flex',
-        'align-items:center',
-        'justify-content:space-between',
-        'padding:0 0 14px 0',
-        'margin:0 0 16px 0',
-        'border-bottom:2px solid #e5e7eb'
-      ].join(';');
-      brandHeader.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;">
-          <img src="${logoUrl}" alt="ExamRoom" style="width:36px;height:36px;object-fit:contain;border-radius:8px;" />
-          <div>
-            <div style="font-size:18px;font-weight:800;letter-spacing:0.3px;color:#0f172a;line-height:1.1;">ExamRoom</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.1;">Student Submission Report</div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:12px;color:#64748b;">Generated</div>
-          <div style="font-size:12px;font-weight:600;color:#1f2937;">${new Date().toLocaleString()}</div>
-        </div>
-      `;
-      clone.prepend(brandHeader);
-
-      // Remove interactive elements.
-      clone.querySelectorAll('button').forEach((b) => b.remove());
-
-      // Remove AI hint text in PDF (keep numeric writing criteria scores).
-      clone.querySelectorAll('.pdf-hide').forEach((el) => el.remove());
-      clone.querySelectorAll('.pdf-ai-label').forEach((el) => {
-        el.textContent = 'Writing Scores';
-      });
-
-      // Keep rows together and avoid split cards across pages.
-      clone.querySelectorAll('.pdf-keep-together').forEach((el) => {
-        el.style.pageBreakInside = 'avoid';
-        el.style.breakInside = 'avoid';
-        el.style.webkitColumnBreakInside = 'avoid';
-      });
-
-      // Normalize SVG/text alignment for html2canvas.
-      clone.querySelectorAll('svg').forEach((svg) => {
-        svg.style.display = 'inline-block';
-        svg.style.verticalAlign = 'middle';
-        svg.style.flexShrink = '0';
-      });
-      clone.querySelectorAll('span').forEach((span) => {
-        const cs = window.getComputedStyle(span);
-        if (cs.display === 'inline-flex') {
-          span.style.display = 'inline-flex';
-          span.style.alignItems = 'center';
-          span.style.verticalAlign = 'middle';
-        }
-      });
-
-      // Fully expand scroll-constrained regions.
-      clone.querySelectorAll('*').forEach((el) => {
-        const cs = window.getComputedStyle(el);
-        if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflow === 'auto' || cs.overflow === 'scroll') {
-          el.style.overflow = 'visible';
-          el.style.overflowY = 'visible';
-          el.style.maxHeight = 'none';
-          el.style.height = 'auto';
-        }
-        if (cs.maxHeight && cs.maxHeight !== 'none' && cs.maxHeight !== '0px') {
-          el.style.maxHeight = 'none';
-        }
-      });
-
-      // Give browser a short layout tick so images/styles settle before capture.
-      await new Promise((resolve) => setTimeout(resolve, 60));
 
       const opt = {
         margin: [10, 8, 10, 8],
@@ -164,7 +74,82 @@ export default function SubmissionDetail() {
           logging: false,
           letterRendering: true,
           allowTaint: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            const clonedRoot = clonedDoc.getElementById('submission-pdf-root');
+            if (!clonedRoot) return;
+
+            clonedRoot.style.width = '860px';
+            clonedRoot.style.padding = '28px 36px';
+            clonedRoot.style.boxSizing = 'border-box';
+            clonedRoot.style.background = '#fff';
+            clonedRoot.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+
+            const brandHeader = clonedDoc.createElement('div');
+            brandHeader.style.cssText = [
+              'display:flex',
+              'align-items:center',
+              'justify-content:space-between',
+              'padding:0 0 14px 0',
+              'margin:0 0 16px 0',
+              'border-bottom:2px solid #e5e7eb'
+            ].join(';');
+            brandHeader.innerHTML = `
+              <div style="display:flex;align-items:center;gap:10px;">
+                <img src="${logoUrl}" alt="ExamRoom" style="width:36px;height:36px;object-fit:contain;border-radius:8px;" />
+                <div>
+                  <div style="font-size:18px;font-weight:800;letter-spacing:0.3px;color:#0f172a;line-height:1.1;">ExamRoom</div>
+                  <div style="font-size:12px;color:#64748b;line-height:1.1;">Student Submission Report</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:12px;color:#64748b;">Generated</div>
+                <div style="font-size:12px;font-weight:600;color:#1f2937;">${new Date().toLocaleString()}</div>
+              </div>
+            `;
+            clonedRoot.prepend(brandHeader);
+
+            clonedRoot.querySelectorAll('button').forEach((b) => b.remove());
+            clonedRoot.querySelectorAll('.pdf-hide').forEach((el) => el.remove());
+            clonedRoot.querySelectorAll('.pdf-ai-label').forEach((el) => {
+              el.textContent = 'Writing Scores';
+            });
+
+            clonedRoot.querySelectorAll('.pdf-keep-together').forEach((el) => {
+              el.style.pageBreakInside = 'avoid';
+              el.style.breakInside = 'avoid';
+              el.style.webkitColumnBreakInside = 'avoid';
+            });
+
+            clonedRoot.querySelectorAll('svg').forEach((svg) => {
+              svg.style.display = 'inline-block';
+              svg.style.verticalAlign = 'middle';
+              svg.style.flexShrink = '0';
+            });
+
+            const getStyle = clonedDoc.defaultView?.getComputedStyle || window.getComputedStyle;
+            clonedRoot.querySelectorAll('span').forEach((span) => {
+              const cs = getStyle(span);
+              if (cs.display === 'inline-flex') {
+                span.style.display = 'inline-flex';
+                span.style.alignItems = 'center';
+                span.style.verticalAlign = 'middle';
+              }
+            });
+
+            clonedRoot.querySelectorAll('*').forEach((el) => {
+              const cs = getStyle(el);
+              if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflow === 'auto' || cs.overflow === 'scroll') {
+                el.style.overflow = 'visible';
+                el.style.overflowY = 'visible';
+                el.style.maxHeight = 'none';
+                el.style.height = 'auto';
+              }
+              if (cs.maxHeight && cs.maxHeight !== 'none' && cs.maxHeight !== '0px') {
+                el.style.maxHeight = 'none';
+              }
+            });
+          }
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: {
@@ -174,7 +159,7 @@ export default function SubmissionDetail() {
         }
       };
 
-      await html2pdf().set(opt).from(clone).save();
+      await html2pdf().set(opt).from(pageRef.current).save();
     } catch (err) {
       console.error('PDF generation failed:', err);
       setNotification({
@@ -184,7 +169,6 @@ export default function SubmissionDetail() {
         message: `Unable to generate PDF: ${err.message}`
       });
     } finally {
-      if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
       setDownloadingPdf(false);
     }
   };
@@ -284,7 +268,7 @@ export default function SubmissionDetail() {
         </button>
       </div>
 
-      <div ref={pageRef} className="space-y-6">
+      <div id="submission-pdf-root" ref={pageRef} className="space-y-6">
 
       {/* Student Info Card */}
       <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
