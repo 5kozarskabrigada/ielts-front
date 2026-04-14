@@ -52,13 +52,13 @@ export default function SubmissionDetail() {
     return new Date(dateString).toLocaleString();
   };
 
-  const EXAMROOM_LOGO_URL = 'https://www.image2url.com/r2/default/images/1776184637206-291b37c3-761a-40e8-9a97-ff58706b8eb2.jpg';
+  const EXAMROOM_LOGO_URL = 'https://www.image2url.com/r2/default/images/1776187544241-f8e0bf3d-2418-475d-ad65-2a9b6939d231.png';
 
   const loadLogoAsDataUrl = async (url) => {
     const candidates = [
       url,
       // CORS-safe proxy fallback while still using your URL as source
-      'https://images.weserv.nl/?url=www.image2url.com/r2/default/images/1776184637206-291b37c3-761a-40e8-9a97-ff58706b8eb2.jpg'
+      'https://images.weserv.nl/?url=www.image2url.com/r2/default/images/1776187544241-f8e0bf3d-2418-475d-ad65-2a9b6939d231.png'
     ];
 
     for (const candidate of candidates) {
@@ -98,6 +98,26 @@ export default function SubmissionDetail() {
     }
 
     return total;
+  };
+
+  const getModuleBandScore = (moduleKey) => {
+    const raw = submission?.scores_by_module?.[moduleKey];
+    const parsed = raw != null && raw !== '' ? parseFloat(raw) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+    // Writing fallback from AI/admin-scored tasks.
+    if (moduleKey === 'writing') {
+      const writingResponses = Array.isArray(submission?.writing_responses) ? submission.writing_responses : [];
+      const taskBands = writingResponses
+        .map((wr) => wr.admin_override_band ?? wr.final_band ?? wr.ai_overall_band)
+        .map((v) => parseFloat(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (taskBands.length > 0) {
+        return taskBands.reduce((a, b) => a + b, 0) / taskBands.length;
+      }
+    }
+
+    return null;
   };
 
   const handleDownloadPdf = async () => {
@@ -145,7 +165,8 @@ export default function SubmissionDetail() {
         if (logoDataUrl) {
           try {
             const imageType = logoDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-            pdf.addImage(logoDataUrl, imageType, margin + (contentWidth - 56) / 2, brandY + 1.2, 56, 15, undefined, 'FAST');
+            // Square logo placement (no stretching)
+            pdf.addImage(logoDataUrl, imageType, margin + 4.5, brandY + 2, 13.5, 13.5, undefined, 'FAST');
           } catch {
             // If format detection fails, keep text fallback below.
           }
@@ -154,9 +175,18 @@ export default function SubmissionDetail() {
         if (!logoDataUrl) {
           pdf.setTextColor(...dark);
           pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(14);
-          pdf.text('EXAMROOM', pageWidth / 2, brandY + 11.5, { align: 'center' });
+          pdf.setFontSize(10);
+          pdf.text('ER', margin + 11.2, brandY + 10.8, { align: 'center' });
         }
+
+        pdf.setTextColor(...dark);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11.5);
+        pdf.text('ExamRoom', margin + 21, brandY + 8.2);
+        pdf.setTextColor(...muted);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8.2);
+        pdf.text('Official Submission Report', margin + 21, brandY + 13.3);
 
         pdf.setFillColor(...dark);
         pdf.roundedRect(margin, coverY, contentWidth, 54, 4, 4, 'F');
@@ -622,14 +652,14 @@ export default function SubmissionDetail() {
           <h3 className="text-xl font-bold text-gray-900 mb-4">Module-Wise Band Scores</h3>
           <div className="grid grid-cols-3 gap-4">
             {['listening', 'reading', 'writing'].map(module => {
-              const score = parseFloat(submission.scores_by_module?.[module]) || 0;
+              const score = getModuleBandScore(module);
               const moduleAnswers = submission.answers_by_module?.[module];
               const correct = moduleAnswers?.correct || 0;
               const total = getModuleTotal(module, moduleAnswers);
               return (
-                <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
+                <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score ?? 0)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
-                  <p className="text-5xl font-bold">{score.toFixed(1)}</p>
+                  <p className="text-5xl font-bold">{score != null ? score.toFixed(1) : 'N/A'}</p>
                   <p className="text-sm mt-2">
                     {correct} / {total} correct
                   </p>
