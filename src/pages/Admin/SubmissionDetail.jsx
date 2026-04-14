@@ -234,25 +234,53 @@ export default function SubmissionDetail() {
         const cardW = (contentWidth - gap * 3) / 4;
         const listeningStats = getModuleStats('listening');
         const readingStats = getModuleStats('reading');
+        const listeningBand = getModuleBandScore('listening');
+        const readingBand = getModuleBandScore('reading');
+        const writingBand = getModuleBandScore('writing');
+        const overallBand = submission.band_score != null ? parseFloat(submission.band_score) : null;
+
+        const bandCards = [
+          { title: 'Listening Band', value: listeningBand },
+          { title: 'Reading Band', value: readingBand },
+          { title: 'Writing Band', value: writingBand },
+          { title: 'Overall Band', value: overallBand },
+        ];
+
+        bandCards.forEach((c, i) => {
+          const x = margin + (cardW + gap) * i;
+          pdf.setFillColor(...panel);
+          pdf.setDrawColor(...border);
+          pdf.roundedRect(x, y, cardW, 24, 3, 3, 'FD');
+          pdf.setTextColor(...muted);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(7.2);
+          pdf.text(String(c.title).toUpperCase(), x + 5, y + 7.5);
+          pdf.setTextColor(...dark);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(13.5);
+          pdf.text(c.value != null && Number.isFinite(c.value) ? c.value.toFixed(1) : 'N/A', x + 5, y + 17.2);
+        });
+
+        const countY = y + 28;
         const cards = [
           {
             title: 'Listening',
             value: `${listeningStats.correct}/${listeningStats.total}`,
-            sub: 'questions correct',
+            sub: 'correct answers',
             accent: dark,
             bg: panel,
           },
           {
             title: 'Reading',
             value: `${readingStats.correct}/${readingStats.total}`,
-            sub: 'questions correct',
+            sub: 'correct answers',
             accent: dark,
             bg: panel,
           },
           {
-            title: 'Overall',
+            title: 'Total Correct',
             value: `${submission.total_correct || 0}/${submission.total_questions || 0}`,
-            sub: 'total correct',
+            sub: 'all modules',
             accent: dark,
             bg: panel,
           },
@@ -269,19 +297,19 @@ export default function SubmissionDetail() {
           const x = margin + (cardW + gap) * i;
           pdf.setFillColor(...c.bg);
           pdf.setDrawColor(...border);
-          pdf.roundedRect(x, y, cardW, 29, 3, 3, 'FD');
+          pdf.roundedRect(x, countY, cardW, 29, 3, 3, 'FD');
           pdf.setTextColor(...muted);
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(8);
-          pdf.text(String(c.title).toUpperCase(), x + 5, y + 8);
+          pdf.text(String(c.title).toUpperCase(), x + 5, countY + 8);
           pdf.setTextColor(...c.accent);
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(14);
-          pdf.text(String(c.value), x + 5, y + 18);
+          pdf.text(String(c.value), x + 5, countY + 18);
           pdf.setTextColor(...muted);
           pdf.setFont('helvetica', 'normal');
           pdf.setFontSize(7.5);
-          pdf.text(String(c.sub), x + 5, y + 25);
+          pdf.text(String(c.sub), x + 5, countY + 25);
         });
       };
 
@@ -318,10 +346,36 @@ export default function SubmissionDetail() {
         const moduleData = submission.answers_by_module?.[moduleKey];
         if (!moduleData || !Array.isArray(moduleData.answers) || moduleData.answers.length === 0) return;
 
+        const moduleTotal = getModuleTotal(moduleKey, moduleData);
+        const existingNumbers = new Set(
+          moduleData.answers
+            .map((a) => Number(a.question_number || 0))
+            .filter((n) => Number.isFinite(n) && n > 0)
+        );
+
+        const recoveredRows = [];
+        for (let q = 1; q <= moduleTotal; q += 1) {
+          if (!existingNumbers.has(q)) {
+            recoveredRows.push({
+              question_number: q,
+              question_type: 'structured_recovered',
+              question_text: 'Structured question record recovered for reporting (original DB row missing).',
+              user_answer: null,
+              correct_answer: null,
+              is_correct: null,
+              module_type: moduleKey,
+              section_title: 'Recovered Questions',
+              section_order: 999,
+            });
+          }
+        }
+
+        const moduleAnswers = [...moduleData.answers, ...recoveredRows];
+
         let y = addPageHeader(`${moduleTitle} Module`, `${moduleData.correct || 0} correct / ${moduleData.wrong || 0} wrong`);
 
         const bySection = {};
-        moduleData.answers.forEach((a) => {
+        moduleAnswers.forEach((a) => {
           const key = a.section_title || 'Unknown Section';
           if (!bySection[key]) bySection[key] = { order: a.section_order || 0, rows: [] };
           bySection[key].rows.push(a);
@@ -346,7 +400,9 @@ export default function SubmissionDetail() {
             .map((a) => {
               const studentAns = fmtAnswer(a.user_answer, a.question_type);
               const correctAns = fmtAnswer(a.correct_answer, a.question_type);
-              const result = studentAns === 'Skipped' ? 'Skipped' : (a.is_correct ? 'Correct' : 'Wrong');
+              const result = studentAns === 'Skipped'
+                ? 'Skipped'
+                : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               return [
                 String(a.question_number || '-'),
                 String(a.question_text || '').replace(/\s+/g, ' ').trim(),
@@ -392,6 +448,7 @@ export default function SubmissionDetail() {
               const result = String(hookData.cell.raw);
               if (result === 'Correct') hookData.cell.styles.textColor = green;
               else if (result === 'Wrong') hookData.cell.styles.textColor = red;
+              else if (result === 'Recorded') hookData.cell.styles.textColor = muted;
               else hookData.cell.styles.textColor = amber;
             },
             didDrawPage: () => {
