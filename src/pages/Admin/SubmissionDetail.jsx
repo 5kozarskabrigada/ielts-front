@@ -121,10 +121,40 @@ export default function SubmissionDetail() {
     return total;
   };
 
+  const getAcademicReadingBandByCorrect = (correctAnswers) => {
+    const n = Number(correctAnswers);
+    if (!Number.isFinite(n) || n < 0) return null;
+
+    for (const row of ACADEMIC_READING_SCORE_TABLE) {
+      const range = String(row.range || '').trim();
+      if (!range) continue;
+
+      if (range.includes('-')) {
+        const [start, end] = range.split('-').map((part) => Number(part.trim()));
+        if (Number.isFinite(start) && Number.isFinite(end) && n >= start && n <= end) {
+          return row.band;
+        }
+      } else {
+        const exact = Number(range);
+        if (Number.isFinite(exact) && n === exact) {
+          return row.band;
+        }
+      }
+    }
+
+    return null;
+  };
+
   const getModuleBandScore = (moduleKey) => {
     const raw = submission?.scores_by_module?.[moduleKey];
     const parsed = raw != null && raw !== '' ? parseFloat(raw) : NaN;
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
+
+    if (moduleKey === 'reading') {
+      const readingCorrect = Number(submission?.answers_by_module?.reading?.correct || 0);
+      const readingBand = getAcademicReadingBandByCorrect(readingCorrect);
+      if (readingBand != null) return readingBand;
+    }
 
     // Writing fallback from AI/admin-scored tasks.
     if (moduleKey === 'writing') {
@@ -365,11 +395,15 @@ export default function SubmissionDetail() {
 
       const addModuleBreakdown = (moduleKey, moduleTitle) => {
         const moduleData = submission.answers_by_module?.[moduleKey];
-        if (!moduleData || !Array.isArray(moduleData.answers) || moduleData.answers.length === 0) return;
+        if (!moduleData) return null;
+
+        const baseAnswers = Array.isArray(moduleData.answers) ? moduleData.answers : [];
 
         const moduleTotal = getModuleTotal(moduleKey, moduleData);
+        if (baseAnswers.length === 0 && moduleTotal <= 0) return null;
+
         const existingNumbers = new Set(
-          moduleData.answers
+          baseAnswers
             .map((a) => Number(a.question_number || 0))
             .filter((n) => Number.isFinite(n) && n > 0)
         );
@@ -391,7 +425,8 @@ export default function SubmissionDetail() {
           }
         }
 
-        const moduleAnswers = [...moduleData.answers, ...recoveredRows];
+        const moduleAnswers = [...baseAnswers, ...recoveredRows];
+        if (moduleAnswers.length === 0) return null;
 
         let y = addPageHeader(`${moduleTitle} Module`, `${moduleData.correct || 0} correct / ${moduleData.wrong || 0} wrong`);
 
@@ -482,6 +517,8 @@ export default function SubmissionDetail() {
 
           y = (pdf.lastAutoTable?.finalY || y) + 6;
         });
+
+        return y;
       };
 
       const addWritingSection = () => {
@@ -546,12 +583,28 @@ export default function SubmissionDetail() {
         });
       };
 
-      const addAcademicReadingScoringSection = () => {
+      const addAcademicReadingScoringSection = (startY = null) => {
         const readingData = submission.answers_by_module?.reading || {};
         const readingCorrect = Number(readingData.correct || 0);
         const readingBand = getModuleBandScore('reading');
 
-        let y = addPageHeader('Academic Reading Scoring', 'Academic Reading conversion guide only');
+        let y = startY;
+        if (!Number.isFinite(y)) {
+          y = addPageHeader('Academic Reading Scoring', 'Academic Reading conversion guide only');
+        } else if (y > pageHeight - 120) {
+          y = addPageHeader('Academic Reading Scoring', 'Academic Reading conversion guide only');
+        } else {
+          y += 3;
+          pdf.setTextColor(...dark);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(12);
+          pdf.text('Academic Reading Scoring', margin, y);
+          pdf.setTextColor(...muted);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8.8);
+          pdf.text('Academic Reading conversion guide only', margin, y + 5);
+          y += 12;
+        }
 
         pdf.setFillColor(241, 245, 249);
         pdf.setDrawColor(...border);
@@ -585,13 +638,15 @@ export default function SubmissionDetail() {
             1: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
           },
         });
+
+        return (pdf.lastAutoTable?.finalY || (y + 14)) + 4;
       };
 
       drawCover();
       drawSummaryCards();
       addModuleBreakdown('listening', 'Listening');
-      addModuleBreakdown('reading', 'Reading');
-      addAcademicReadingScoringSection();
+      const readingEndY = addModuleBreakdown('reading', 'Reading');
+      addAcademicReadingScoringSection(readingEndY);
       addWritingSection();
 
       const pageCount = pdf.getNumberOfPages();
