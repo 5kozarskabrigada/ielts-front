@@ -782,6 +782,15 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       currentNode.style.padding = '0';
       currentNode.style.margin = '0';
       currentNode.style.display = 'inline';
+      currentNode.style.lineHeight = 'inherit';
+      currentNode.style.font = 'inherit';
+      currentNode.style.letterSpacing = 'inherit';
+      currentNode.style.wordSpacing = 'inherit';
+      currentNode.style.whiteSpace = 'inherit';
+      currentNode.style.verticalAlign = 'baseline';
+      currentNode.style.borderRadius = '2px';
+      currentNode.style.boxDecorationBreak = 'clone';
+      currentNode.style.webkitBoxDecorationBreak = 'clone';
 
       let nextNode = currentNode.nextSibling;
 
@@ -813,7 +822,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       }
     });
 
-    root.normalize();
   };
 
   const applyHighlightToSelection = () => {
@@ -855,6 +863,15 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       span.style.padding = '0';
       span.style.margin = '0';
       span.style.display = 'inline';
+      span.style.lineHeight = 'inherit';
+      span.style.font = 'inherit';
+      span.style.letterSpacing = 'inherit';
+      span.style.wordSpacing = 'inherit';
+      span.style.whiteSpace = 'inherit';
+      span.style.verticalAlign = 'baseline';
+      span.style.borderRadius = '2px';
+      span.style.boxDecorationBreak = 'clone';
+      span.style.webkitBoxDecorationBreak = 'clone';
       return span;
     };
 
@@ -921,7 +938,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       parent.insertBefore(highlightNode.firstChild, highlightNode);
     }
     parent.removeChild(highlightNode);
-    parent.normalize();
     normalizeHighlightMarkup();
     persistPassageHighlights();
     closeSelectionAction();

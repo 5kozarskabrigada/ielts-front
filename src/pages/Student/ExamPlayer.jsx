@@ -246,12 +246,41 @@ export default function ExamPlayer() {
         };
 
         if (!isAdminPreview) {
+          let localBackupData = null;
+          let timerCheckpointData = null;
+          try {
+            const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
+            const timerCheckpoint = localStorage.getItem(`exam_${examId}_user_${user?.id}_timer_checkpoint`);
+            // Clean up old key format (no user ID) to prevent cross-student contamination
+            try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
+            if (localBackup) {
+              localBackupData = JSON.parse(localBackup);
+            }
+            if (timerCheckpoint) {
+              timerCheckpointData = JSON.parse(timerCheckpoint);
+            }
+          } catch (localErr) {
+            console.warn('Failed to restore from local storage:', localErr);
+          }
+
+          const localBackupTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
+          const timerCheckpointTimestamp = timerCheckpointData?.timestamp ? new Date(timerCheckpointData.timestamp).getTime() : 0;
+
+          if (timerCheckpointData && Number.isFinite(timerCheckpointTimestamp) && timerCheckpointTimestamp > localBackupTimestamp) {
+            localBackupData = {
+              ...(localBackupData || {}),
+              ...(timerCheckpointData || {}),
+              answers: localBackupData?.answers || localBackupData?.answers_data || {},
+              timestamp: timerCheckpointData.timestamp,
+            };
+          }
+
           // First, check if exam was already submitted or has autosave data
           const statusResponse = await fetchWithRetry(`${API_URL}/exams/${examId}/status`, {
             headers: { "Authorization": `Bearer ${token}` }
           });
 
-          if (statusResponse.ok) {
+          if (statusResponse?.ok) {
             const statusData = await statusResponse.json();
             
             // If already submitted, redirect to dashboard
@@ -267,35 +296,6 @@ export default function ExamPlayer() {
               return;
             }
 
-            let localBackupData = null;
-            let timerCheckpointData = null;
-            try {
-              const localBackup = localStorage.getItem(`exam_${examId}_user_${user?.id}_backup`);
-              const timerCheckpoint = localStorage.getItem(`exam_${examId}_user_${user?.id}_timer_checkpoint`);
-              // Clean up old key format (no user ID) to prevent cross-student contamination
-              try { localStorage.removeItem(`exam_${examId}_backup`); } catch(e) {}
-              if (localBackup) {
-                localBackupData = JSON.parse(localBackup);
-              }
-              if (timerCheckpoint) {
-                timerCheckpointData = JSON.parse(timerCheckpoint);
-              }
-            } catch (localErr) {
-              console.warn('Failed to restore from local storage:', localErr);
-            }
-
-            const localBackupTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
-            const timerCheckpointTimestamp = timerCheckpointData?.timestamp ? new Date(timerCheckpointData.timestamp).getTime() : 0;
-
-            if (timerCheckpointData && Number.isFinite(timerCheckpointTimestamp) && timerCheckpointTimestamp > localBackupTimestamp) {
-              localBackupData = {
-                ...(localBackupData || {}),
-                ...(timerCheckpointData || {}),
-                answers: localBackupData?.answers || localBackupData?.answers_data || {},
-                timestamp: timerCheckpointData.timestamp,
-              };
-            }
-
             const serverAutosave = statusData.has_autosave ? statusData.autosave : null;
             const serverTimestamp = serverAutosave?.last_updated ? new Date(serverAutosave.last_updated).getTime() : 0;
             const localTimestamp = localBackupData?.timestamp ? new Date(localBackupData.timestamp).getTime() : 0;
@@ -307,6 +307,9 @@ export default function ExamPlayer() {
               console.log('[ExamPlayer] Restoring from autosave:', serverAutosave);
               await restoreSavedProgress(serverAutosave, 'server');
             }
+          } else if (localBackupData) {
+            console.log('[ExamPlayer] Status endpoint unavailable. Restoring from local backup/timer checkpoint.');
+            await restoreSavedProgress(localBackupData, 'local');
           }
         }
 

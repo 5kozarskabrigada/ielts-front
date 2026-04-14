@@ -336,7 +336,15 @@ export default function SubmissionDetail() {
           pdf.setTextColor(...dark);
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(13.5);
-          pdf.text(c.value != null && Number.isFinite(c.value) ? c.value.toFixed(1) : 'N/A', x + 5, y + 17.2);
+          const cardValue = c.value != null && Number.isFinite(c.value) ? c.value.toFixed(1) : '-';
+          pdf.text(cardValue, x + 5, y + 17.2);
+
+          if (String(c.title) === 'Overall Band' && !isWritingChecked) {
+            pdf.setTextColor(...muted);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(6.8);
+            pdf.text('Pending writing review', x + 5, y + 21.8);
+          }
         });
 
         const countY = y + 28;
@@ -429,30 +437,7 @@ export default function SubmissionDetail() {
         const moduleTotal = getModuleTotal(moduleKey, moduleData);
         if (baseAnswers.length === 0 && moduleTotal <= 0) return null;
 
-        const existingNumbers = new Set(
-          baseAnswers
-            .map((a) => Number(a.question_number || 0))
-            .filter((n) => Number.isFinite(n) && n > 0)
-        );
-
-        const recoveredRows = [];
-        for (let q = 1; q <= moduleTotal; q += 1) {
-          if (!existingNumbers.has(q)) {
-            recoveredRows.push({
-              question_number: q,
-              question_type: 'structured_recovered',
-              question_text: 'Structured question record recovered for reporting (original DB row missing).',
-              user_answer: null,
-              correct_answer: null,
-              is_correct: null,
-              module_type: moduleKey,
-              section_title: 'Recovered Questions',
-              section_order: 999,
-            });
-          }
-        }
-
-        const moduleAnswers = [...baseAnswers, ...recoveredRows];
+        const moduleAnswers = [...baseAnswers];
         if (moduleAnswers.length === 0) return null;
 
         let y = addPageHeader(`${moduleTitle} Module`, `${moduleData.correct || 0} correct / ${moduleData.wrong || 0} wrong`);
@@ -782,6 +767,9 @@ export default function SubmissionDetail() {
           <div className={`text-center px-8 py-6 rounded-xl border-2 ${getBandColor(isWritingChecked ? submission.band_score : null)}`}>
             <p className="text-sm font-semibold uppercase mb-2">Band Score</p>
             <p className="text-6xl font-bold">{(submission.band_score != null && isWritingChecked) ? parseFloat(submission.band_score).toFixed(1) : '-'}</p>
+            {!isWritingChecked && (
+              <p className="text-xs mt-2 text-gray-500">Pending writing review</p>
+            )}
             <p className="text-sm mt-2">
               {submission.total_correct || 0} / {submission.total_questions || 0} correct
             </p>
@@ -843,7 +831,7 @@ export default function SubmissionDetail() {
                   ].map(({ label, score }) => (
                     <div key={label} className={`rounded-lg p-3 text-center border ${getBandColor(score)}`}>
                       <p className="text-xs text-gray-500 mb-1">{label}</p>
-                      <p className="text-xl font-bold">{score != null ? parseFloat(score).toFixed(1) : 'N/A'}</p>
+                      <p className="text-xl font-bold">{score != null ? parseFloat(score).toFixed(1) : '-'}</p>
                     </div>
                   ))}
                 </div>
@@ -866,30 +854,7 @@ export default function SubmissionDetail() {
             const moduleData = submission.answers_by_module[module];
             if (!moduleData || moduleData.answers.length === 0) return null;
 
-            const moduleTotal = getModuleTotal(module, moduleData);
-            const existingNumbers = new Set(
-              (moduleData.answers || [])
-                .map((ans) => Number(ans?.question_number || 0))
-                .filter((n) => Number.isFinite(n) && n > 0)
-            );
-
-            const recoveredRows = [];
-            for (let q = 1; q <= moduleTotal; q += 1) {
-              if (!existingNumbers.has(q)) {
-                recoveredRows.push({
-                  question_number: q,
-                  question_text: `Question ${q} (recovered placeholder row)`,
-                  user_answer: null,
-                  correct_answer: null,
-                  is_correct: null,
-                  section_title: 'Recovered Questions',
-                  section_order: 999,
-                  question_type: 'structured_recovered',
-                });
-              }
-            }
-
-            const mergedAnswers = [...(moduleData.answers || []), ...recoveredRows];
+            const mergedAnswers = [...(moduleData.answers || [])];
 
             // Group answers by section
             const answersBySection = {};
