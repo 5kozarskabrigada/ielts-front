@@ -51,6 +51,35 @@ export default function SubmissionDetail() {
     return new Date(dateString).toLocaleString();
   };
 
+  const getPdfLogoDataUrl = async () => {
+    const candidates = [
+      `${window.location.origin}/examroom-logo.png`,
+      `${window.location.origin}/logo512.png`,
+      `${window.location.origin}/logo192.png`
+    ];
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+          return dataUrl;
+        }
+      } catch (_) {
+        // try next candidate
+      }
+    }
+
+    return null;
+  };
+
   const handleDownloadPdf = async () => {
     if (!pageRef.current || downloadingPdf) return;
     setDownloadingPdf(true);
@@ -59,7 +88,7 @@ export default function SubmissionDetail() {
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
-      const logoUrl = `${window.location.origin}/logo192.png`;
+      const logoDataUrl = await getPdfLogoDataUrl();
 
       const opt = {
         margin: [10, 8, 10, 8],
@@ -94,9 +123,13 @@ export default function SubmissionDetail() {
               'margin:0 0 16px 0',
               'border-bottom:2px solid #e5e7eb'
             ].join(';');
+            const logoHtml = logoDataUrl
+              ? `<img src="${logoDataUrl}" alt="ExamRoom" style="width:38px;height:38px;object-fit:contain;border-radius:8px;display:block;" />`
+              : `<div style="width:38px;height:38px;border-radius:8px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">ER</div>`;
+
             brandHeader.innerHTML = `
               <div style="display:flex;align-items:center;gap:10px;">
-                <img src="${logoUrl}" alt="ExamRoom" style="width:36px;height:36px;object-fit:contain;border-radius:8px;" />
+                ${logoHtml}
                 <div>
                   <div style="font-size:18px;font-weight:800;letter-spacing:0.3px;color:#0f172a;line-height:1.1;">ExamRoom</div>
                   <div style="font-size:12px;color:#64748b;line-height:1.1;">Student Submission Report</div>
@@ -117,8 +150,25 @@ export default function SubmissionDetail() {
 
             clonedRoot.querySelectorAll('.pdf-keep-together').forEach((el) => {
               el.style.pageBreakInside = 'avoid';
+              el.style.breakInside = 'avoid-page';
               el.style.breakInside = 'avoid';
               el.style.webkitColumnBreakInside = 'avoid';
+            });
+
+            clonedRoot.querySelectorAll('.pdf-answer-row').forEach((el) => {
+              el.style.pageBreakInside = 'avoid';
+              el.style.breakInside = 'avoid-page';
+              el.style.overflow = 'hidden';
+              el.style.position = 'relative';
+            });
+
+            clonedRoot.querySelectorAll('.pdf-status-badge').forEach((el) => {
+              el.style.display = 'inline-flex';
+              el.style.alignItems = 'center';
+              el.style.justifyContent = 'center';
+              el.style.minWidth = '82px';
+              el.style.boxSizing = 'border-box';
+              el.style.lineHeight = '1.2';
             });
 
             clonedRoot.querySelectorAll('svg').forEach((svg) => {
@@ -155,7 +205,7 @@ export default function SubmissionDetail() {
         pagebreak: {
           mode: ['css', 'legacy'],
           before: '[data-pdf-page-break], [data-pdf-part-break]',
-          avoid: ['.pdf-keep-together']
+          avoid: ['.pdf-keep-together', '.pdf-answer-row', '.pdf-status-badge']
         }
       };
 
@@ -421,14 +471,14 @@ export default function SubmissionDetail() {
                       <FileText size={24} />
                       <span>{module} Module</span>
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckCircle size={20} className="text-green-600" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
-                        <span className="text-green-600 font-semibold" style={{ lineHeight: 1.2 }}>{moduleData.correct} Correct</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div className="pdf-status-badge" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '4px 10px', background: '#dcfce7', color: '#166534', borderRadius: '9999px', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', minWidth: '102px' }}>
+                        <CheckCircle size={16} className="text-green-600" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }} />
+                        <span style={{ lineHeight: 1.2 }}>{moduleData.correct} Correct</span>
                       </div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <XCircle size={20} className="text-red-600" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
-                        <span className="text-red-600 font-semibold" style={{ lineHeight: 1.2 }}>{moduleData.wrong} Wrong</span>
+                      <div className="pdf-status-badge" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '4px 10px', background: '#fee2e2', color: '#991b1b', borderRadius: '9999px', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', minWidth: '102px' }}>
+                        <XCircle size={16} className="text-red-600" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }} />
+                        <span style={{ lineHeight: 1.2 }}>{moduleData.wrong} Wrong</span>
                       </div>
                     </div>
                   </div>
@@ -470,7 +520,7 @@ export default function SubmissionDetail() {
                           return (
                             <div 
                               key={idx}
-                              className={`px-4 py-3 pdf-keep-together ${
+                              className={`px-4 py-3 pdf-keep-together pdf-answer-row ${
                                 !userAnswer ? 'bg-gray-50' : ans.is_correct ? 'bg-green-50/40' : 'bg-red-50/40'
                               }`}
                             >
@@ -509,18 +559,18 @@ export default function SubmissionDetail() {
                                 </div>
                                 
                                 {/* Status Badge */}
-                                <div style={{flexShrink:0,display:'flex',alignItems:'center'}}>
+                                <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'flex-end',minWidth:'96px'}}>
                                   {!userAnswer ? (
-                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#e5e7eb',color:'#4b5563',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
+                                    <span className="pdf-status-badge" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'3px',padding:'2px 8px',background:'#e5e7eb',color:'#4b5563',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',minWidth:'82px'}}>
                                       Skipped
                                     </span>
                                   ) : ans.is_correct ? (
-                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#bbf7d0',color:'#166534',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
+                                    <span className="pdf-status-badge" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'3px',padding:'2px 8px',background:'#bbf7d0',color:'#166534',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',minWidth:'82px'}}>
                                       <CheckCircle size={12} style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}} />
                                       Correct
                                     </span>
                                   ) : (
-                                    <span style={{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',background:'#fecaca',color:'#991b1b',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap'}}>
+                                    <span className="pdf-status-badge" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'3px',padding:'2px 8px',background:'#fecaca',color:'#991b1b',borderRadius:'9999px',fontSize:'11px',fontWeight:600,whiteSpace:'nowrap',minWidth:'82px'}}>
                                       <XCircle size={12} style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}} />
                                       Wrong
                                     </span>
