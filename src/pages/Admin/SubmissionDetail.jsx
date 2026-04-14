@@ -54,75 +54,103 @@ export default function SubmissionDetail() {
   const handleDownloadPdf = async () => {
     if (!pageRef.current || downloadingPdf) return;
     setDownloadingPdf(true);
+
+    let clone = null;
     try {
       const studentName = (submission.user_name || 'Unknown').replace(/\s+/g, '_');
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
 
-      // Clone the container so the page stays fully interactive during rendering
-      const clone = pageRef.current.cloneNode(true);
+      // Clone into an in-viewport invisible layer. Off-screen clones can render blank in some browsers.
+      clone = pageRef.current.cloneNode(true);
       clone.style.cssText = [
-        'position:absolute', 'left:-9999px', 'top:0',
-        'width:860px', 'background:#fff', 'padding:28px 36px',
+        'position:fixed',
+        'left:0',
+        'top:0',
+        'opacity:0',
+        'pointer-events:none',
+        'z-index:-1',
+        'width:860px',
+        'background:#fff',
+        'padding:28px 36px',
         'box-sizing:border-box',
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'
       ].join(';');
       document.body.appendChild(clone);
 
-      // Remove buttons and interactive UI elements
-      clone.querySelectorAll('button').forEach(b => b.remove());
+      // Add PDF-only brand header with logo.
+      const logoUrl = `${window.location.origin}/logo192.png`;
+      const brandHeader = document.createElement('div');
+      brandHeader.style.cssText = [
+        'display:flex',
+        'align-items:center',
+        'justify-content:space-between',
+        'padding:0 0 14px 0',
+        'margin:0 0 16px 0',
+        'border-bottom:2px solid #e5e7eb'
+      ].join(';');
+      brandHeader.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="${logoUrl}" alt="ExamRoom" style="width:36px;height:36px;object-fit:contain;border-radius:8px;" />
+          <div>
+            <div style="font-size:18px;font-weight:800;letter-spacing:0.3px;color:#0f172a;line-height:1.1;">ExamRoom</div>
+            <div style="font-size:12px;color:#64748b;line-height:1.1;">Student Submission Report</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;color:#64748b;">Generated</div>
+          <div style="font-size:12px;font-weight:600;color:#1f2937;">${new Date().toLocaleString()}</div>
+        </div>
+      `;
+      clone.prepend(brandHeader);
 
-      // Remove AI hint / feedback text elements (keep score numbers)
-      clone.querySelectorAll('.pdf-hide').forEach(el => el.remove());
+      // Remove interactive elements.
+      clone.querySelectorAll('button').forEach((b) => b.remove());
 
-      // Force every question row to never split across pages
-      clone.querySelectorAll('.pdf-keep-together').forEach(el => {
+      // Remove AI hint text in PDF (keep numeric writing criteria scores).
+      clone.querySelectorAll('.pdf-hide').forEach((el) => el.remove());
+      clone.querySelectorAll('.pdf-ai-label').forEach((el) => {
+        el.textContent = 'Writing Scores';
+      });
+
+      // Keep rows together and avoid split cards across pages.
+      clone.querySelectorAll('.pdf-keep-together').forEach((el) => {
         el.style.pageBreakInside = 'avoid';
         el.style.breakInside = 'avoid';
         el.style.webkitColumnBreakInside = 'avoid';
       });
 
-      // Fix SVG icon vertical alignment (html2canvas renders them offset otherwise)
-      clone.querySelectorAll('svg').forEach(svg => {
+      // Normalize SVG/text alignment for html2canvas.
+      clone.querySelectorAll('svg').forEach((svg) => {
         svg.style.display = 'inline-block';
         svg.style.verticalAlign = 'middle';
-        svg.style.position = 'relative';
-        svg.style.top = '0px';
         svg.style.flexShrink = '0';
       });
-
-      // Ensure inline-flex spans (status badges) render correctly in canvas
-      clone.querySelectorAll('span').forEach(span => {
-        const cl = span.className || '';
-        if (cl.includes('inline-flex') || window.getComputedStyle(span).display === 'inline-flex') {
+      clone.querySelectorAll('span').forEach((span) => {
+        const cs = window.getComputedStyle(span);
+        if (cs.display === 'inline-flex') {
           span.style.display = 'inline-flex';
           span.style.alignItems = 'center';
           span.style.verticalAlign = 'middle';
         }
       });
 
-      // Fully expand every height-constrained / scrollable container
-      clone.querySelectorAll('*').forEach(el => {
+      // Fully expand scroll-constrained regions.
+      clone.querySelectorAll('*').forEach((el) => {
         const cs = window.getComputedStyle(el);
-        if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' ||
-            cs.overflow  === 'auto' || cs.overflow  === 'scroll') {
-          el.style.overflow  = 'visible';
+        if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflow === 'auto' || cs.overflow === 'scroll') {
+          el.style.overflow = 'visible';
           el.style.overflowY = 'visible';
           el.style.maxHeight = 'none';
-          el.style.height    = 'auto';
+          el.style.height = 'auto';
         }
         if (cs.maxHeight && cs.maxHeight !== 'none' && cs.maxHeight !== '0px') {
           el.style.maxHeight = 'none';
         }
       });
 
-      // Inject an html2pdf page-break element before every marked section
-      clone.querySelectorAll('[data-pdf-page-break]').forEach(el => {
-        const br = document.createElement('div');
-        br.className = 'html2pdf__page-break';
-        br.style.cssText = 'page-break-before:always;break-before:page;height:1px;display:block;margin:0;padding:0;';
-        el.parentNode.insertBefore(br, el);
-      });
+      // Give browser a short layout tick so images/styles settle before capture.
+      await new Promise((resolve) => setTimeout(resolve, 60));
 
       const opt = {
         margin: [10, 8, 10, 8],
@@ -136,14 +164,18 @@ export default function SubmissionDetail() {
           windowWidth: 940,
           logging: false,
           letterRendering: true,
-          allowTaint: false
+          allowTaint: false,
+          backgroundColor: '#ffffff'
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['legacy', 'css'], avoid: ['.pdf-keep-together'] }
+        pagebreak: {
+          mode: ['css', 'legacy'],
+          before: '[data-pdf-page-break]',
+          avoid: ['.pdf-keep-together']
+        }
       };
 
       await html2pdf().set(opt).from(clone).save();
-      document.body.removeChild(clone);
     } catch (err) {
       console.error('PDF generation failed:', err);
       setNotification({
@@ -153,6 +185,7 @@ export default function SubmissionDetail() {
         message: `Unable to generate PDF: ${err.message}`
       });
     } finally {
+      if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
       setDownloadingPdf(false);
     }
   };
@@ -405,14 +438,14 @@ export default function SubmissionDetail() {
                       <FileText size={24} />
                       <span>{module} Module</span>
                     </h3>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle size={20} className="text-green-600" />
-                        <span className="text-green-600 font-semibold">{moduleData.correct} Correct</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle size={20} className="text-green-600" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+                        <span className="text-green-600 font-semibold" style={{ lineHeight: 1.2 }}>{moduleData.correct} Correct</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <XCircle size={20} className="text-red-600" />
-                        <span className="text-red-600 font-semibold">{moduleData.wrong} Wrong</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <XCircle size={20} className="text-red-600" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+                        <span className="text-red-600 font-semibold" style={{ lineHeight: 1.2 }}>{moduleData.wrong} Wrong</span>
                       </div>
                     </div>
                   </div>
@@ -596,7 +629,7 @@ export default function SubmissionDetail() {
                       <div>
                         <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center space-x-2">
                           <Star size={16} className="text-amber-500" />
-                          <span>AI Grading</span>
+                          <span className="pdf-ai-label">AI Grading</span>
                         </h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4 pdf-keep-together">
                           {[
