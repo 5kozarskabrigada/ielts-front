@@ -55,20 +55,30 @@ export default function SubmissionDetail() {
   const EXAMROOM_LOGO_URL = 'https://www.image2url.com/r2/default/images/1776184637206-291b37c3-761a-40e8-9a97-ff58706b8eb2.jpg';
 
   const loadLogoAsDataUrl = async (url) => {
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) return null;
-      const blob = await response.blob();
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      return typeof dataUrl === 'string' ? dataUrl : null;
-    } catch {
-      return null;
+    const candidates = [
+      url,
+      // CORS-safe proxy fallback while still using your URL as source
+      'https://images.weserv.nl/?url=www.image2url.com/r2/default/images/1776184637206-291b37c3-761a-40e8-9a97-ff58706b8eb2.jpg'
+    ];
+
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(candidate, { cache: 'no-store' });
+        if (!response.ok) continue;
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if (typeof dataUrl === 'string') return dataUrl;
+      } catch {
+        // try next candidate
+      }
     }
+
+    return null;
   };
 
   const handleDownloadPdf = async () => {
@@ -95,6 +105,15 @@ export default function SubmissionDetail() {
 
       const totalScore = submission.band_score != null ? parseFloat(submission.band_score).toFixed(1) : 'N/A';
       const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      const getModuleStats = (moduleKey) => {
+        const m = submission.answers_by_module?.[moduleKey] || {};
+        const correct = Number(m.correct || 0);
+        const wrong = Number(m.wrong || 0);
+        const skipped = Number(m.skipped || 0);
+        const answersLen = Array.isArray(m.answers) ? m.answers.length : 0;
+        const total = Number(m.total_questions || 0) || answersLen || (correct + wrong + skipped);
+        return { correct, total };
+      };
 
       const drawCover = () => {
         pdf.setFillColor(...dark);
@@ -150,17 +169,19 @@ export default function SubmissionDetail() {
         const y = margin + 64;
         const gap = 4;
         const cardW = (contentWidth - gap * 3) / 4;
+        const listeningStats = getModuleStats('listening');
+        const readingStats = getModuleStats('reading');
         const cards = [
           {
             title: 'Listening',
-            value: `${submission.answers_by_module?.listening?.correct || 0}/${(submission.answers_by_module?.listening?.correct || 0) + (submission.answers_by_module?.listening?.wrong || 0)}`,
+            value: `${listeningStats.correct}/${listeningStats.total}`,
             sub: 'questions correct',
             accent: dark,
             bg: panel,
           },
           {
             title: 'Reading',
-            value: `${submission.answers_by_module?.reading?.correct || 0}/${(submission.answers_by_module?.reading?.correct || 0) + (submission.answers_by_module?.reading?.wrong || 0)}`,
+            value: `${readingStats.correct}/${readingStats.total}`,
             sub: 'questions correct',
             accent: dark,
             bg: panel,
@@ -571,7 +592,7 @@ export default function SubmissionDetail() {
               const score = parseFloat(submission.scores_by_module?.[module]) || 0;
               const moduleAnswers = submission.answers_by_module?.[module];
               const correct = moduleAnswers?.correct || 0;
-              const total = correct + (moduleAnswers?.wrong || 0);
+              const total = moduleAnswers?.total_questions || (Array.isArray(moduleAnswers?.answers) ? moduleAnswers.answers.length : (correct + (moduleAnswers?.wrong || 0) + (moduleAnswers?.skipped || 0)));
               return (
                 <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
