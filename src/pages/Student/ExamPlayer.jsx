@@ -109,6 +109,7 @@ export default function ExamPlayer() {
   useEffect(() => {
     if (isAdminPreview) {
       setHasStarted(true);
+      setAnswers({});
     }
   }, [isAdminPreview]);
 
@@ -1746,6 +1747,7 @@ export default function ExamPlayer() {
                   setAnswers={setAnswersWithAutosave}
                   examId={examId}
                   userId={user?.id}
+                  persistenceEnabled={!isAdminPreview}
                 />
               </ErrorBoundary>
             </div>

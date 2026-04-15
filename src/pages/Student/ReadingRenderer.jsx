@@ -608,7 +608,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   return null;
 };
 
-function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null, userId = null }) {
+function ReadingRenderer({ section, partNumber, globalOffset, questions, questionGroups, answers, setAnswers, saveAnswers = null, examId = null, userId = null, persistenceEnabled = true }) {
   const [textWidth, setTextWidth] = useState(50); // Percentage width for text side
   const passagePaneRef = useRef(null);
   const passageContentRef = useRef(null);
@@ -653,12 +653,6 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     return node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
   };
 
-  const findClosestBlock = (node) => {
-    const el = resolveElementNode(node);
-    if (!el || !(el instanceof Element)) return null;
-    return el.closest('p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, figcaption');
-  };
-
   const isRangeHighlightSafe = (range) => {
     if (!range || range.collapsed) return false;
 
@@ -670,9 +664,12 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       return false;
     }
 
-    const startBlock = findClosestBlock(startEl) || passageContentRef.current;
-    const endBlock = findClosestBlock(endEl) || passageContentRef.current;
-    if (startBlock !== endBlock) {
+    // Avoid wrapping complex table structures, but allow normal passage selections.
+    const selectionFragment = range.cloneContents();
+    if (
+      selectionFragment.querySelector &&
+      selectionFragment.querySelector('table, thead, tbody, tfoot, tr, td, th, colgroup, col')
+    ) {
       return false;
     }
 
@@ -680,6 +677,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   };
 
   const getPassageStorageKey = () => {
+    if (!persistenceEnabled) return null;
     if (!examId || !userId || !section?.id) return null;
     return `reading_highlights_${examId}_${userId}_${section.id}`;
   };
@@ -699,6 +697,14 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
 
   useEffect(() => {
     const baseHtml = (section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ');
+
+    if (!persistenceEnabled) {
+      setPassageHtml(baseHtml);
+      closeHighlightMenu();
+      closeSelectionAction();
+      return;
+    }
+
     try {
       const storageKey = getPassageStorageKey();
       if (!storageKey) {
@@ -712,7 +718,7 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     }
     closeHighlightMenu();
     closeSelectionAction();
-  }, [examId, userId, section?.id, section?.content]);
+  }, [examId, userId, section?.id, section?.content, persistenceEnabled]);
 
   useEffect(() => {
     closeHighlightMenu();
