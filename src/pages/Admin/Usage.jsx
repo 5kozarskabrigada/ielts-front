@@ -46,12 +46,33 @@ export default function UsagePage() {
   const projectionMultiplier = daysInMonth / daysInPeriod;
 
   const totalMonthly = HETZNER_MONTHLY + neonMonthly;
+  const userCount = perStudent?.totals?.user_count || 0;
   const studentCount = perStudent?.totals?.student_count || 0;
-  const avgPerStudent = studentCount > 0 ? totalMonthly / studentCount : 0;
+  const adminCount = perStudent?.totals?.admin_count || 0;
+  const totalMs = perStudent?.totals?.total_response_ms || 0;
+  const studentMs = perStudent?.totals?.student_response_ms || 0;
+  const adminMs = perStudent?.totals?.admin_response_ms || 0;
 
-  const sortedStudents = useMemo(() => {
-    if (!perStudent?.students) return [];
-    return [...perStudent.students].sort((a, b) => {
+  // Cost allocation based on actual usage (not equal split)
+  const studentPct = totalMs > 0 ? studentMs / totalMs : 0;
+  const adminPct = totalMs > 0 ? adminMs / totalMs : 0;
+
+  const studentNeonCost = neonMonthly * studentPct;
+  const adminNeonCost = neonMonthly * adminPct;
+
+  // Hetzner is fixed - split proportionally by usage
+  const studentHetznerCost = HETZNER_MONTHLY * studentPct;
+  const adminHetznerCost = HETZNER_MONTHLY * adminPct;
+
+  const totalStudentCost = studentNeonCost + studentHetznerCost;
+  const totalAdminCost = adminNeonCost + adminHetznerCost;
+
+  const avgPerStudent = studentCount > 0 ? totalStudentCost / studentCount : 0;
+  const avgPerAdmin = adminCount > 0 ? totalAdminCost / adminCount : 0;
+
+  const sortedUsers = useMemo(() => {
+    if (!perStudent?.users) return [];
+    return [...perStudent.users].sort((a, b) => {
       const aVal = Number(a[sortField]) || 0;
       const bVal = Number(b[sortField]) || 0;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
@@ -102,8 +123,14 @@ export default function UsagePage() {
           icon={Database}
           color="green"
         />
-        <CostCard title="Total Monthly" value={`$${totalMonthly.toFixed(2)}`} subtitle={`${studentCount} tracked students`} icon={DollarSign} color="purple" />
-        <CostCard title="Avg per Student" value={`$${avgPerStudent.toFixed(2)}`} subtitle="simple average / month" icon={Users} color="orange" />
+        <CostCard title="Total Monthly" value={`$${totalMonthly.toFixed(2)}`} subtitle={`${userCount} tracked users`} icon={DollarSign} color="purple" />
+        <CostCard title="Cost Allocation" value={`${(studentPct * 100).toFixed(0)}% / ${(adminPct * 100).toFixed(0)}%`} subtitle="Student / Admin" icon={TrendingUp} color="orange" />
+      </div>
+
+      {/* Admin vs Student Cost Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <CostCard title="Students" value={`$${totalStudentCost.toFixed(2)}`} subtitle={`${studentCount} users · $${avgPerStudent.toFixed(3)}/user`} icon={Users} color="blue" />
+        <CostCard title="Admins" value={`$${totalAdminCost.toFixed(2)}`} subtitle={`${adminCount} users · $${avgPerAdmin.toFixed(3)}/user`} icon={Users} color="purple" />
       </div>
 
       {/* Date filter */}
@@ -120,7 +147,7 @@ export default function UsagePage() {
       {/* Tabs */}
       <div className="flex space-x-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
         {[
-          { key: "students", label: "Per Student" },
+          { key: "students", label: "Per User" },
           { key: "summary", label: "Summary" },
         ].map(t => (
           <button
@@ -136,14 +163,15 @@ export default function UsagePage() {
       {tab === "students" && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">Per-Student Usage</h2>
+            <h2 className="font-bold text-gray-900">Per-User Usage</h2>
             <span className="text-xs text-gray-400">{perStudent?.totals?.total_requests || 0} total requests tracked</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                  <th className="text-left px-4 py-3 font-semibold">Student</th>
+                  <th className="text-left px-4 py-3 font-semibold">User</th>
+                  <th className="text-left px-4 py-3 font-semibold">Role</th>
                   <th className="text-right px-4 py-3 font-semibold cursor-pointer select-none" onClick={() => handleSort("total_requests")}>
                     <span className="inline-flex items-center space-x-1"><span>Requests</span><SortIcon field="total_requests" /></span>
                   </th>
@@ -163,28 +191,33 @@ export default function UsagePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sortedStudents.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-gray-400">No student usage data yet. Data will appear after students use the platform.</td></tr>
-                ) : sortedStudents.map((s, i) => {
-                  const estNeon = neonMonthly * (s.pct_of_total_time / 100);
-                  const estHetzner = studentCount > 0 ? HETZNER_MONTHLY / studentCount : 0;
+                {sortedUsers.length === 0 ? (
+                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">No usage data yet. Data will appear after users use the platform.</td></tr>
+                ) : sortedUsers.map((u, i) => {
+                  const estNeon = neonMonthly * (u.pct_of_total_time / 100);
+                  const estHetzner = HETZNER_MONTHLY * (u.pct_of_total_time / 100);
                   const estTotal = estNeon + estHetzner;
                   return (
-                    <tr key={s.user_id} className={`hover:bg-gray-50 ${i % 2 === 0 ? "" : "bg-gray-50/30"}`}>
+                    <tr key={u.user_id} className={`hover:bg-gray-50 ${i % 2 === 0 ? "" : "bg-gray-50/30"}`}>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{s.first_name} {s.last_name}</div>
-                        <div className="text-xs text-gray-400">{s.username}</div>
+                        <div className="font-medium text-gray-900">{u.first_name} {u.last_name}</div>
+                        <div className="text-xs text-gray-400">{u.username}</div>
                       </td>
-                      <td className="text-right px-4 py-3 font-mono text-gray-700">{s.total_requests}</td>
-                      <td className="text-right px-4 py-3 font-mono text-gray-700">{s.total_response_sec}s</td>
-                      <td className="text-right px-4 py-3 font-mono text-gray-700">{s.active_days}</td>
-                      <td className="text-right px-4 py-3 font-mono text-gray-700">{s.exam_requests}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.user_role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {u.user_role}
+                        </span>
+                      </td>
+                      <td className="text-right px-4 py-3 font-mono text-gray-700">{u.total_requests}</td>
+                      <td className="text-right px-4 py-3 font-mono text-gray-700">{u.total_response_sec}s</td>
+                      <td className="text-right px-4 py-3 font-mono text-gray-700">{u.active_days}</td>
+                      <td className="text-right px-4 py-3 font-mono text-gray-700">{u.exam_requests}</td>
                       <td className="text-right px-4 py-3">
                         <div className="flex items-center justify-end space-x-2">
                           <div className="w-16 bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(s.pct_of_total_time, 100)}%` }} />
+                            <div className={`${u.user_role === 'admin' ? 'bg-purple-500' : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${Math.min(u.pct_of_total_time, 100)}%` }} />
                           </div>
-                          <span className="font-mono text-gray-700 w-14 text-right">{s.pct_of_total_time}%</span>
+                          <span className="font-mono text-gray-700 w-14 text-right">{u.pct_of_total_time}%</span>
                         </div>
                       </td>
                       <td className="text-right px-4 py-3 font-mono font-semibold text-green-700">${estTotal.toFixed(2)}</td>
