@@ -641,6 +641,38 @@ export async function apiExportResultsCSV(token, examId) {
   return res.blob();
 }
 
+// ---------- Usage Tracking ----------
+
+export async function apiGetPerStudentUsage(token, from, to) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/admin/usage/per-student${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get usage data");
+  }
+  return res.json();
+}
+
+export async function apiGetUsageSummary(token, from, to) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/admin/usage/summary${qs ? `?${qs}` : ""}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get usage summary");
+  }
+  return res.json();
+}
+
 // Add this API helper for group image upload
 export async function apiUploadPassageImage(formData) {
   const res = await fetch(`${API_URL}/upload/passage-image`, {

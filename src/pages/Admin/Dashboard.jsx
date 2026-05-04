@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../authContext";
 import { apiGetDashboardStats } from "../../api";
 import { 
-  Users, BookOpen, BarChart2, LogOut, Settings, CheckCircle, Clock, GraduationCap, Trash2, FileText, Activity
+  Users, BookOpen, BarChart2, LogOut, Settings, CheckCircle, Clock, GraduationCap, Trash2, FileText, Activity, DollarSign
 } from "lucide-react";
 
 // Layout Component
@@ -18,6 +18,7 @@ export default function AdminDashboardLayout() {
     { path: "/admin/exams", label: "Exams", icon: BookOpen },
     { path: "/admin/submissions", label: "Submissions", icon: FileText },
     { path: "/admin/logs", label: "Activity Logs", icon: Activity },
+    { path: "/admin/usage", label: "Usage & Costs", icon: DollarSign },
     { path: "/admin/recycle-bin", label: "Recycle Bin", icon: Trash2 },
     { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
