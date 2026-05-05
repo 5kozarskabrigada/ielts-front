@@ -98,15 +98,19 @@ function ExamEditorContent() {
       (questionGroups || []).forEach(group => {
         if (group.question_type === 'form_completion' && group.table_data?.answers) {
           const startNum = group.question_range_start || 1;
-          Object.entries(group.table_data.answers).forEach(([blankIdx, answer]) => {
-            const questionNumber = startNum + parseInt(blankIdx);
+          const answers = group.table_data.answers || {};
+          // Use sequential index instead of answer object key to prevent duplicates
+          let blankIndex = 0;
+          Object.entries(answers).forEach(([blankIdx, answer]) => {
+            const questionNumber = startNum + blankIndex;
+            blankIndex++;
             // Split answer by / to separate main answer from alternatives
             const answerParts = answer ? answer.split('/').map(a => a.trim()).filter(Boolean) : [];
             const correctAnswer = answerParts[0] || '';
             const alternatives = answerParts.length > 1 ? answerParts.slice(1).join('/') : '';
-            
+
             // Check if question already exists
-            const existingIdx = allQuestions.findIndex(q => 
+            const existingIdx = allQuestions.findIndex(q =>
               q.section_id === group.section_id && q.question_number === questionNumber
             );
             const questionData = {

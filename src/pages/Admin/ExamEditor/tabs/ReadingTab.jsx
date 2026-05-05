@@ -709,11 +709,28 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
   }, [text, answersJson, group.id, group.question_range_start, sectionId]);
 
   const handleTextChange = (value) => {
-    updateSummaryData({ text: value });
+    const oldBlankCount = (text.match(/\[BLANK\]/g) || []).length;
+    const newBlankCount = (value.match(/\[BLANK\]/g) || []).length;
+    // Normalize answers if blank count changes
+    if (oldBlankCount !== newBlankCount) {
+      updateSummaryData({ text: value, answers: normalizeAnswers() });
+    } else {
+      updateSummaryData({ text: value });
+    }
   };
 
   const handleAnswerChange = (blankNum, value) => {
     updateSummaryData({ answers: { ...answers, [blankNum]: value } });
+  };
+
+  // Normalize answers to have sequential keys based on actual blank positions
+  const normalizeAnswers = () => {
+    const normalizedAnswers = {};
+    const blankCount = (text.match(/\[BLANK\]/g) || []).length;
+    for (let i = 0; i < blankCount; i++) {
+      normalizedAnswers[i] = answers[i] || '';
+    }
+    return normalizedAnswers;
   };
 
   const insertBlank = () => {

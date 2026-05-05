@@ -530,7 +530,7 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
     const newCells = initializeCells(newRows, cols, cells);
     // Remove merges that would go out of bounds
     const newMerges = merges.filter(m => m.startRow + (m.rowSpan || 1) <= newRows);
-    updateTableData({ rows: newRows, cells: newCells, merges: newMerges });
+    updateTableData({ rows: newRows, cells: newCells, merges: newMerges, answers: normalizeAnswers() });
     setSelectedCells([]);
   };
 
@@ -539,15 +539,22 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
     const newHeaders = initializeHeaders(newCols, headers);
     // Remove merges that would go out of bounds
     const newMerges = merges.filter(m => m.startCol + (m.colSpan || 1) <= newCols);
-    updateTableData({ cols: newCols, cells: newCells, headers: newHeaders, merges: newMerges });
+    updateTableData({ cols: newCols, cells: newCells, headers: newHeaders, merges: newMerges, answers: normalizeAnswers() });
     setSelectedCells([]);
   };
 
   const handleCellChange = (rowIdx, colIdx, value) => {
-    const newCells = cells.map((row, r) => 
+    const newCells = cells.map((row, r) =>
       row.map((cell, c) => r === rowIdx && c === colIdx ? value : cell)
     );
-    updateTableData({ cells: newCells });
+    // Normalize answers if the change affects blank count
+    const oldBlanks = (cells[rowIdx]?.[colIdx] || '').match(/\[BLANK\]/g)?.length || 0;
+    const newBlanks = value.match(/\[BLANK\]/g)?.length || 0;
+    if (oldBlanks !== newBlanks) {
+      updateTableData({ cells: newCells, answers: normalizeAnswers() });
+    } else {
+      updateTableData({ cells: newCells });
+    }
   };
 
   const handleHeaderChange = (colIdx, value) => {
@@ -556,7 +563,27 @@ const TableBuilder = ({ group, updateGroup, baseQuestionNumber }) => {
   };
 
   const handleAnswerChange = (blankNum, value) => {
-    updateTableData({ answers: { ...answers, [blankNum]: value } });
+    // Ensure answers are stored with sequential indices based on actual blank position
+    // This prevents duplicate question numbers when table structure changes
+    const newAnswers = { ...answers };
+    newAnswers[blankNum] = value;
+    updateTableData({ answers: newAnswers });
+  };
+
+  // Normalize answers to have sequential keys based on actual blank positions
+  const normalizeAnswers = () => {
+    const normalizedAnswers = {};
+    let blankIndex = 0;
+    cells.forEach(row => {
+      row.forEach(cell => {
+        const blanks = cell.match(/\[BLANK\]/g) || [];
+        blanks.forEach(() => {
+          normalizedAnswers[blankIndex] = answers[blankIndex] || '';
+          blankIndex++;
+        });
+      });
+    });
+    return normalizedAnswers;
   };
 
   const insertBlank = (rowIdx, colIdx) => {
@@ -994,11 +1021,28 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
   }, [text, answersJson, group.id, group.question_range_start, sectionId]);
 
   const handleTextChange = (value) => {
-    updateSummaryData({ text: value });
+    const oldBlankCount = (text.match(/\[BLANK\]/g) || []).length;
+    const newBlankCount = (value.match(/\[BLANK\]/g) || []).length;
+    // Normalize answers if blank count changes
+    if (oldBlankCount !== newBlankCount) {
+      updateSummaryData({ text: value, answers: normalizeAnswers() });
+    } else {
+      updateSummaryData({ text: value });
+    }
   };
 
   const handleAnswerChange = (blankNum, value) => {
     updateSummaryData({ answers: { ...answers, [blankNum]: value } });
+  };
+
+  // Normalize answers to have sequential keys based on actual blank positions
+  const normalizeAnswers = () => {
+    const normalizedAnswers = {};
+    const blankCount = (text.match(/\[BLANK\]/g) || []).length;
+    for (let i = 0; i < blankCount; i++) {
+      normalizedAnswers[i] = answers[i] || '';
+    }
+    return normalizedAnswers;
   };
 
   const insertBlank = () => {

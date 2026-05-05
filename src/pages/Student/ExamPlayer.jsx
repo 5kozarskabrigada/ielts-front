@@ -1930,6 +1930,17 @@ export default function ExamPlayer() {
 
               items.sort((a, b) => a.sortKey - b.sortKey);
 
+              // Deduplicate items by question_number to prevent duplicate navigation buttons
+              const uniqueItems = [];
+              const seenQuestionNumbers = new Set();
+              items.forEach(item => {
+                const qNum = item.sortKey;
+                if (!seenQuestionNumbers.has(qNum)) {
+                  seenQuestionNumbers.add(qNum);
+                  uniqueItems.push(item);
+                }
+              });
+
               return (
                 <div key={section.id} className="flex items-center space-x-2">
                   <button 
@@ -1958,7 +1969,7 @@ export default function ExamPlayer() {
                     Part {partNumber}
                   </button>
                   <div className="flex space-x-1">
-                    {items.map((item) => {
+                    {uniqueItems.map((item) => {
                       if (item.type === 'single') {
                         const q = item.question;
                         const globalNum = globalOffset + q.question_number;
