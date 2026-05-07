@@ -45,7 +45,7 @@ function PrivateRoute({ children, role }) {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/2">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
