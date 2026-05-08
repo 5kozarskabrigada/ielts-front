@@ -1879,7 +1879,8 @@ export default function ExamPlayer() {
               const isCurrentPart = partNumber === currentPart;
               
               const maxGroupEnd = sectionGroups.reduce((max, g) => Math.max(max, g.question_range_end || 0), 0);
-              cumulativeOffset += Math.max(partQuestions.length, maxGroupEnd);
+              const maxQuestionNum = partQuestions.length > 0 ? Math.max(...partQuestions.map(q => q.question_number)) : 0;
+              cumulativeOffset += Math.max(maxQuestionNum, maxGroupEnd);
 
               // Build footer items: individual buttons for most questions, range for multiple_choice_multiple groups
               const items = [];
