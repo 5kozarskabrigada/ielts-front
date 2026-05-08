@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
   deploy:
@@ -15,6 +15,16 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/ielts-front
-            git pull origin main
+            # Clone repo if it doesn't exist, otherwise pull
+            if [ ! -d "/root/ielts-front" ]; then
+              cd /root
+              git clone https://github.com/5kozarskabrigada/ielts-front.git
+            fi
+            
+            cd /root/ielts-front
+            git pull origin master || git pull origin main
+            docker compose down
             docker compose up -d --build
+            
+            echo "Frontend deployment completed"
+            docker compose ps
