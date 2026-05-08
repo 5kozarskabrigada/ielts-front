@@ -483,7 +483,7 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                   setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
                   if (saveAnswers) saveAnswers();
                 }}
-                className="px-3 py-2 border border-gray-300 rounded bg-white outline-none min-w-[120px] font-medium"
+                className="px-3 py-2 border border-gray-300 rounded bg-white outline-none w-24 font-medium"
                 style={{ 
                   fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
                 }}
