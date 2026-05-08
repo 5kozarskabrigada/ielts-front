@@ -477,25 +477,22 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
                   <RenderHtml html={q.question_text || ''} />
                 </div>
               </div>
-              <input 
-                type="text"
+              <select 
                 value={answers[q.id] || ''}
                 onChange={(e) => {
-                  setAnswers(prev => ({ ...prev, [q.id]: e.target.value.toUpperCase() }));
+                  setAnswers(prev => ({ ...prev, [q.id]: e.target.value }));
                   if (saveAnswers) saveAnswers();
                 }}
-                onCopy={(e) => e.stopPropagation()}
-                onCut={(e) => e.stopPropagation()}
-                onPaste={(e) => e.stopPropagation()}
-                maxLength={1}
-                className="w-12 h-10 text-center border rounded font-bold text-lg"
-                placeholder="?"
+                className="px-3 py-2 border border-gray-300 rounded bg-white outline-none min-w-[120px] font-medium"
                 style={{ 
-                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif',
-                  userSelect: 'text',
-                  WebkitUserSelect: 'text'
+                  fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif'
                 }}
-              />
+              >
+                <option value="">Select...</option>
+                {sharedOptions.map(opt => (
+                  <option key={opt.label} value={opt.label}>{opt.label}</option>
+                ))}
+              </select>
             </div>
           );
         })}
