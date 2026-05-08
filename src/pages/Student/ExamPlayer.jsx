@@ -1279,10 +1279,11 @@ export default function ExamPlayer() {
 
   const currentGlobalOffset = useMemo(() => {
     return allModuleSections.slice(0, currentPart - 1).reduce((sum, s) => {
-      const dbCount = questions.filter(q => q.section_id === s.id).length;
+      const sectionQuestions = questions.filter(q => q.section_id === s.id);
+      const maxQuestionNum = sectionQuestions.length > 0 ? Math.max(...sectionQuestions.map(q => q.question_number)) : 0;
       const sGroups = questionGroups.filter(g => g.section_id === s.id);
       const maxEnd = sGroups.reduce((m, g) => Math.max(m, g.question_range_end || 0), 0);
-      return sum + Math.max(dbCount, maxEnd);
+      return sum + Math.max(maxQuestionNum, maxEnd);
     }, 0);
   }, [allModuleSections, currentPart, questions, questionGroups]);
 
