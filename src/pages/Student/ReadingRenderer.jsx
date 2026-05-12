@@ -657,6 +657,10 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     });
   };
 
+  // Store highlights as overlay data (no DOM wrapping)
+  const [highlights, setHighlights] = useState([]);
+  const highlightOverlaysRef = useRef(null);
+
   const resolveElementNode = (node) => {
     if (!node) return null;
     return node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
@@ -688,17 +692,66 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
   const getPassageStorageKey = () => {
     if (!persistenceEnabled) return null;
     if (!examId || !userId || !section?.id) return null;
-    return `reading_highlights_${examId}_${userId}_${section.id}`;
+    return `reading_highlights_v2_${examId}_${userId}_${section.id}`;
   };
 
-  const persistPassageHighlights = () => {
-    if (!passageContentRef.current) return;
-    const html = passageContentRef.current.innerHTML;
-    setPassageHtml(html);
+  const getNodeXPath = (node) => {
+    if (!node || !passageContentRef.current) return null;
+    if (node === passageContentRef.current) return '/';
+    
+    const parts = [];
+    let currentNode = node;
+    
+    while (currentNode && currentNode !== passageContentRef.current) {
+      let index = 0;
+      let sibling = currentNode;
+      while (sibling = sibling.previousSibling) {
+        if (sibling.nodeName === currentNode.nodeName) index++;
+      }
+      parts.unshift(`${currentNode.nodeName}[${index}]`);
+      currentNode = currentNode.parentNode;
+    }
+    
+    return '/' + parts.join('/');
+  };
+
+  const getNodeFromXPath = (xpath) => {
+    if (!xpath || !passageContentRef.current) return null;
+    if (xpath === '/') return passageContentRef.current;
+    
+    const parts = xpath.split('/').filter(p => p);
+    let currentNode = passageContentRef.current;
+    
+    for (const part of parts) {
+      const match = part.match(/^(.+)\[(\d+)\]$/);
+      if (!match) return null;
+      const [, nodeName, indexStr] = match;
+      const index = parseInt(indexStr, 10);
+      
+      let count = -1;
+      let found = null;
+      for (const child of currentNode.childNodes) {
+        if (child.nodeName === nodeName) {
+          count++;
+          if (count === index) {
+            found = child;
+            break;
+          }
+        }
+      }
+      
+      if (!found) return null;
+      currentNode = found;
+    }
+    
+    return currentNode;
+  };
+
+  const persistPassageHighlights = (newHighlights) => {
     try {
       const storageKey = getPassageStorageKey();
       if (!storageKey) return;
-      localStorage.setItem(storageKey, html);
+      localStorage.setItem(storageKey, JSON.stringify(newHighlights || highlights));
     } catch {
       // ignore storage errors
     }
@@ -706,9 +759,10 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
 
   useEffect(() => {
     const baseHtml = (section?.content || '').replace(/\b([A-Z])\. /g, '<strong>$1.</strong> ');
+    setPassageHtml(baseHtml);
 
     if (!persistenceEnabled) {
-      setPassageHtml(baseHtml);
+      setHighlights([]);
       closeHighlightMenu();
       closeSelectionAction();
       return;
@@ -717,13 +771,22 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     try {
       const storageKey = getPassageStorageKey();
       if (!storageKey) {
-        setPassageHtml(baseHtml);
+        setHighlights([]);
       } else {
-        const savedHtml = localStorage.getItem(storageKey);
-        setPassageHtml(savedHtml || baseHtml);
+        const savedData = localStorage.getItem(storageKey);
+        if (savedData) {
+          try {
+            const parsed = JSON.parse(savedData);
+            setHighlights(Array.isArray(parsed) ? parsed : []);
+          } catch {
+            setHighlights([]);
+          }
+        } else {
+          setHighlights([]);
+        }
       }
     } catch {
-      setPassageHtml(baseHtml);
+      setHighlights([]);
     }
     closeHighlightMenu();
     closeSelectionAction();
@@ -807,58 +870,51 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
         node.setAttribute('draggable', 'false');
       }
     });
-
-    const existingHighlights = root.querySelectorAll('.reading-user-highlight');
-    existingHighlights.forEach((node) => {
-      if (!(node instanceof HTMLElement)) return;
-      // CSS handles ALL styling - don't set any inline styles
-      // Just ensure the class is present
-    });
   }, [passageHtml]);
 
-  const normalizeHighlightMarkup = () => {
-    if (!passageContentRef.current) return;
-
-    const root = passageContentRef.current;
-    const highlights = Array.from(root.querySelectorAll('.reading-user-highlight'));
-
-    highlights.forEach((currentNode) => {
-      if (!(currentNode instanceof HTMLElement)) return;
-
-      // CSS handles ALL styling - don't set any inline styles
-      // Any inline style can cause text layout shifts
-
-      let nextNode = currentNode.nextSibling;
-
-      while (nextNode && nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '') {
-        const emptyTextNode = nextNode;
-        nextNode = nextNode.nextSibling;
-        emptyTextNode.parentNode?.removeChild(emptyTextNode);
-      }
-
-      while (
-        nextNode &&
-        nextNode.nodeType === Node.ELEMENT_NODE &&
-        nextNode.classList &&
-        nextNode.classList.contains('reading-user-highlight')
-      ) {
-        while (nextNode.firstChild) {
-          currentNode.appendChild(nextNode.firstChild);
+  // Render highlight overlays (no DOM manipulation)
+  useEffect(() => {
+    if (!passageContentRef.current || !highlightOverlaysRef.current) return;
+    
+    // Clear existing overlays
+    highlightOverlaysRef.current.innerHTML = '';
+    
+    highlights.forEach((highlight) => {
+      const { startXPath, startOffset, endXPath, endOffset, id } = highlight;
+      
+      try {
+        const startNode = getNodeFromXPath(startXPath);
+        const endNode = getNodeFromXPath(endXPath);
+        
+        if (!startNode || !endNode) return;
+        
+        const range = document.createRange();
+        range.setStart(startNode, startOffset);
+        range.setEnd(endNode, endOffset);
+        
+        const rects = range.getClientRects();
+        const passageRect = passageContentRef.current.getBoundingClientRect();
+        
+        for (let i = 0; i < rects.length; i++) {
+          const rect = rects[i];
+          const overlay = document.createElement('div');
+          overlay.className = 'reading-highlight-overlay';
+          overlay.dataset.highlightId = id;
+          overlay.style.position = 'absolute';
+          overlay.style.left = `${rect.left - passageRect.left + passageContentRef.current.scrollLeft}px`;
+          overlay.style.top = `${rect.top - passageRect.top + passageContentRef.current.scrollTop}px`;
+          overlay.style.width = `${rect.width}px`;
+          overlay.style.height = `${rect.height}px`;
+          overlay.style.backgroundColor = '#fff59d';
+          overlay.style.pointerEvents = 'none';
+          overlay.style.zIndex = '0';
+          highlightOverlaysRef.current.appendChild(overlay);
         }
-
-        const nodeToRemove = nextNode;
-        nextNode = nodeToRemove.nextSibling;
-        nodeToRemove.parentNode?.removeChild(nodeToRemove);
-
-        while (nextNode && nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent === '') {
-          const emptyTextNode = nextNode;
-          nextNode = nextNode.nextSibling;
-          emptyTextNode.parentNode?.removeChild(emptyTextNode);
-        }
+      } catch (err) {
+        console.warn('Failed to render highlight:', err);
       }
     });
-
-  };
+  }, [highlights, passageHtml]);
 
   const applyHighlightToSelection = () => {
     if (!passageContentRef.current) return;
@@ -896,39 +952,34 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       return;
     }
 
-    const createHighlightSpan = () => {
-      const span = document.createElement('mark');
-      span.className = 'reading-user-highlight';
-      // NO inline styles - CSS handles everything to prevent layout shifts
-      return span;
-    };
-
-    let applied = false;
-    try {
-      const highlightSpan = createHighlightSpan();
-      range.surroundContents(highlightSpan);
-      applied = true;
-    } catch {
-      try {
-        const highlightSpan = createHighlightSpan();
-        const extracted = range.extractContents();
-        highlightSpan.appendChild(extracted);
-        range.insertNode(highlightSpan);
-        applied = true;
-      } catch {
-        return;
-      }
+    // Store highlight data without modifying DOM
+    const startXPath = getNodeXPath(range.startContainer);
+    const endXPath = getNodeXPath(range.endContainer);
+    const text = range.toString();
+    
+    if (!startXPath || !endXPath) {
+      closeSelectionAction();
+      return;
     }
 
-    if (!applied) return;
+    const newHighlight = {
+      id: Date.now().toString(),
+      text,
+      startXPath,
+      startOffset: range.startOffset,
+      endXPath,
+      endOffset: range.endOffset,
+    };
+
+    const newHighlights = [...highlights, newHighlight];
+    setHighlights(newHighlights);
+    persistPassageHighlights(newHighlights);
 
     if (selection) {
       selection.removeAllRanges();
     }
 
-    normalizeHighlightMarkup();
     closeSelectionAction();
-    persistPassageHighlights();
   };
 
   const handlePassageContentClick = (event) => {
@@ -937,37 +988,72 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
       return;
     }
 
-    const highlightedNode = event.target.closest('.reading-user-highlight');
-    if (!highlightedNode || !passagePaneRef.current) {
+    if (!passagePaneRef.current || !passageContentRef.current) {
+      closeHighlightMenu();
+      return;
+    }
+
+    // Check if click is on a highlighted area
+    const clickX = event.clientX;
+    const clickY = event.clientY;
+    
+    let foundHighlight = null;
+    
+    for (const highlight of highlights) {
+      try {
+        const startNode = getNodeFromXPath(highlight.startXPath);
+        const endNode = getNodeFromXPath(highlight.endXPath);
+        
+        if (!startNode || !endNode) continue;
+        
+        const range = document.createRange();
+        range.setStart(startNode, highlight.startOffset);
+        range.setEnd(endNode, highlight.endOffset);
+        
+        const rects = range.getClientRects();
+        
+        for (let i = 0; i < rects.length; i++) {
+          const rect = rects[i];
+          if (
+            clickX >= rect.left && clickX <= rect.right &&
+            clickY >= rect.top && clickY <= rect.bottom
+          ) {
+            foundHighlight = { ...highlight, rect: rects[0] };
+            break;
+          }
+        }
+        
+        if (foundHighlight) break;
+      } catch {
+        continue;
+      }
+    }
+
+    if (!foundHighlight) {
       closeHighlightMenu();
       return;
     }
 
     closeSelectionAction();
     const paneRect = passagePaneRef.current.getBoundingClientRect();
-    const nodeRect = highlightedNode.getBoundingClientRect();
     setHighlightMenu({
       visible: true,
-      x: nodeRect.left - paneRect.left + passagePaneRef.current.scrollLeft,
-      y: nodeRect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
-      target: highlightedNode,
+      x: foundHighlight.rect.left - paneRect.left + passagePaneRef.current.scrollLeft,
+      y: foundHighlight.rect.bottom - paneRect.top + passagePaneRef.current.scrollTop + 6,
+      target: foundHighlight,
     });
   };
 
   const removeHighlight = () => {
-    const highlightNode = highlightMenu.target;
-    if (!highlightNode || !highlightNode.parentNode) {
+    const highlightData = highlightMenu.target;
+    if (!highlightData || !highlightData.id) {
       closeHighlightMenu();
       return;
     }
 
-    const parent = highlightNode.parentNode;
-    while (highlightNode.firstChild) {
-      parent.insertBefore(highlightNode.firstChild, highlightNode);
-    }
-    parent.removeChild(highlightNode);
-    normalizeHighlightMarkup();
-    persistPassageHighlights();
+    const newHighlights = highlights.filter(h => h.id !== highlightData.id);
+    setHighlights(newHighlights);
+    persistPassageHighlights(newHighlights);
     closeSelectionAction();
     closeHighlightMenu();
   };
@@ -1069,23 +1155,42 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
             {section.title || `Passage ${partNumber}`}
           </h3>
           
-          {/* Content */}
-          <div 
-            ref={passageContentRef}
-            className="select-text reading-passage-content"
-            onClick={handlePassageContentClick}
-            onMouseUp={handlePassageMouseUp}
-            style={{ 
-              fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
-              fontSize: '16px', 
-              color: 'rgb(40, 40, 40)', 
-              lineHeight: '1.6',
-              marginBottom: '30px',
-              userSelect: 'text',
-              WebkitUserSelect: 'text'
-            }}
-            dangerouslySetInnerHTML={passageContentMarkup}
-          />
+          {/* Content with highlight overlays */}
+          <div style={{ position: 'relative' }}>
+            {/* Highlight overlays (behind text) */}
+            <div 
+              ref={highlightOverlaysRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 0
+              }}
+            />
+            
+            {/* Text content (in front of overlays) */}
+            <div 
+              ref={passageContentRef}
+              className="select-text reading-passage-content"
+              onClick={handlePassageContentClick}
+              onMouseUp={handlePassageMouseUp}
+              style={{ 
+                fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif', 
+                fontSize: '16px', 
+                color: 'rgb(40, 40, 40)', 
+                lineHeight: '1.6',
+                marginBottom: '30px',
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+                position: 'relative',
+                zIndex: 1
+              }}
+              dangerouslySetInnerHTML={passageContentMarkup}
+            />
+          </div>
 
           {selectionAction.visible && (
             <div
