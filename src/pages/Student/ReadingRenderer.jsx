@@ -811,14 +811,8 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     const existingHighlights = root.querySelectorAll('.reading-user-highlight');
     existingHighlights.forEach((node) => {
       if (!(node instanceof HTMLElement)) return;
-      // CSS handles all styling, just ensure class is present
-      // Minimal inline styles to ensure consistency
-      node.style.backgroundColor = '#fff59d';
-      node.style.padding = '0';
-      node.style.margin = '0';
-      node.style.border = 'none';
-      node.style.display = 'inline';
-      node.style.verticalAlign = 'baseline';
+      // CSS handles ALL styling - don't set any inline styles
+      // Just ensure the class is present
     });
   }, [passageHtml]);
 
@@ -831,16 +825,8 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     highlights.forEach((currentNode) => {
       if (!(currentNode instanceof HTMLElement)) return;
 
-      // Minimal inline styles - CSS handles most styling
-      currentNode.style.backgroundColor = '#fff59d';
-      currentNode.style.padding = '0';
-      currentNode.style.margin = '0';
-      currentNode.style.border = 'none';
-      currentNode.style.display = 'inline';
-      currentNode.style.lineHeight = 'inherit';
-      currentNode.style.verticalAlign = 'baseline';
-      currentNode.style.boxDecorationBreak = 'clone';
-      currentNode.style.webkitBoxDecorationBreak = 'clone';
+      // CSS handles ALL styling - don't set any inline styles
+      // Any inline style can cause text layout shifts
 
       let nextNode = currentNode.nextSibling;
 
@@ -911,18 +897,9 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     }
 
     const createHighlightSpan = () => {
-      const span = document.createElement('span');
+      const span = document.createElement('mark');
       span.className = 'reading-user-highlight';
-      // Minimal inline styles - CSS handles most styling
-      span.style.backgroundColor = '#fff59d';
-      span.style.padding = '0';
-      span.style.margin = '0';
-      span.style.border = 'none';
-      span.style.display = 'inline';
-      span.style.lineHeight = 'inherit';
-      span.style.verticalAlign = 'baseline';
-      span.style.boxDecorationBreak = 'clone';
-      span.style.webkitBoxDecorationBreak = 'clone';
+      // NO inline styles - CSS handles everything to prevent layout shifts
       return span;
     };
 
