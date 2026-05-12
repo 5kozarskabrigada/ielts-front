@@ -802,11 +802,14 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     const existingHighlights = root.querySelectorAll('.reading-user-highlight');
     existingHighlights.forEach((node) => {
       if (!(node instanceof HTMLElement)) return;
+      // CSS handles all styling, just ensure class is present
+      // Minimal inline styles to ensure consistency
       node.style.backgroundColor = '#fff59d';
-      node.style.cursor = 'pointer';
       node.style.padding = '0';
       node.style.margin = '0';
+      node.style.border = 'none';
       node.style.display = 'inline';
+      node.style.verticalAlign = 'baseline';
     });
   }, [passageHtml]);
 
@@ -819,18 +822,14 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     highlights.forEach((currentNode) => {
       if (!(currentNode instanceof HTMLElement)) return;
 
+      // Minimal inline styles - CSS handles most styling
       currentNode.style.backgroundColor = '#fff59d';
-      currentNode.style.cursor = 'pointer';
       currentNode.style.padding = '0';
       currentNode.style.margin = '0';
+      currentNode.style.border = 'none';
       currentNode.style.display = 'inline';
       currentNode.style.lineHeight = 'inherit';
-      currentNode.style.font = 'inherit';
-      currentNode.style.letterSpacing = 'inherit';
-      currentNode.style.wordSpacing = 'inherit';
-      currentNode.style.whiteSpace = 'inherit';
       currentNode.style.verticalAlign = 'baseline';
-      currentNode.style.borderRadius = '2px';
       currentNode.style.boxDecorationBreak = 'clone';
       currentNode.style.webkitBoxDecorationBreak = 'clone';
 
@@ -905,18 +904,14 @@ function ReadingRenderer({ section, partNumber, globalOffset, questions, questio
     const createHighlightSpan = () => {
       const span = document.createElement('span');
       span.className = 'reading-user-highlight';
+      // Minimal inline styles - CSS handles most styling
       span.style.backgroundColor = '#fff59d';
-      span.style.cursor = 'pointer';
       span.style.padding = '0';
       span.style.margin = '0';
+      span.style.border = 'none';
       span.style.display = 'inline';
       span.style.lineHeight = 'inherit';
-      span.style.font = 'inherit';
-      span.style.letterSpacing = 'inherit';
-      span.style.wordSpacing = 'inherit';
-      span.style.whiteSpace = 'inherit';
       span.style.verticalAlign = 'baseline';
-      span.style.borderRadius = '2px';
       span.style.boxDecorationBreak = 'clone';
       span.style.webkitBoxDecorationBreak = 'clone';
       return span;

@@ -89,6 +89,44 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
+/* Reading passage text highlighting - ensures no layout shift */
+.reading-passage-content {
+  position: relative;
+}
+
+.reading-user-highlight {
+  background-color: #fff59d !important;
+  cursor: pointer !important;
+  /* Critical: prevent any dimension changes */
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  /* Maintain inline flow */
+  display: inline !important;
+  /* Inherit all text properties to prevent shifts */
+  line-height: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  letter-spacing: inherit !important;
+  word-spacing: inherit !important;
+  white-space: inherit !important;
+  text-indent: inherit !important;
+  /* Prevent vertical alignment issues */
+  vertical-align: baseline !important;
+  /* Smooth highlight across line breaks */
+  box-decoration-break: clone !important;
+  -webkit-box-decoration-break: clone !important;
+  /* Prevent any transform or positioning */
+  transform: none !important;
+  position: static !important;
+  /* Ensure crisp rendering */
+  -webkit-font-smoothing: inherit !important;
+  -moz-osx-font-smoothing: inherit !important;
+  text-rendering: inherit !important;
+}
+
 /* Buttons */
 .button {
   border-radius: 8px;
