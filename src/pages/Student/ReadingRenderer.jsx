@@ -135,7 +135,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         </div>
         <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
-            const qNum = globalOffset + q.question_number;
+            // Use index-based numbering to prevent duplicates
+            const qNum = globalOffset + group.question_range_start + idx;
             const selectedValue = normalizeTriStateAnswer(answers[q.id], isYesNo);
             return (
               <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-center gap-4 py-1">
@@ -179,7 +180,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
     const maxSelections = isMultiple ? (group.question_range_end - group.question_range_start + 1) : 1;
     
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + q.question_number;
+      // Use index-based numbering to prevent duplicates
+      const qNum = globalOffset + group.question_range_start + idx;
       const selectedCount = isMultiple ? (answers[q.id] || '').length : 0;
       return (
         <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="py-3" style={{ fontFamily: 'Nunito, "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif' }}>
@@ -280,8 +282,9 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
       return (
         <div className="mb-6">
           <div className="space-y-3">
-            {groupQuestions.map((q) => {
-              const qNum = globalOffset + q.question_number;
+            {groupQuestions.map((q, idx) => {
+              // Use index-based numbering to prevent duplicates
+              const qNum = globalOffset + group.question_range_start + idx;
               return (
                 <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-center gap-3 py-1">
                   <span className="font-bold text-gray-700" style={{ minWidth: '35px', fontSize: '15px' }}>{qNum}.</span>
@@ -345,7 +348,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
         {/* Questions */}
         <div className="space-y-4">
           {groupQuestions.map((q, idx) => {
-            const qNum = globalOffset + q.question_number;
+            // Use index-based numbering to prevent duplicates
+            const qNum = globalOffset + group.question_range_start + idx;
             // For matching_headings, label as Paragraph B, C, ...
             // For matching_features, label as Statement 27, 28, ...
             const paraLabel = isPeople
@@ -410,7 +414,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Sentence Completion - NO number, just template
   if (type === 'sentence_completion') {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + q.question_number;
+      // Use index-based numbering to prevent duplicates
+      const qNum = globalOffset + group.question_range_start + idx;
       const template = q.question_template || q.question_text || '';
       const parts = template.split('[BLANK]');
       
@@ -440,7 +445,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Short Answer
   if (type === 'short_answer') {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + q.question_number;
+      // Use index-based numbering to prevent duplicates
+      const qNum = globalOffset + group.question_range_start + idx;
       return (
         <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
@@ -501,7 +507,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
             {parts.map((part, idx) => {
               if (part === '[BLANK]') {
                 const question = groupQuestions[blankCount];
-                const qNum = question ? (globalOffset + question.question_number) : (globalOffset + group.question_range_start + blankCount);
+                // Use index-based numbering to prevent duplicates
+                const qNum = globalOffset + group.question_range_start + blankCount;
                 const qId = question ? question.id : `summary_placeholder_${group.id}_${blankCount}`;
                 blankCount++;
                 
@@ -548,7 +555,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
           </div>
         )}
         {groupQuestions.map((q, idx) => {
-          const qNum = globalOffset + q.question_number;
+          // Use index-based numbering to prevent duplicates
+          const qNum = globalOffset + group.question_range_start + idx;
           return (
             <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
               <span className="font-bold text-gray-700">{qNum}.</span>
@@ -579,7 +587,8 @@ const renderQuestionGroup = (group, groupQuestions, globalOffset, answers, setAn
   // Other completion types (table_completion, note_completion, form_completion)
   if (['table_completion', 'note_completion', 'form_completion'].includes(type)) {
     return groupQuestions.map((q, idx) => {
-      const qNum = globalOffset + q.question_number;
+      // Use index-based numbering to prevent duplicates
+      const qNum = globalOffset + group.question_range_start + idx;
       return (
         <div key={q.id} data-question-id={q.id} data-question-number={qNum} className="flex items-start gap-3 mb-3">
           <span className="font-bold text-gray-700">{qNum}.</span>
