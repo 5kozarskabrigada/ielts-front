@@ -89,81 +89,18 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
-/* Reading passage text highlighting - ensures no layout shift */
+/* Reading passage highlighting - overlay-based (no DOM wrapping) */
 .reading-passage-content {
   position: relative;
 }
 
-/* Reset ALL mark default styles in reading passage */
-.reading-passage-content mark {
-  all: inherit !important;
-  background-color: transparent !important;
-}
-
-.reading-user-highlight {
-  /* Use mark semantic element with complete reset */
-  all: inherit !important;
-  background-color: #fff59d !important;
-  cursor: pointer !important;
-  
-  /* Absolutely critical: prevent ANY layout changes */
-  display: inline !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: 0 !important;
-  outline: 0 !important;
-  vertical-align: baseline !important;
-  
-  /* Text properties must match parent exactly */
-  font: inherit !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  font-style: inherit !important;
-  font-variant: inherit !important;
-  line-height: inherit !important;
-  letter-spacing: inherit !important;
-  word-spacing: inherit !important;
-  text-align: inherit !important;
-  text-indent: inherit !important;
-  text-transform: inherit !important;
-  text-decoration: inherit !important;
-  white-space: inherit !important;
-  word-break: inherit !important;
-  word-wrap: inherit !important;
-  hyphens: inherit !important;
-  
-  /* Prevent any box model changes */
-  box-sizing: content-box !important;
-  width: auto !important;
-  height: auto !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  max-width: none !important;
-  max-height: none !important;
-  
-  /* Prevent transforms or effects */
-  transform: none !important;
-  filter: none !important;
-  box-shadow: none !important;
-  text-shadow: inherit !important;
-  opacity: 1 !important;
-  
-  /* Smooth highlight across line breaks */
-  box-decoration-break: clone !important;
-  -webkit-box-decoration-break: clone !important;
-  
-  /* Position */
-  position: static !important;
-  float: none !important;
-  clear: none !important;
-  
-  /* Rendering - critical for preventing shifts */
-  -webkit-font-smoothing: inherit !important;
-  -moz-osx-font-smoothing: inherit !important;
-  text-rendering: inherit !important;
-  font-feature-settings: inherit !important;
-  font-kerning: inherit !important;
+.reading-highlight-overlay {
+  position: absolute;
+  background-color: #fff59d;
+  pointer-events: none;
+  z-index: 0;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* Buttons */
