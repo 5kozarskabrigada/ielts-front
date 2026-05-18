@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../authContext";
 import { apiListUsers, apiCreateUser, apiUpdateUser, apiDeleteUser } from "../../api";
-import { Trash2, Edit2, Plus, Search, Copy, Check, AlertTriangle } from "lucide-react";
+import { Trash2, Edit2, Plus, Search, Copy, Check, AlertTriangle, Mail } from "lucide-react";
 import Modal from "../../components/Modal/Modal";
 
 export default function UsersPage() {
@@ -16,6 +16,7 @@ export default function UsersPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", role: "student", password: "" });
+  const [sendEmail, setSendEmail] = useState(true); // Email checkbox state (default: true)
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,12 +53,14 @@ export default function UsersPage() {
         setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
         setEditingId(null);
       } else {
-        const newUser = await apiCreateUser(token, formData);
+        // Include sendEmail parameter when creating new user
+        const newUser = await apiCreateUser(token, { ...formData, sendEmail });
         setCreatedUser(newUser);
         setIsFormModalOpen(false);
         setIsSuccessModalOpen(true); // Show success modal
         fetchUsers(searchQuery);
         setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" });
+        setSendEmail(true); // Reset to default
       }
     } catch (err) {
       setError(err.message);
@@ -121,7 +124,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
         <button
-          onClick={() => { setIsFormModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" }); setCreatedUser(null); }}
+          onClick={() => { setIsFormModalOpen(true); setEditingId(null); setFormData({ firstName: "", lastName: "", email: "", role: "student", password: "" }); setCreatedUser(null); setSendEmail(true); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition"
         >
           <Plus size={20} />
@@ -237,9 +240,35 @@ export default function UsersPage() {
               className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-
+              placeholder="student@example.com"
             />
           </div>
+          
+          {/* Send Email Checkbox - Only show when creating new user */}
+          {!editingId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  id="sendEmail"
+                  type="checkbox"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  disabled={!formData.email || !formData.email.trim()}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
+                <label htmlFor="sendEmail" className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+                  <Mail size={16} className="text-blue-600" />
+                  <span>Send login credentials via email</span>
+                </label>
+              </div>
+              {(!formData.email || !formData.email.trim()) && (
+                <p className="text-xs text-gray-500 mt-2 ml-6">
+                  Enter an email address to enable this option
+                </p>
+              )}
+            </div>
+          )}
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
@@ -295,6 +324,19 @@ export default function UsersPage() {
       >
         {createdUser && (
           <div className="space-y-3">
+            {/* Email sent notification */}
+            {createdUser.email_sent && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start space-x-2">
+                <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-green-800">Email sent successfully!</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Login credentials have been sent to {createdUser.email}
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div className="flex justify-between items-center border-b pb-2">
               <span className="text-gray-500">Name:</span>
               <span className="font-medium">{createdUser.first_name} {createdUser.last_name}</span>
@@ -324,6 +366,15 @@ export default function UsersPage() {
                 <span>Copy All Credentials</span>
               </button>
             </div>
+            
+            {!createdUser.email_sent && createdUser.email && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start space-x-2">
+                <AlertTriangle size={20} className="text-yellow-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-yellow-700">
+                  Email was not sent. Please share credentials manually.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </Modal>
