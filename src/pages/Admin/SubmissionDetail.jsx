@@ -543,9 +543,22 @@ export default function SubmissionDetail() {
               const result = studentAns === 'Skipped'
                 ? 'Skipped'
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
+              
+              // For template-based questions, show the template instead of generic question_text
+              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+              const isTemplateType = templateTypes.includes(a.question_type);
+              let displayText = '';
+              
+              if (isTemplateType && a.question_template) {
+                // Use template and replace [BLANK] with ___
+                displayText = a.question_template.replace(/\[BLANK\]/g, '___');
+              } else if (a.question_text) {
+                displayText = a.question_text;
+              }
+              
               return [
                 String(a.question_number || '-'),
-                stripHtmlTags(String(a.question_text || '')),
+                stripHtmlTags(String(displayText || '')),
                 String(studentAns),
                 String(correctAns),
                 result,
@@ -1062,9 +1075,20 @@ export default function SubmissionDetail() {
               return qType !== 'structured_recovered' && !sectionTitle.includes('recovered questions');
             });
 
+            // Deduplicate answers - keep only the first occurrence of each question_number within a section
+            const seenKeys = new Set();
+            const uniqueAnswers = [];
+            for (const ans of mergedAnswers) {
+              const key = `${ans.section_id || ans.section_order}_${ans.question_number}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueAnswers.push(ans);
+              }
+            }
+
             // Group answers by section
             const answersBySection = {};
-            mergedAnswers.forEach(ans => {
+            uniqueAnswers.forEach(ans => {
               const sectionKey = ans.section_title || 'Unknown Section';
               if (!answersBySection[sectionKey]) {
                 answersBySection[sectionKey] = { order: ans.section_order, answers: [] };
@@ -1148,11 +1172,28 @@ export default function SubmissionDetail() {
                                 {/* Content */}
                                 <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
-                                  {ans.question_text && (
-                                    <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>
-                                      {stripHtmlTags(ans.question_text)}
-                                    </p>
-                                  )}
+                                  {(() => {
+                                    // For template-based questions, show the template instead of generic "Summary blank X"
+                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+                                    const isTemplateType = templateTypes.includes(ans.question_type);
+                                    
+                                    let displayText = '';
+                                    if (isTemplateType && ans.question_template) {
+                                      // Use template and replace [BLANK] with ___
+                                      displayText = ans.question_template.replace(/\[BLANK\]/g, '___');
+                                    } else if (ans.question_text) {
+                                      displayText = ans.question_text;
+                                    }
+                                    
+                                    if (displayText) {
+                                      return (
+                                        <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>
+                                          {stripHtmlTags(displayText)}
+                                        </p>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   
                                   {/* Answers - vertical layout for PDF */}
                                   <div className="text-xs space-y-1">
