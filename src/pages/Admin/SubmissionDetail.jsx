@@ -20,8 +20,17 @@ import { stripHtmlTags } from "../../utils/textHelpers";
 function extractSentenceForBlank(template, blankIndex) {
   if (!template) return '';
   
-  // Clean up the template text
-  const cleanTemplate = String(template).trim();
+  // Clean up the template text - strip HTML first
+  let cleanTemplate = String(template).trim();
+  
+  // Enhanced HTML stripping - remove tags and clean up fragments
+  cleanTemplate = cleanTemplate.replace(/<[^>]*>/g, ''); // Remove complete tags
+  cleanTemplate = cleanTemplate.replace(/[<>]/g, ''); // Remove stray angle brackets
+  cleanTemplate = cleanTemplate.replace(/style\s*=\s*["'][^"']*["']/gi, ''); // Remove style attributes
+  cleanTemplate = cleanTemplate.replace(/font-size:\s*\w+;?/gi, ''); // Remove font-size declarations
+  cleanTemplate = cleanTemplate.replace(/[-]size:\s*\w+;?/gi, ''); // Remove broken style fragments
+  cleanTemplate = cleanTemplate.trim();
+  
   if (!cleanTemplate) return '';
   
   // Find all [BLANK] positions
@@ -49,8 +58,14 @@ function extractSentenceForBlank(template, blankIndex) {
   let sentences = [];
   
   // Strategy 1: Bullet points (•, *, -, or numbered lists)
-  if (cleanTemplate.match(/[•\*\-]|\d+\./)) {
-    sentences = cleanTemplate.split(/(?=\s*[•\*\-]|\s*\d+\.)/).map(s => s.trim()).filter(Boolean);
+  // Split before bullets, then extract ONLY the first line of each segment (the bullet line itself)
+  if (cleanTemplate.match(/^\s*[•\*\-\d+\.]/m)) {
+    const segments = cleanTemplate.split(/(?=^\s*[•\*\-]|^\s*\d+\.)/m);
+    sentences = segments.map(seg => {
+      // Extract only the first line (the bullet line)
+      const firstLine = seg.split(/\n/)[0].trim();
+      return firstLine;
+    }).filter(Boolean);
   }
   
   // Strategy 2: Line breaks (if no bullets found, or as fallback)
