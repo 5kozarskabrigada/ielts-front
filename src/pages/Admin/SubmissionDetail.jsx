@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw, Mail } from "lucide-react";
+import { ArrowLeft, User, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw, Mail, Edit2, Save } from "lucide-react";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { API_URL, apiGradeWritingWithAI } from "../../api";
+import { stripHtmlTags } from "../../utils/textHelpers";
 
 export default function SubmissionDetail() {
   const { id } = useParams();
@@ -17,6 +18,9 @@ export default function SubmissionDetail() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [emailingPdf, setEmailingPdf] = useState(false);
   const [gradingTasks, setGradingTasks] = useState({});
+  const [editingSpeaking, setEditingSpeaking] = useState(false);
+  const [speakingScore, setSpeakingScore] = useState('');
+  const [savingSpeaking, setSavingSpeaking] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
     type: 'info',
@@ -41,6 +45,10 @@ export default function SubmissionDetail() {
       
       const data = await response.json();
       setSubmission(data);
+      // Initialize speaking score if it exists
+      if (data.speaking_band_score != null) {
+        setSpeakingScore(String(data.speaking_band_score));
+      }
     } catch (err) {
       console.error("Failed to fetch submission details:", err);
       setError(err.message);
@@ -211,6 +219,12 @@ export default function SubmissionDetail() {
       return null;
     }
 
+    if (moduleKey === 'speaking') {
+      // Speaking score is manually entered by admin
+      const speakingBand = submission?.speaking_band_score;
+      return speakingBand != null ? parseFloat(speakingBand) : null;
+    }
+
     if (moduleKey === 'reading') {
       const readingCorrect = Number(submission?.answers_by_module?.reading?.correct || 0);
       const readingBand = getBandFromCorrect(readingCorrect, ACADEMIC_READING_BAND_TABLE);
@@ -357,12 +371,13 @@ export default function SubmissionDetail() {
       const drawSummaryCards = () => {
         const y = margin + 86;
         const gap = 4;
-        const cardW = (contentWidth - gap * 3) / 4;
+        const cardW = (contentWidth - gap * 4) / 5;
         const listeningStats = getModuleStats('listening');
         const readingStats = getModuleStats('reading');
         const listeningBand = getModuleBandScore('listening');
         const readingBand = getModuleBandScore('reading');
         const writingBand = getModuleBandScore('writing');
+        const speakingBand = getModuleBandScore('speaking');
         const overallBand = (submission.band_score != null && isWritingChecked)
           ? parseFloat(submission.band_score)
           : null;
@@ -371,6 +386,7 @@ export default function SubmissionDetail() {
           { title: 'Listening Band', value: listeningBand },
           { title: 'Reading Band', value: readingBand },
           { title: 'Writing Band', value: writingBand },
+          { title: 'Speaking Band', value: speakingBand },
           { title: 'Overall Band', value: overallBand },
         ];
 
@@ -529,7 +545,7 @@ export default function SubmissionDetail() {
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               return [
                 String(a.question_number || '-'),
-                String(a.question_text || '').replace(/\s+/g, ' ').trim(),
+                stripHtmlTags(String(a.question_text || '')),
                 String(studentAns),
                 String(correctAns),
                 result,
@@ -726,6 +742,64 @@ export default function SubmissionDetail() {
     }
   };
 
+  const handleSaveSpeakingScore = async () => {
+    if (!speakingScore || isNaN(parseFloat(speakingScore))) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Invalid Score',
+        message: 'Please enter a valid speaking band score (0-9).'
+      });
+      return;
+    }
+
+    const score = parseFloat(speakingScore);
+    if (score < 0 || score > 9) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Invalid Score',
+        message: 'Speaking band score must be between 0 and 9.'
+      });
+      return;
+    }
+
+    setSavingSpeaking(true);
+    try {
+      const response = await fetch(`${API_URL}/monitoring/submissions/${id}/speaking-score`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ speaking_band_score: score })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save speaking score');
+      }
+
+      await fetchSubmissionDetails();
+      setEditingSpeaking(false);
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Speaking Score Saved',
+        message: 'The speaking band score has been updated successfully.'
+      });
+    } catch (err) {
+      console.error('Failed to save speaking score:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message || 'Unable to save speaking score.'
+      });
+    } finally {
+      setSavingSpeaking(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -851,12 +925,70 @@ export default function SubmissionDetail() {
       {(submission.scores_by_module || submission.answers_by_module) && (
         <div className="bg-white rounded-xl border shadow-sm p-6 pdf-keep-together">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Module-Wise Band Scores</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {['listening', 'reading', 'writing'].map(module => {
+          <div className="grid grid-cols-4 gap-4">
+            {['listening', 'reading', 'writing', 'speaking'].map(module => {
               const score = getModuleBandScore(module);
               const moduleAnswers = submission.answers_by_module?.[module];
               const correct = moduleAnswers?.correct || 0;
               const total = getModuleTotal(module, moduleAnswers);
+              
+              // Special UI for speaking module
+              if (module === 'speaking') {
+                return (
+                  <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
+                    <p className="text-sm font-semibold uppercase tracking-wide mb-2">Speaking</p>
+                    {editingSpeaking ? (
+                      <div className="flex flex-col items-center space-y-2">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="9"
+                          value={speakingScore}
+                          onChange={(e) => setSpeakingScore(e.target.value)}
+                          className="w-24 text-center text-3xl font-bold border-2 rounded-lg px-2 py-1"
+                          placeholder="0.0"
+                        />
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleSaveSpeakingScore}
+                            disabled={savingSpeaking}
+                            className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs font-medium"
+                          >
+                            {savingSpeaking ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                            <span>Save</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingSpeaking(false);
+                              setSpeakingScore(submission.speaking_band_score ? String(submission.speaking_band_score) : '');
+                            }}
+                            className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-xs font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-5xl font-bold">{score != null ? score.toFixed(1) : '-'}</p>
+                        <button
+                          onClick={() => {
+                            setEditingSpeaking(true);
+                            setSpeakingScore(score ? String(score) : '');
+                          }}
+                          className="mt-2 flex items-center justify-center space-x-1 mx-auto px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium pdf-hide"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <p className="text-xs mt-1 text-gray-500">Manual entry</p>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+              
               return (
                 <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
                   <p className="text-sm font-semibold uppercase tracking-wide mb-2">{module}</p>
@@ -1017,7 +1149,9 @@ export default function SubmissionDetail() {
                                 <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
                                   {ans.question_text && (
-                                    <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>{ans.question_text}</p>
+                                    <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>
+                                      {stripHtmlTags(ans.question_text)}
+                                    </p>
                                   )}
                                   
                                   {/* Answers - vertical layout for PDF */}
