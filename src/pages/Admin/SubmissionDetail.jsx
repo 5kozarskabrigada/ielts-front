@@ -66,11 +66,14 @@ function extractSentenceForBlank(template, blankIndex) {
   const bulletMatch = beforeBlank.match(/[•\*\-]\s*(?=[^\n]*$)/);
   const numberedMatch = beforeBlank.match(/\d+\.\s*(?=[^\n]*$)/);
   const lineBreak = beforeBlank.lastIndexOf('\n');
-  const dashSep = beforeBlank.lastIndexOf('---');
-  const doubleDash = beforeBlank.lastIndexOf('--');
+  // NEW: Better dash detection - find any sequence of 2+ dashes
+  const dashMatch = beforeBlank.match(/[-]{2,}/g);
+  const dashSep = dashMatch ? beforeBlank.lastIndexOf(dashMatch[dashMatch.length - 1]) : -1;
+  const dashLength = dashMatch && dashMatch.length > 0 ? dashMatch[dashMatch.length - 1].length : 0;
   const periodPos = beforeBlank.lastIndexOf('.');
   const exclamPos = beforeBlank.lastIndexOf('!');
   const questPos = beforeBlank.lastIndexOf('?');
+  const semicolonPos = beforeBlank.lastIndexOf(';'); // NEW: Semicolon detection
   // NEW: Look backwards for capital letter after whitespace (sentence start)
   // Simplified: just look for space(s) + capital letter
   const capitalMatches = [...beforeBlank.matchAll(/\s+([A-Z])/g)];
@@ -83,24 +86,22 @@ function extractSentenceForBlank(template, blankIndex) {
     numberedMatch ? numberedMatch.index : -1,
     lineBreak,
     dashSep,
-    doubleDash,
     periodPos,
     exclamPos,
     questPos,
+    semicolonPos,
     lastCapitalPos
   ].filter(pos => pos >= 0);
   
   if (separators.length > 0) {
     sentenceStart = Math.max(...separators);
     // If it's a period/!/?, move past it and any whitespace
-    if (sentenceStart === periodPos || sentenceStart === exclamPos || sentenceStart === questPos) {
+    if (sentenceStart === periodPos || sentenceStart === exclamPos || sentenceStart === questPos || sentenceStart === semicolonPos) {
       sentenceStart += 1;
     }
-    // If it's a dash separator, move past it
+    // If it's a dash separator, move past ALL the dashes
     if (sentenceStart === dashSep) {
-      sentenceStart += 3; // Move past "---"
-    } else if (sentenceStart === doubleDash) {
-      sentenceStart += 2; // Move past "--"
+      sentenceStart += dashLength;
     }
     // If it's a line break, move past it
     if (sentenceStart === lineBreak) {
@@ -117,11 +118,13 @@ function extractSentenceForBlank(template, blankIndex) {
   
   // Check for various sentence separators going forward
   const nextLineBreak = afterBlank.indexOf('\n');
-  const nextDashSep = afterBlank.indexOf('---');
-  const nextDoubleDash = afterBlank.indexOf('--');
+  // NEW: Better dash detection - find any sequence of 2+ dashes
+  const nextDashMatch = afterBlank.match(/[-]{2,}/);
+  const nextDashSep = nextDashMatch ? nextDashMatch.index : -1;
   const nextPeriod = afterBlank.indexOf('.');
   const nextExclam = afterBlank.indexOf('!');
   const nextQuest = afterBlank.indexOf('?');
+  const nextSemicolon = afterBlank.indexOf(';'); // NEW: Semicolon detection
   const nextBullet = afterBlank.match(/[•\*\-]\s/);
   const nextNumbered = afterBlank.match(/\d+\.\s/);
   // NEW: Look for capital letter as sentence start (e.g., "and ___ The next sentence")
@@ -131,10 +134,10 @@ function extractSentenceForBlank(template, blankIndex) {
   const endSeparators = [
     nextLineBreak >= 0 ? afterBlankStart + nextLineBreak : -1,
     nextDashSep >= 0 ? afterBlankStart + nextDashSep : -1,
-    nextDoubleDash >= 0 ? afterBlankStart + nextDoubleDash : -1,
     nextPeriod >= 0 ? afterBlankStart + nextPeriod : -1,
     nextExclam >= 0 ? afterBlankStart + nextExclam : -1,
     nextQuest >= 0 ? afterBlankStart + nextQuest : -1,
+    nextSemicolon >= 0 ? afterBlankStart + nextSemicolon : -1,
     nextBullet ? afterBlankStart + nextBullet.index : -1,
     nextNumbered ? afterBlankStart + nextNumbered.index : -1,
     nextCapital ? afterBlankStart + nextCapital.index : -1
@@ -148,6 +151,8 @@ function extractSentenceForBlank(template, blankIndex) {
         sentenceEnd === afterBlankStart + nextQuest) {
       sentenceEnd += 1;
     }
+    // Semicolon: don't include it in the sentence (just like period)
+    // Capital letter and dash: don't include (they mark start of next sentence)
   }
   
   // Extract the sentence containing this blank
