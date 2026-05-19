@@ -8,6 +8,64 @@ import autoTable from "jspdf-autotable";
 import { API_URL, apiGradeWritingWithAI } from "../../api";
 import { stripHtmlTags } from "../../utils/textHelpers";
 
+/**
+ * Extract the sentence containing a specific blank from a template.
+ * Sentences are defined by periods (.). Returns just the sentence with that blank.
+ * 
+ * @param {string} template - The full template with [BLANK] placeholders
+ * @param {number} blankIndex - Which blank to extract (0-based, e.g., 0 for first blank)
+ * @returns {string} - The sentence containing that blank with [BLANK] replaced by ___
+ */
+function extractSentenceForBlank(template, blankIndex) {
+  if (!template) return '';
+  
+  // Find all [BLANK] positions
+  const blankRegex = /\[BLANK\]/g;
+  const blanks = [];
+  let match;
+  while ((match = blankRegex.exec(template)) !== null) {
+    blanks.push(match.index);
+  }
+  
+  // If blankIndex is out of range, fallback to showing entire template
+  if (blankIndex < 0 || blankIndex >= blanks.length) {
+    return template.replace(/\[BLANK\]/g, '___');
+  }
+  
+  // Get the position of the specific blank we want
+  const targetBlankPos = blanks[blankIndex];
+  
+  // Split text by sentence boundaries (., !, ?)
+  // Keep the punctuation with each sentence
+  const sentences = template.split(/(?<=[.!?])\s+/);
+  
+  // If splitting didn't work well, try another approach
+  if (sentences.length === 1) {
+    // No clear sentence boundaries, return the whole thing with blank replaced
+    return template.replace(/\[BLANK\]/g, '___');
+  }
+  
+  // Find which sentence contains our target blank by tracking character positions
+  let currentPos = 0;
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+    const sentenceStart = currentPos;
+    const sentenceEnd = currentPos + sentence.length;
+    
+    // Check if target blank is in this sentence
+    if (targetBlankPos >= sentenceStart && targetBlankPos < sentenceEnd) {
+      // Found the sentence! Replace only [BLANK]s in this sentence
+      return sentence.replace(/\[BLANK\]/g, '___').trim();
+    }
+    
+    // Move position forward (account for the space that was removed by split)
+    currentPos = sentenceEnd + 1;
+  }
+  
+  // Fallback: if we couldn't find the sentence, just replace all blanks
+  return template.replace(/\[BLANK\]/g, '___');
+}
+
 export default function SubmissionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -535,8 +593,30 @@ export default function SubmissionDetail() {
           pdf.text(String(sectionTitle), margin + 4, y + 2.5);
           y += 9;
 
-          const body = data.rows
-            .sort((a, b) => (a.question_number || 0) - (b.question_number || 0))
+          // Build template-to-blank-index mapping for this section
+          const sortedRows = data.rows.sort((a, b) => (a.question_number || 0) - (b.question_number || 0));
+          const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
+          const templateGroups = new Map(); // Map of template -> array of question numbers
+          
+          sortedRows.forEach(row => {
+            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+            if (templateTypes.includes(row.question_type) && row.question_template) {
+              if (!templateGroups.has(row.question_template)) {
+                templateGroups.set(row.question_template, []);
+              }
+              templateGroups.get(row.question_template).push(row.question_number);
+            }
+          });
+          
+          // Assign blank indices
+          templateGroups.forEach((questionNumbers, template) => {
+            questionNumbers.sort((a, b) => a - b);
+            questionNumbers.forEach((qNum, idx) => {
+              templateToBlankIndex.set(qNum, idx);
+            });
+          });
+
+          const body = sortedRows
             .map((a) => {
               const studentAns = fmtAnswer(a.user_answer, a.question_type);
               const correctAns = fmtAnswer(a.correct_answer, a.question_type);
@@ -544,14 +624,14 @@ export default function SubmissionDetail() {
                 ? 'Skipped'
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
-              // For template-based questions, show the template instead of generic question_text
+              // For template-based questions, extract the sentence containing this specific blank
               const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
               const isTemplateType = templateTypes.includes(a.question_type);
               let displayText = '';
               
               if (isTemplateType && a.question_template) {
-                // Use template and replace [BLANK] with ___
-                displayText = a.question_template.replace(/\[BLANK\]/g, '___');
+                const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
+                displayText = extractSentenceForBlank(a.question_template, blankIndex);
               } else if (a.question_text) {
                 displayText = a.question_text;
               }
@@ -1121,7 +1201,32 @@ export default function SubmissionDetail() {
                   </div>
                 </div>
                 
-                {sortedSections.map(([sectionTitle, sectionData], sIdx) => (
+                {sortedSections.map(([sectionTitle, sectionData], sIdx) => {
+                  // Build template-to-blank-index mapping for this section
+                  const sortedAnswers = [...sectionData.answers].sort((a, b) => a.question_number - b.question_number);
+                  const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
+                  const templateGroups = new Map(); // Map of template -> array of question numbers
+                  
+                  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+                  
+                  sortedAnswers.forEach(ans => {
+                    if (templateTypes.includes(ans.question_type) && ans.question_template) {
+                      if (!templateGroups.has(ans.question_template)) {
+                        templateGroups.set(ans.question_template, []);
+                      }
+                      templateGroups.get(ans.question_template).push(ans.question_number);
+                    }
+                  });
+                  
+                  // Assign blank indices
+                  templateGroups.forEach((questionNumbers, template) => {
+                    questionNumbers.sort((a, b) => a - b);
+                    questionNumbers.forEach((qNum, idx) => {
+                      templateToBlankIndex.set(qNum, idx);
+                    });
+                  });
+                  
+                  return (
                   <div key={sIdx} data-pdf-part-break={sIdx > 0 ? 'true' : undefined}>
                     <div className="px-6 py-2 bg-blue-50 border-b border-blue-100">
                       <span className="text-sm font-semibold text-blue-800">
@@ -1173,14 +1278,14 @@ export default function SubmissionDetail() {
                                 <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
                                   {(() => {
-                                    // For template-based questions, show the template instead of generic "Summary blank X"
+                                    // For template-based questions, extract the sentence containing this specific blank
                                     const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
                                     const isTemplateType = templateTypes.includes(ans.question_type);
                                     
                                     let displayText = '';
                                     if (isTemplateType && ans.question_template) {
-                                      // Use template and replace [BLANK] with ___
-                                      displayText = ans.question_template.replace(/\[BLANK\]/g, '___');
+                                      const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
+                                      displayText = extractSentenceForBlank(ans.question_template, blankIndex);
                                     } else if (ans.question_text) {
                                       displayText = ans.question_text;
                                     }
@@ -1238,7 +1343,8 @@ export default function SubmissionDetail() {
                         })}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}
