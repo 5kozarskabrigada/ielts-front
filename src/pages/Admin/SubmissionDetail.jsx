@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../authContext";
-import { ArrowLeft, User, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, User, CheckCircle, XCircle, FileText, PenTool, Star, Loader2, Download, Sparkles, RefreshCw, Mail } from "lucide-react";
 import NotificationModal from "../../components/NotificationModal/NotificationModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -15,6 +15,7 @@ export default function SubmissionDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [emailingPdf, setEmailingPdf] = useState(false);
   const [gradingTasks, setGradingTasks] = useState({});
   const [notification, setNotification] = useState({
     isOpen: false,
@@ -45,6 +46,55 @@ export default function SubmissionDetail() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmailPdf = async () => {
+    if (!submission || emailingPdf) return;
+    
+    if (!submission.user_email) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Email Error',
+        message: 'Student email not found. Cannot send PDF.'
+      });
+      return;
+    }
+
+    setEmailingPdf(true);
+
+    try {
+      const response = await fetch(`${API_URL}/monitoring/submissions/${id}/email-pdf`, {
+        method: 'POST',
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send PDF');
+      }
+
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'PDF Sent Successfully',
+        message: `Results PDF has been sent to ${submission.user_email}`
+      });
+    } catch (error) {
+      console.error('Failed to email PDF:', error);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Email Failed',
+        message: error.message || 'Failed to send PDF via email'
+      });
+    } finally {
+      setEmailingPdf(false);
     }
   };
 
@@ -713,17 +763,31 @@ export default function SubmissionDetail() {
           <h1 className="text-3xl font-bold text-gray-900">Submission Details</h1>
           <p className="text-gray-600 mt-1">Detailed view of exam submission</p>
         </div>
-        <button
-          onClick={handleDownloadPdf}
-          disabled={downloadingPdf}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-sm font-medium"
-        >
-          {downloadingPdf ? (
-            <><Loader2 size={16} className="animate-spin" /><span>Generating PDF...</span></>
-          ) : (
-            <><Download size={16} /><span>Download PDF</span></>
-          )}
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleEmailPdf}
+            disabled={emailingPdf || !submission?.user_email}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
+            title={!submission?.user_email ? 'Student email not available' : 'Send PDF to student\'s email'}
+          >
+            {emailingPdf ? (
+              <><Loader2 size={16} className="animate-spin" /><span>Sending...</span></>
+            ) : (
+              <><Mail size={16} /><span>Email PDF</span></>
+            )}
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-sm font-medium"
+          >
+            {downloadingPdf ? (
+              <><Loader2 size={16} className="animate-spin" /><span>Generating PDF...</span></>
+            ) : (
+              <><Download size={16} /><span>Download PDF</span></>
+            )}
+          </button>
+        </div>
       </div>
 
       <div id="submission-pdf-root" ref={pageRef} className="space-y-6">
