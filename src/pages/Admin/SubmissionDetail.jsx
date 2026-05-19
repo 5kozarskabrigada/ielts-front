@@ -175,6 +175,9 @@ export default function SubmissionDetail() {
   const [editingSpeaking, setEditingSpeaking] = useState(false);
   const [speakingScore, setSpeakingScore] = useState('');
   const [savingSpeaking, setSavingSpeaking] = useState(false);
+  const [editingWriting, setEditingWriting] = useState(false);
+  const [writingScore, setWritingScore] = useState('');
+  const [savingWriting, setSavingWriting] = useState(false);
   const [notification, setNotification] = useState({
     isOpen: false,
     type: 'info',
@@ -383,6 +386,25 @@ export default function SubmissionDetail() {
       return speakingBand != null ? parseFloat(speakingBand) : null;
     }
 
+    if (moduleKey === 'writing') {
+      // Check for manual writing band score override first
+      const manualWritingBand = submission?.writing_band_score;
+      if (manualWritingBand != null) {
+        return parseFloat(manualWritingBand);
+      }
+      
+      // Fall back to AI/admin-scored tasks if no manual override
+      const writingResponses = Array.isArray(submission?.writing_responses) ? submission.writing_responses : [];
+      const taskBands = writingResponses
+        .map((wr) => wr.admin_override_band ?? wr.final_band ?? wr.ai_overall_band)
+        .map((v) => parseFloat(v))
+        .filter((v) => Number.isFinite(v) && v > 0);
+      if (taskBands.length > 0) {
+        return taskBands.reduce((a, b) => a + b, 0) / taskBands.length;
+      }
+      return null;
+    }
+
     if (moduleKey === 'reading') {
       const readingCorrect = Number(submission?.answers_by_module?.reading?.correct || 0);
       const readingBand = getBandFromCorrect(readingCorrect, ACADEMIC_READING_BAND_TABLE);
@@ -398,18 +420,6 @@ export default function SubmissionDetail() {
     const raw = submission?.scores_by_module?.[moduleKey];
     const parsed = raw != null && raw !== '' ? parseFloat(raw) : NaN;
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
-
-    // Writing fallback from AI/admin-scored tasks.
-    if (moduleKey === 'writing') {
-      const writingResponses = Array.isArray(submission?.writing_responses) ? submission.writing_responses : [];
-      const taskBands = writingResponses
-        .map((wr) => wr.admin_override_band ?? wr.final_band ?? wr.ai_overall_band)
-        .map((v) => parseFloat(v))
-        .filter((v) => Number.isFinite(v) && v > 0);
-      if (taskBands.length > 0) {
-        return taskBands.reduce((a, b) => a + b, 0) / taskBands.length;
-      }
-    }
 
     return null;
   };
@@ -1017,6 +1027,64 @@ export default function SubmissionDetail() {
     }
   };
 
+  const handleSaveWritingScore = async () => {
+    if (!writingScore || isNaN(parseFloat(writingScore))) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Invalid Score',
+        message: 'Please enter a valid writing band score (0-9).'
+      });
+      return;
+    }
+
+    const score = parseFloat(writingScore);
+    if (score < 0 || score > 9) {
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Invalid Score',
+        message: 'Writing band score must be between 0 and 9.'
+      });
+      return;
+    }
+
+    setSavingWriting(true);
+    try {
+      const response = await fetch(`${API_URL}/monitoring/submissions/${id}/writing-score`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ writing_band_score: score })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save writing score');
+      }
+
+      await fetchSubmissionDetails();
+      setEditingWriting(false);
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Writing Score Saved',
+        message: 'The writing band score has been updated successfully.'
+      });
+    } catch (err) {
+      console.error('Failed to save writing score:', err);
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: err.message || 'Unable to save writing score.'
+      });
+    } finally {
+      setSavingWriting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -1200,6 +1268,63 @@ export default function SubmissionDetail() {
                           <span>Edit</span>
                         </button>
                         <p className="text-xs mt-1 text-gray-500">Manual entry</p>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+              
+              // Special UI for writing module
+              if (module === 'writing') {
+                return (
+                  <div key={module} className={`rounded-xl border-2 p-6 text-center ${getBandColor(score)}`}>
+                    <p className="text-sm font-semibold uppercase tracking-wide mb-2">Writing</p>
+                    {editingWriting ? (
+                      <div className="flex flex-col items-center space-y-2">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="9"
+                          value={writingScore}
+                          onChange={(e) => setWritingScore(e.target.value)}
+                          className="w-24 text-center text-3xl font-bold border-2 rounded-lg px-2 py-1"
+                          placeholder="0.0"
+                        />
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleSaveWritingScore}
+                            disabled={savingWriting}
+                            className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs font-medium"
+                          >
+                            {savingWriting ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                            <span>Save</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingWriting(false);
+                              setWritingScore(submission.writing_band_score ? String(submission.writing_band_score) : '');
+                            }}
+                            className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-xs font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-5xl font-bold">{score != null ? score.toFixed(1) : '-'}</p>
+                        <button
+                          onClick={() => {
+                            setEditingWriting(true);
+                            setWritingScore(score ? String(score) : '');
+                          }}
+                          className="mt-2 flex items-center justify-center space-x-1 mx-auto px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium pdf-hide"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <p className="text-xs mt-1 text-gray-500">{submission.writing_band_score ? 'Manual override' : 'AI/task average'}</p>
                       </>
                     )}
                   </div>
