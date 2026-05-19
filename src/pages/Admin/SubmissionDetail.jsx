@@ -48,107 +48,102 @@ function extractSentenceForBlank(template, blankIndex) {
   
   // If blankIndex is out of range, use the first blank
   const actualIndex = (blankIndex >= 0 && blankIndex < blanks.length) ? blankIndex : 0;
+  
+  // Special case: if only one blank, just return the whole template
+  if (blanks.length === 1) {
+    return cleanTemplate.replace(/\[BLANK\]/g, '___');
+  }
+  
+  // For multiple blanks: Extract text around THIS specific blank only
+  // Strategy: Find sentence boundaries around the target blank position
   const targetBlankPos = blanks[actualIndex];
   
-  // Try multiple splitting strategies:
-  // 1. Split by bullet points (for note/summary completion with bullets)
-  // 2. Split by line breaks (for multi-line notes)
-  // 3. Split by periods/punctuation (for regular sentences)
-  // 4. Split by multiple dashes or separators
+  // Look backwards for sentence start
+  const beforeBlank = cleanTemplate.substring(0, targetBlankPos);
+  let sentenceStart = 0;
   
-  let sentences = [];
+  // Check for various sentence separators going backwards
+  const bulletMatch = beforeBlank.match(/[•\*\-]\s*(?=[^\n]*$)/);
+  const numberedMatch = beforeBlank.match(/\d+\.\s*(?=[^\n]*$)/);
+  const lineBreak = beforeBlank.lastIndexOf('\n');
+  const dashSep = beforeBlank.lastIndexOf('---');
+  const doubleDash = beforeBlank.lastIndexOf('--');
+  const periodPos = beforeBlank.lastIndexOf('.');
+  const exclamPos = beforeBlank.lastIndexOf('!');
+  const questPos = beforeBlank.lastIndexOf('?');
   
-  // Strategy 1: Bullet points (•, *, -, or numbered lists)
-  // Split before bullets, then extract ONLY the first line of each segment (the bullet line itself)
-  if (cleanTemplate.match(/^\s*[•\*\-\d+\.]/m)) {
-    const segments = cleanTemplate.split(/(?=^\s*[•\*\-]|^\s*\d+\.)/m);
-    sentences = segments.map(seg => {
-      // Extract only the first line (the bullet line)
-      const firstLine = seg.split(/\n/)[0].trim();
-      return firstLine;
-    }).filter(Boolean);
-  }
+  // Use the CLOSEST separator before the blank
+  const separators = [
+    bulletMatch ? bulletMatch.index : -1,
+    numberedMatch ? numberedMatch.index : -1,
+    lineBreak,
+    dashSep,
+    doubleDash,
+    periodPos,
+    exclamPos,
+    questPos
+  ].filter(pos => pos >= 0);
   
-  // Strategy 2: Line breaks (if no bullets found, or as fallback)
-  if (sentences.length <= 1) {
-    sentences = cleanTemplate.split(/\n+/).map(s => s.trim()).filter(Boolean);
-  }
-  
-  // Strategy 3: Multiple dashes or separators (e.g., "---" or "--")
-  if (sentences.length <= 1 && cleanTemplate.match(/[-]{2,}/)) {
-    sentences = cleanTemplate.split(/[-]{2,}/).map(s => s.trim()).filter(Boolean);
-  }
-  
-  // Strategy 4: Sentence boundaries - split by period/!/? when followed by space and uppercase OR end of string
-  if (sentences.length <= 1) {
-    // Use a more aggressive split: period followed by space, OR period at end
-    sentences = cleanTemplate.split(/\.(?:\s+(?=[A-Z])|(?=\s*$))|\!\s+|\?\s+/).map(s => s.trim()).filter(Boolean);
-  }
-  
-  // If still no clear boundaries BUT we have multiple blanks, 
-  // try to extract just the text around each blank
-  if (sentences.length <= 1 && blanks.length > 1) {
-    // Find the sentence/fragment containing this specific blank
-    // Look for text from previous period/start to next period/end
-    const beforeBlank = cleanTemplate.substring(0, targetBlankPos);
-    const afterBlank = cleanTemplate.substring(targetBlankPos);
-    
-    // Find last period before blank (or start)
-    const lastPeriodBefore = Math.max(
-      beforeBlank.lastIndexOf('.'),
-      beforeBlank.lastIndexOf('!'),
-      beforeBlank.lastIndexOf('?')
-    );
-    const sentenceStart = lastPeriodBefore >= 0 ? lastPeriodBefore + 1 : 0;
-    
-    // Find next period after blank (or end)
-    const nextPeriodAfter = Math.min(
-      ...[afterBlank.indexOf('.'), afterBlank.indexOf('!'), afterBlank.indexOf('?')]
-        .filter(i => i >= 0)
-        .concat([afterBlank.length])
-    );
-    const sentenceEnd = targetBlankPos + (nextPeriodAfter >= 0 ? nextPeriodAfter : afterBlank.length);
-    
-    const extractedSentence = cleanTemplate.substring(sentenceStart, sentenceEnd).trim();
-    return extractedSentence.replace(/\[BLANK\]/g, '___');
-  }
-  
-  // If still no clear boundaries, return entire template with blanks replaced
-  if (sentences.length <= 1) {
-    return cleanTemplate.replace(/\[BLANK\]/g, '___');
-  }
-  
-  // Count how many [BLANK]s are in each sentence to properly map blank indices
-  const sentencesWithBlanks = [];
-  let blanksSoFar = 0;
-  
-  for (const sentence of sentences) {
-    const blanksInSentence = (sentence.match(/\[BLANK\]/g) || []).length;
-    if (blanksInSentence > 0) {
-      sentencesWithBlanks.push({
-        text: sentence,
-        blankStartIndex: blanksSoFar,
-        blankEndIndex: blanksSoFar + blanksInSentence - 1
-      });
-      blanksSoFar += blanksInSentence;
+  if (separators.length > 0) {
+    sentenceStart = Math.max(...separators);
+    // If it's a period/!/?, move past it and any whitespace
+    if (sentenceStart === periodPos || sentenceStart === exclamPos || sentenceStart === questPos) {
+      sentenceStart += 1;
+    }
+    // If it's a dash separator, move past it
+    if (sentenceStart === dashSep) {
+      sentenceStart += 3; // Move past "---"
+    } else if (sentenceStart === doubleDash) {
+      sentenceStart += 2; // Move past "--"
+    }
+    // If it's a line break, move past it
+    if (sentenceStart === lineBreak) {
+      sentenceStart += 1;
     }
   }
   
-  // If no sentences with blanks found, return entire template
-  if (sentencesWithBlanks.length === 0) {
-    return cleanTemplate.replace(/\[BLANK\]/g, '___');
-  }
+  // Look forward for sentence end
+  const afterBlankStart = targetBlankPos + '[BLANK]'.length;
+  const afterBlank = cleanTemplate.substring(afterBlankStart);
+  let sentenceEnd = cleanTemplate.length;
   
-  // Find which sentence contains the blank at actualIndex
-  for (const sentenceInfo of sentencesWithBlanks) {
-    if (actualIndex >= sentenceInfo.blankStartIndex && actualIndex <= sentenceInfo.blankEndIndex) {
-      // Found the sentence! Replace [BLANK]s with ___
-      return sentenceInfo.text.replace(/\[BLANK\]/g, '___').trim();
+  // Check for various sentence separators going forward
+  const nextLineBreak = afterBlank.indexOf('\n');
+  const nextDashSep = afterBlank.indexOf('---');
+  const nextDoubleDash = afterBlank.indexOf('--');
+  const nextPeriod = afterBlank.indexOf('.');
+  const nextExclam = afterBlank.indexOf('!');
+  const nextQuest = afterBlank.indexOf('?');
+  const nextBullet = afterBlank.match(/[•\*\-]\s/);
+  const nextNumbered = afterBlank.match(/\d+\.\s/);
+  
+  // Use the CLOSEST separator after the blank
+  const endSeparators = [
+    nextLineBreak >= 0 ? afterBlankStart + nextLineBreak : -1,
+    nextDashSep >= 0 ? afterBlankStart + nextDashSep : -1,
+    nextDoubleDash >= 0 ? afterBlankStart + nextDoubleDash : -1,
+    nextPeriod >= 0 ? afterBlankStart + nextPeriod : -1,
+    nextExclam >= 0 ? afterBlankStart + nextExclam : -1,
+    nextQuest >= 0 ? afterBlankStart + nextQuest : -1,
+    nextBullet ? afterBlankStart + nextBullet.index : -1,
+    nextNumbered ? afterBlankStart + nextNumbered.index : -1
+  ].filter(pos => pos >= 0);
+  
+  if (endSeparators.length > 0) {
+    sentenceEnd = Math.min(...endSeparators);
+    // If it's a period/!/?, include it in the sentence
+    if (sentenceEnd === afterBlankStart + nextPeriod || 
+        sentenceEnd === afterBlankStart + nextExclam || 
+        sentenceEnd === afterBlankStart + nextQuest) {
+      sentenceEnd += 1;
     }
   }
   
-  // Fallback: if we couldn't find the sentence, replace all blanks and return entire template
-  return cleanTemplate.replace(/\[BLANK\]/g, '___');
+  // Extract the sentence containing this blank
+  const extractedSentence = cleanTemplate.substring(sentenceStart, sentenceEnd).trim();
+  
+  // Replace only [BLANK] with ___ in the extracted sentence
+  return extractedSentence.replace(/\[BLANK\]/g, '___');
 }
 
 export default function SubmissionDetail() {
