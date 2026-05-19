@@ -238,7 +238,11 @@ export default function SubmissionDetail() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send PDF');
+        // Special handling for email service not configured
+        if (response.status === 503 && data.details) {
+          throw new Error(`Email service not configured on server. ${data.details}`);
+        }
+        throw new Error(data.error || data.message || 'Failed to send PDF');
       }
 
       setNotification({
