@@ -74,8 +74,9 @@ function extractSentenceForBlank(template, blankIndex) {
   }
   
   // Strategy 3: Sentence boundaries (periods, !, ?)
+  // Split after period/!/? when followed by space and capital letter, or at end
   if (sentences.length <= 1) {
-    sentences = cleanTemplate.split(/(?<=[.!?])\s+/).filter(Boolean);
+    sentences = cleanTemplate.split(/[.!?]+\s+(?=[A-Z])|[.!?]+$/g).map(s => s.trim()).filter(Boolean);
   }
   
   // If still no clear boundaries, return entire template with blanks replaced
@@ -97,6 +98,11 @@ function extractSentenceForBlank(template, blankIndex) {
       });
       blanksSoFar += blanksInSentence;
     }
+  }
+  
+  // If no sentences with blanks found, return entire template
+  if (sentencesWithBlanks.length === 0) {
+    return cleanTemplate.replace(/\[BLANK\]/g, '___');
   }
   
   // Find which sentence contains the blank at actualIndex
@@ -675,19 +681,9 @@ export default function SubmissionDetail() {
               let displayText = '';
               
               if (isTemplateType) {
-                // Special handling for form_completion - combine label_text with template
-                if (a.question_type === 'form_completion') {
-                  const labelText = a.label_text ? String(a.label_text).trim() : '';
-                  const templateText = a.question_template ? String(a.question_template).trim() : '';
-                  
-                  if (labelText && templateText) {
-                    // Combine label and template, replacing [BLANK] with ___
-                    displayText = `${labelText} ${templateText.replace(/\[BLANK\]/g, '___')}`;
-                  } else if (labelText) {
-                    displayText = labelText;
-                  } else if (templateText) {
-                    displayText = templateText.replace(/\[BLANK\]/g, '___');
-                  }
+                // For form_completion, just use the template (don't combine with label)
+                if (a.question_type === 'form_completion' && a.question_template) {
+                  displayText = String(a.question_template).trim().replace(/\[BLANK\]/g, '___');
                 }
                 
                 // For other template types, extract the sentence containing the blank
@@ -1363,19 +1359,10 @@ export default function SubmissionDetail() {
                                     
                                     let displayText = '';
                                     if (isTemplateType) {
-                                      // Special handling for form_completion - combine label_text with template
-                                      if (ans.question_type === 'form_completion') {
-                                        const labelText = ans.label_text ? String(ans.label_text).trim() : '';
-                                        const templateText = ans.question_template ? String(ans.question_template).trim() : '';
-                                        
-                                        if (labelText && templateText) {
-                                          // Combine label and template, replacing [BLANK] with ___
-                                          displayText = `${labelText} ${templateText.replace(/\[BLANK\]/g, '___')}`;
-                                        } else if (labelText) {
-                                          displayText = labelText;
-                                        } else if (templateText) {
-                                          displayText = templateText.replace(/\[BLANK\]/g, '___');
-                                        }
+                                      // For form_completion, just use the template (don't combine with label)
+                                      // The template should already contain the full question text
+                                      if (ans.question_type === 'form_completion' && ans.question_template) {
+                                        displayText = String(ans.question_template).trim().replace(/\[BLANK\]/g, '___');
                                       }
                                       
                                       // For other template types, extract the sentence containing the blank
