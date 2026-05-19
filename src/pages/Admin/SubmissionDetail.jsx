@@ -83,23 +83,28 @@ function extractSentenceForBlank(template, blankIndex) {
     return cleanTemplate.replace(/\[BLANK\]/g, '___');
   }
   
-  // Find which sentence/line contains our target blank by tracking character positions
-  let currentPos = 0;
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i];
-    // Find this sentence in the original template
-    const sentenceStart = cleanTemplate.indexOf(sentence, currentPos);
-    if (sentenceStart === -1) continue;
-    
-    const sentenceEnd = sentenceStart + sentence.length;
-    
-    // Check if target blank is in this sentence
-    if (targetBlankPos >= sentenceStart && targetBlankPos < sentenceEnd) {
-      // Found the sentence! Replace [BLANK]s with ___
-      return sentence.replace(/\[BLANK\]/g, '___').trim();
+  // Count how many [BLANK]s are in each sentence to properly map blank indices
+  const sentencesWithBlanks = [];
+  let blanksSoFar = 0;
+  
+  for (const sentence of sentences) {
+    const blanksInSentence = (sentence.match(/\[BLANK\]/g) || []).length;
+    if (blanksInSentence > 0) {
+      sentencesWithBlanks.push({
+        text: sentence,
+        blankStartIndex: blanksSoFar,
+        blankEndIndex: blanksSoFar + blanksInSentence - 1
+      });
+      blanksSoFar += blanksInSentence;
     }
-    
-    currentPos = sentenceEnd;
+  }
+  
+  // Find which sentence contains the blank at actualIndex
+  for (const sentenceInfo of sentencesWithBlanks) {
+    if (actualIndex >= sentenceInfo.blankStartIndex && actualIndex <= sentenceInfo.blankEndIndex) {
+      // Found the sentence! Replace [BLANK]s with ___
+      return sentenceInfo.text.replace(/\[BLANK\]/g, '___').trim();
+    }
   }
   
   // Fallback: if we couldn't find the sentence, replace all blanks and return entire template
