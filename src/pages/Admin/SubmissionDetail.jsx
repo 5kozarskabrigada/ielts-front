@@ -71,6 +71,11 @@ function extractSentenceForBlank(template, blankIndex) {
   const periodPos = beforeBlank.lastIndexOf('.');
   const exclamPos = beforeBlank.lastIndexOf('!');
   const questPos = beforeBlank.lastIndexOf('?');
+  // NEW: Look backwards for capital letter after whitespace (sentence start)
+  // Simplified: just look for space(s) + capital letter
+  const capitalMatches = [...beforeBlank.matchAll(/\s+([A-Z])/g)];
+  const lastCapitalPos = capitalMatches.length > 0 ? 
+    capitalMatches[capitalMatches.length - 1].index + capitalMatches[capitalMatches.length - 1][0].length - 1 : -1;
   
   // Use the CLOSEST separator before the blank
   const separators = [
@@ -81,7 +86,8 @@ function extractSentenceForBlank(template, blankIndex) {
     doubleDash,
     periodPos,
     exclamPos,
-    questPos
+    questPos,
+    lastCapitalPos
   ].filter(pos => pos >= 0);
   
   if (separators.length > 0) {
@@ -100,6 +106,8 @@ function extractSentenceForBlank(template, blankIndex) {
     if (sentenceStart === lineBreak) {
       sentenceStart += 1;
     }
+    // If it's a capital letter position, keep it (don't skip past it)
+    // Capital letter IS the start of the sentence
   }
   
   // Look forward for sentence end
@@ -116,6 +124,8 @@ function extractSentenceForBlank(template, blankIndex) {
   const nextQuest = afterBlank.indexOf('?');
   const nextBullet = afterBlank.match(/[•\*\-]\s/);
   const nextNumbered = afterBlank.match(/\d+\.\s/);
+  // NEW: Look for capital letter as sentence start (e.g., "and ___ The next sentence")
+  const nextCapital = afterBlank.match(/\s+[A-Z]/);
   
   // Use the CLOSEST separator after the blank
   const endSeparators = [
@@ -126,7 +136,8 @@ function extractSentenceForBlank(template, blankIndex) {
     nextExclam >= 0 ? afterBlankStart + nextExclam : -1,
     nextQuest >= 0 ? afterBlankStart + nextQuest : -1,
     nextBullet ? afterBlankStart + nextBullet.index : -1,
-    nextNumbered ? afterBlankStart + nextNumbered.index : -1
+    nextNumbered ? afterBlankStart + nextNumbered.index : -1,
+    nextCapital ? afterBlankStart + nextCapital.index : -1
   ].filter(pos => pos >= 0);
   
   if (endSeparators.length > 0) {
