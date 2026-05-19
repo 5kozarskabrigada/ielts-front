@@ -10,7 +10,8 @@ import { stripHtmlTags } from "../../utils/textHelpers";
 
 /**
  * Extract the sentence containing a specific blank from a template.
- * Sentences are defined by periods (.). Returns just the sentence with that blank.
+ * Sentences are defined by periods (.), bullet points (•), or line breaks.
+ * Returns just the sentence/line with that blank.
  * 
  * @param {string} template - The full template with [BLANK] placeholders
  * @param {number} blankIndex - Which blank to extract (0-based, e.g., 0 for first blank)
@@ -40,21 +41,42 @@ function extractSentenceForBlank(template, blankIndex) {
   const actualIndex = (blankIndex >= 0 && blankIndex < blanks.length) ? blankIndex : 0;
   const targetBlankPos = blanks[actualIndex];
   
-  // Try to split by sentence boundaries (., !, ?)
-  // Use a more robust regex that handles various cases
-  const sentences = cleanTemplate.split(/(?<=[.!?])\s+/);
+  // Try multiple splitting strategies:
+  // 1. Split by bullet points (for note/summary completion with bullets)
+  // 2. Split by line breaks (for multi-line notes)
+  // 3. Split by periods (for regular sentences)
   
-  // If no clear sentence boundaries, return entire template with blanks replaced
-  if (sentences.length === 1) {
+  let sentences = [];
+  
+  // Strategy 1: Bullet points (•, *, -, or numbered lists)
+  if (cleanTemplate.match(/[•\*\-]|\d+\./)) {
+    sentences = cleanTemplate.split(/(?=\s*[•\*\-]|\s*\d+\.)/).map(s => s.trim()).filter(Boolean);
+  }
+  
+  // Strategy 2: Line breaks (if no bullets found, or as fallback)
+  if (sentences.length <= 1) {
+    sentences = cleanTemplate.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  }
+  
+  // Strategy 3: Sentence boundaries (periods, !, ?)
+  if (sentences.length <= 1) {
+    sentences = cleanTemplate.split(/(?<=[.!?])\s+/).filter(Boolean);
+  }
+  
+  // If still no clear boundaries, return entire template with blanks replaced
+  if (sentences.length <= 1) {
     return cleanTemplate.replace(/\[BLANK\]/g, '___');
   }
   
-  // Find which sentence contains our target blank by tracking character positions
+  // Find which sentence/line contains our target blank by tracking character positions
   let currentPos = 0;
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i];
-    const sentenceStart = currentPos;
-    const sentenceEnd = currentPos + sentence.length;
+    // Find this sentence in the original template
+    const sentenceStart = cleanTemplate.indexOf(sentence, currentPos);
+    if (sentenceStart === -1) continue;
+    
+    const sentenceEnd = sentenceStart + sentence.length;
     
     // Check if target blank is in this sentence
     if (targetBlankPos >= sentenceStart && targetBlankPos < sentenceEnd) {
@@ -62,8 +84,7 @@ function extractSentenceForBlank(template, blankIndex) {
       return sentence.replace(/\[BLANK\]/g, '___').trim();
     }
     
-    // Move position forward (account for the space that was removed by split)
-    currentPos = sentenceEnd + 1;
+    currentPos = sentenceEnd;
   }
   
   // Fallback: if we couldn't find the sentence, replace all blanks and return entire template
@@ -634,7 +655,23 @@ export default function SubmissionDetail() {
               let displayText = '';
               
               if (isTemplateType) {
-                if (a.question_template && String(a.question_template).trim()) {
+                // Special handling for form_completion - combine label_text with template
+                if (a.question_type === 'form_completion') {
+                  const labelText = a.label_text ? String(a.label_text).trim() : '';
+                  const templateText = a.question_template ? String(a.question_template).trim() : '';
+                  
+                  if (labelText && templateText) {
+                    // Combine label and template, replacing [BLANK] with ___
+                    displayText = `${labelText} ${templateText.replace(/\[BLANK\]/g, '___')}`;
+                  } else if (labelText) {
+                    displayText = labelText;
+                  } else if (templateText) {
+                    displayText = templateText.replace(/\[BLANK\]/g, '___');
+                  }
+                }
+                
+                // For other template types, extract the sentence containing the blank
+                if (!displayText && a.question_template && String(a.question_template).trim()) {
                   // Extract sentence for this specific blank
                   const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
                   displayText = extractSentenceForBlank(a.question_template, blankIndex);
@@ -1306,7 +1343,23 @@ export default function SubmissionDetail() {
                                     
                                     let displayText = '';
                                     if (isTemplateType) {
-                                      if (ans.question_template && String(ans.question_template).trim()) {
+                                      // Special handling for form_completion - combine label_text with template
+                                      if (ans.question_type === 'form_completion') {
+                                        const labelText = ans.label_text ? String(ans.label_text).trim() : '';
+                                        const templateText = ans.question_template ? String(ans.question_template).trim() : '';
+                                        
+                                        if (labelText && templateText) {
+                                          // Combine label and template, replacing [BLANK] with ___
+                                          displayText = `${labelText} ${templateText.replace(/\[BLANK\]/g, '___')}`;
+                                        } else if (labelText) {
+                                          displayText = labelText;
+                                        } else if (templateText) {
+                                          displayText = templateText.replace(/\[BLANK\]/g, '___');
+                                        }
+                                      }
+                                      
+                                      // For other template types, extract the sentence containing the blank
+                                      if (!displayText && ans.question_template && String(ans.question_template).trim()) {
                                         // Extract sentence for this specific blank
                                         const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
                                         displayText = extractSentenceForBlank(ans.question_template, blankIndex);
