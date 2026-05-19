@@ -53,7 +53,8 @@ function extractSentenceForBlank(template, blankIndex) {
   // Try multiple splitting strategies:
   // 1. Split by bullet points (for note/summary completion with bullets)
   // 2. Split by line breaks (for multi-line notes)
-  // 3. Split by periods (for regular sentences)
+  // 3. Split by periods/punctuation (for regular sentences)
+  // 4. Split by multiple dashes or separators
   
   let sentences = [];
   
@@ -73,10 +74,43 @@ function extractSentenceForBlank(template, blankIndex) {
     sentences = cleanTemplate.split(/\n+/).map(s => s.trim()).filter(Boolean);
   }
   
-  // Strategy 3: Sentence boundaries (periods, !, ?)
-  // Split after period/!/? when followed by space and capital letter, or at end
+  // Strategy 3: Multiple dashes or separators (e.g., "---" or "--")
+  if (sentences.length <= 1 && cleanTemplate.match(/[-]{2,}/)) {
+    sentences = cleanTemplate.split(/[-]{2,}/).map(s => s.trim()).filter(Boolean);
+  }
+  
+  // Strategy 4: Sentence boundaries - split by period/!/? when followed by space and uppercase OR end of string
   if (sentences.length <= 1) {
-    sentences = cleanTemplate.split(/[.!?]+\s+(?=[A-Z])|[.!?]+$/g).map(s => s.trim()).filter(Boolean);
+    // Use a more aggressive split: period followed by space, OR period at end
+    sentences = cleanTemplate.split(/\.(?:\s+(?=[A-Z])|(?=\s*$))|\!\s+|\?\s+/).map(s => s.trim()).filter(Boolean);
+  }
+  
+  // If still no clear boundaries BUT we have multiple blanks, 
+  // try to extract just the text around each blank
+  if (sentences.length <= 1 && blanks.length > 1) {
+    // Find the sentence/fragment containing this specific blank
+    // Look for text from previous period/start to next period/end
+    const beforeBlank = cleanTemplate.substring(0, targetBlankPos);
+    const afterBlank = cleanTemplate.substring(targetBlankPos);
+    
+    // Find last period before blank (or start)
+    const lastPeriodBefore = Math.max(
+      beforeBlank.lastIndexOf('.'),
+      beforeBlank.lastIndexOf('!'),
+      beforeBlank.lastIndexOf('?')
+    );
+    const sentenceStart = lastPeriodBefore >= 0 ? lastPeriodBefore + 1 : 0;
+    
+    // Find next period after blank (or end)
+    const nextPeriodAfter = Math.min(
+      ...[afterBlank.indexOf('.'), afterBlank.indexOf('!'), afterBlank.indexOf('?')]
+        .filter(i => i >= 0)
+        .concat([afterBlank.length])
+    );
+    const sentenceEnd = targetBlankPos + (nextPeriodAfter >= 0 ? nextPeriodAfter : afterBlank.length);
+    
+    const extractedSentence = cleanTemplate.substring(sentenceStart, sentenceEnd).trim();
+    return extractedSentence.replace(/\[BLANK\]/g, '___');
   }
   
   // If still no clear boundaries, return entire template with blanks replaced
