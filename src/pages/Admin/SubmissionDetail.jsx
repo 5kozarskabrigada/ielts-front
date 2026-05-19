@@ -19,30 +19,34 @@ import { stripHtmlTags } from "../../utils/textHelpers";
 function extractSentenceForBlank(template, blankIndex) {
   if (!template) return '';
   
+  // Clean up the template text
+  const cleanTemplate = String(template).trim();
+  if (!cleanTemplate) return '';
+  
   // Find all [BLANK] positions
   const blankRegex = /\[BLANK\]/g;
   const blanks = [];
   let match;
-  while ((match = blankRegex.exec(template)) !== null) {
+  while ((match = blankRegex.exec(cleanTemplate)) !== null) {
     blanks.push(match.index);
   }
   
-  // If blankIndex is out of range, fallback to showing entire template
-  if (blankIndex < 0 || blankIndex >= blanks.length) {
-    return template.replace(/\[BLANK\]/g, '___');
+  // If no blanks found, return the text as-is
+  if (blanks.length === 0) {
+    return cleanTemplate;
   }
   
-  // Get the position of the specific blank we want
-  const targetBlankPos = blanks[blankIndex];
+  // If blankIndex is out of range, use the first blank
+  const actualIndex = (blankIndex >= 0 && blankIndex < blanks.length) ? blankIndex : 0;
+  const targetBlankPos = blanks[actualIndex];
   
-  // Split text by sentence boundaries (., !, ?)
-  // Keep the punctuation with each sentence
-  const sentences = template.split(/(?<=[.!?])\s+/);
+  // Try to split by sentence boundaries (., !, ?)
+  // Use a more robust regex that handles various cases
+  const sentences = cleanTemplate.split(/(?<=[.!?])\s+/);
   
-  // If splitting didn't work well, try another approach
+  // If no clear sentence boundaries, return entire template with blanks replaced
   if (sentences.length === 1) {
-    // No clear sentence boundaries, return the whole thing with blank replaced
-    return template.replace(/\[BLANK\]/g, '___');
+    return cleanTemplate.replace(/\[BLANK\]/g, '___');
   }
   
   // Find which sentence contains our target blank by tracking character positions
@@ -54,7 +58,7 @@ function extractSentenceForBlank(template, blankIndex) {
     
     // Check if target blank is in this sentence
     if (targetBlankPos >= sentenceStart && targetBlankPos < sentenceEnd) {
-      // Found the sentence! Replace only [BLANK]s in this sentence
+      // Found the sentence! Replace [BLANK]s with ___
       return sentence.replace(/\[BLANK\]/g, '___').trim();
     }
     
@@ -62,8 +66,8 @@ function extractSentenceForBlank(template, blankIndex) {
     currentPos = sentenceEnd + 1;
   }
   
-  // Fallback: if we couldn't find the sentence, just replace all blanks
-  return template.replace(/\[BLANK\]/g, '___');
+  // Fallback: if we couldn't find the sentence, replace all blanks and return entire template
+  return cleanTemplate.replace(/\[BLANK\]/g, '___');
 }
 
 export default function SubmissionDetail() {
@@ -629,11 +633,29 @@ export default function SubmissionDetail() {
               const isTemplateType = templateTypes.includes(a.question_type);
               let displayText = '';
               
-              if (isTemplateType && a.question_template) {
-                const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
-                displayText = extractSentenceForBlank(a.question_template, blankIndex);
-              } else if (a.question_text) {
-                displayText = a.question_text;
+              if (isTemplateType) {
+                if (a.question_template && String(a.question_template).trim()) {
+                  // Extract sentence for this specific blank
+                  const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
+                  displayText = extractSentenceForBlank(a.question_template, blankIndex);
+                }
+                
+                // If extraction failed or template is empty, try question_text
+                if (!displayText && a.question_text) {
+                  const qText = String(a.question_text).trim();
+                  // Only use question_text if it's not generic "Summary blank X" text
+                  if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                    displayText = qText;
+                  }
+                }
+                
+                // Last resort: show a message indicating missing template
+                if (!displayText) {
+                  displayText = `[Question ${a.question_number}: Template text not available]`;
+                }
+              } else {
+                // Non-template question types
+                displayText = a.question_text || '';
               }
               
               return [
@@ -1283,11 +1305,29 @@ export default function SubmissionDetail() {
                                     const isTemplateType = templateTypes.includes(ans.question_type);
                                     
                                     let displayText = '';
-                                    if (isTemplateType && ans.question_template) {
-                                      const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
-                                      displayText = extractSentenceForBlank(ans.question_template, blankIndex);
-                                    } else if (ans.question_text) {
-                                      displayText = ans.question_text;
+                                    if (isTemplateType) {
+                                      if (ans.question_template && String(ans.question_template).trim()) {
+                                        // Extract sentence for this specific blank
+                                        const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
+                                        displayText = extractSentenceForBlank(ans.question_template, blankIndex);
+                                      }
+                                      
+                                      // If extraction failed or template is empty, try question_text
+                                      if (!displayText && ans.question_text) {
+                                        const qText = String(ans.question_text).trim();
+                                        // Only use question_text if it's not generic "Summary blank X" text
+                                        if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                                          displayText = qText;
+                                        }
+                                      }
+                                      
+                                      // Last resort: show a message indicating missing template
+                                      if (!displayText) {
+                                        displayText = `[Question ${ans.question_number}: Template text not available]`;
+                                      }
+                                    } else {
+                                      // Non-template question types
+                                      displayText = ans.question_text || '';
                                     }
                                     
                                     if (displayText) {
