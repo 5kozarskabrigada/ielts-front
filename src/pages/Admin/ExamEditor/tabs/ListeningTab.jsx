@@ -1003,6 +1003,7 @@ const SummaryBuilder = ({ group, updateGroup, baseQuestionNumber, sectionId, que
         question_type: 'summary_completion',
         question_number: group.question_range_start + i,
         question_text: `Summary blank ${i + 1}`,
+        question_template: text, // Store the full summary text with [BLANK] placeholders
         correct_answer: currentAnswers[i] || '',
         points: group.points_per_question || 1
       });

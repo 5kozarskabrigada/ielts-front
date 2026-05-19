@@ -135,9 +135,10 @@ function ExamEditorContent() {
           console.log('[Summary Completion] Generating questions for group:', group.id, group.summary_data);
           const startNum = group.question_range_start || 1;
           const answers = group.summary_data.answers || {};
+          const summaryText = group.summary_data.text || '';
           
           // Count blanks in the summary text
-          const blankCount = (group.summary_data.text || '').match(/\[BLANK\]/g)?.length || 0;
+          const blankCount = (summaryText).match(/\[BLANK\]/g)?.length || 0;
           console.log(`[Summary Completion] Found ${blankCount} blanks, answers:`, answers);
           
           // Create a question for each blank
@@ -158,6 +159,7 @@ function ExamEditorContent() {
               question_number: questionNumber,
               question_type: 'summary_completion',
               question_text: `Summary blank ${i + 1}`,
+              question_template: summaryText, // Store the full summary text with [BLANK] placeholders
               correct_answer: correctAnswer,
               answer_alternatives: alternatives || '',
               points: group.points_per_question || 1
