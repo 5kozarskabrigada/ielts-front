@@ -99,11 +99,43 @@ function ExamEditorContent() {
         if (group.question_type === 'form_completion' && group.table_data?.answers) {
           const startNum = group.question_range_start || 1;
           const answers = group.table_data.answers || {};
+          const cells = group.table_data.cells || [];
+          
+          // Build a map of blank indices to their row/col positions
+          const blankPositions = [];
+          cells.forEach((row, rowIdx) => {
+            row.forEach((cellText, colIdx) => {
+              const blanksInCell = (cellText.match(/\[BLANK\]/g) || []).length;
+              for (let i = 0; i < blanksInCell; i++) {
+                blankPositions.push({ row: rowIdx, col: colIdx, cellText });
+              }
+            });
+          });
+          
           // Use sequential index instead of answer object key to prevent duplicates
           let blankIndex = 0;
           Object.entries(answers).forEach(([blankIdx, answer]) => {
             const questionNumber = startNum + blankIndex;
+            
+            // Extract label_text and question_template from table cells
+            let labelText = '';
+            let questionTemplate = '';
+            
+            if (blankIndex < blankPositions.length) {
+              const pos = blankPositions[blankIndex];
+              const row = cells[pos.row] || [];
+              
+              // For typical form/table format: left column is label, right column has blank
+              // Try to find the label in the first column (col 0) of the same row
+              if (row[0] && pos.col > 0) {
+                labelText = row[0];
+              }
+              // The question template is the cell containing the blank
+              questionTemplate = pos.cellText;
+            }
+            
             blankIndex++;
+            
             // Split answer by / to separate main answer from alternatives
             const answerParts = answer ? answer.split('/').map(a => a.trim()).filter(Boolean) : [];
             const correctAnswer = answerParts[0] || '';
@@ -117,6 +149,8 @@ function ExamEditorContent() {
               section_id: group.section_id,
               question_number: questionNumber,
               question_type: 'form_completion',
+              label_text: labelText,
+              question_template: questionTemplate,
               correct_answer: correctAnswer,
               answer_alternatives: alternatives || '',
               points: 1
