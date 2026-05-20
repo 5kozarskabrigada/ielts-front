@@ -35,12 +35,14 @@ export default function LoginPage() {
 
       <div className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md relative z-10 border border-gray-100">
         <div className="text-center mb-8">
-          <img
-            src="https://img.sanishtech.com/u/83961a365a6fbdc5ad19beeed7a76179.png"
-            alt="EXAMROOM"
-            loading="lazy"
-            className="w-64 md:w-72 h-auto mx-auto mb-5"
-          />
+          <div className="w-64 md:w-72 h-20 md:h-24 mx-auto mb-5 rounded-2xl overflow-hidden shadow-lg">
+            <img
+              src="https://img.sanishtech.com/u/83961a365a6fbdc5ad19beeed7a76179.png"
+              alt="EXAMROOM"
+              loading="lazy"
+              className="w-full h-full object-cover object-center"
+            />
+          </div>
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back</h2>
           <p className="text-gray-500 mt-2">Sign in to the IELTS Platform</p>
         </div>
