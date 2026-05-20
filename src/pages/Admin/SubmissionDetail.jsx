@@ -230,12 +230,17 @@ export default function SubmissionDetail() {
     setEmailingPdf(true);
 
     try {
+      const { pdf, filename } = await buildSubmissionPdf();
+      const pdfBlob = pdf.output('blob');
+      const formData = new FormData();
+      formData.append('pdf', pdfBlob, filename);
+
       const response = await fetch(`${API_URL}/monitoring/submissions/${id}/email-pdf`, {
         method: 'POST',
         headers: {
           "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+        },
+        body: formData,
       });
 
       const data = await response.json();
@@ -426,11 +431,13 @@ export default function SubmissionDetail() {
 
   const isWritingChecked = submission?.writing_checked === true;
 
-  const handleDownloadPdf = async () => {
-    if (!submission || downloadingPdf) return;
-    setDownloadingPdf(true);
+  const buildSubmissionPdf = async () => {
+    if (!submission) {
+      throw new Error('Submission data is not available');
+    }
 
     try {
+
       const studentName = (submission.user_name || 'Unknown').replace(/\s+/g, '_');
       const examTitle = (submission.exam_title || 'Exam').replace(/\s+/g, '_');
       const filename = `${studentName}_${examTitle}_Results.pdf`;
@@ -909,9 +916,21 @@ export default function SubmissionDetail() {
         pdf.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
       }
 
-      pdf.save(filename);
+      return { pdf, filename };
     } catch (err) {
       console.error('PDF generation failed:', err);
+      throw err;
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!submission || downloadingPdf) return;
+    setDownloadingPdf(true);
+
+    try {
+      const { pdf, filename } = await buildSubmissionPdf();
+      pdf.save(filename);
+    } catch (err) {
       setNotification({
         isOpen: true,
         type: 'error',
