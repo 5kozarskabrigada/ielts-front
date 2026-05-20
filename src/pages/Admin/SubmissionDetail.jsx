@@ -546,23 +546,19 @@ export default function SubmissionDetail() {
       const drawSummaryCards = () => {
         const y = margin + 86;
         const gap = 4;
-        const cardW = (contentWidth - gap * 4) / 5;
+        const cardW = (contentWidth - gap * 3) / 4;
         const listeningStats = getModuleStats('listening');
         const readingStats = getModuleStats('reading');
         const listeningBand = getModuleBandScore('listening');
         const readingBand = getModuleBandScore('reading');
         const writingBand = getModuleBandScore('writing');
         const speakingBand = getModuleBandScore('speaking');
-        const overallBand = (submission.band_score != null && isWritingChecked)
-          ? parseFloat(submission.band_score)
-          : null;
 
         const bandCards = [
           { title: 'Listening Band', value: listeningBand },
           { title: 'Reading Band', value: readingBand },
           { title: 'Writing Band', value: writingBand },
           { title: 'Speaking Band', value: speakingBand },
-          { title: 'Overall Band', value: overallBand },
         ];
 
         bandCards.forEach((c, i) => {
@@ -580,12 +576,6 @@ export default function SubmissionDetail() {
           const cardValue = c.value != null && Number.isFinite(c.value) ? c.value.toFixed(1) : '-';
           pdf.text(cardValue, x + 5, y + 17.2);
 
-          if (String(c.title) === 'Overall Band' && !isWritingChecked) {
-            pdf.setTextColor(...muted);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(6.8);
-            pdf.text('Pending writing review', x + 5, y + 21.8);
-          }
         });
 
         const countY = y + 28;
