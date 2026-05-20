@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../authContext";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, User, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import { Lock, User, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -31,18 +31,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 rounded-full blur-[100px] opacity-50"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-100 rounded-full blur-[100px] opacity-50"></div>
-      </div>
+    <div className="login-container min-h-screen flex items-center justify-center relative overflow-hidden">
 
       <div className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md relative z-10 border border-gray-100">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform rotate-3">
-            <span className="text-white text-2xl font-bold">I</span>
-          </div>
+          <img
+            src="https://img.sanishtech.com/u/83961a365a6fbdc5ad19beeed7a76179.png"
+            alt="EXAMROOM"
+            loading="lazy"
+            className="w-64 md:w-72 h-auto mx-auto mb-5"
+          />
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back</h2>
           <p className="text-gray-500 mt-2">Sign in to the IELTS Platform</p>
         </div>
@@ -62,7 +60,7 @@ export default function LoginPage() {
               </div>
               <input
                 type="text"
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#123b71] focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
                 placeholder="username or email"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
@@ -79,7 +77,7 @@ export default function LoginPage() {
               </div>
               <input
                 type={showPassword ? "text" : "password"}
-                className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
+                className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#123b71] focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -98,7 +96,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
+            className="w-full bg-[#123b71] text-white py-3.5 rounded-xl font-semibold hover:bg-[#0f315c] transition-all shadow-lg hover:shadow-[#123b71]/30 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98]"
           >
             {loading ? (
               <>
@@ -116,7 +114,7 @@ export default function LoginPage() {
 
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
           <p className="text-sm text-gray-500">
-            Are you an administrator? <span className="text-blue-600 font-medium">Use your admin credentials to access the panel.</span>
+            Are you an administrator? <span className="text-[#123b71] font-medium">Use your admin credentials to access the panel.</span>
           </p>
         </div>
       </div>
