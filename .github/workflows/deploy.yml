@@ -22,9 +22,11 @@ jobs:
             fi
             
             cd /root/ielts-front
-            git pull origin master || git pull origin main
+            git pull origin main
+
             docker compose down
-            docker compose up -d --build
+            docker compose build --no-cache
+            docker compose up -d
             
             echo "Frontend deployment completed"
             docker compose ps
