@@ -431,6 +431,19 @@ export default function SubmissionDetail() {
 
   const isWritingChecked = submission?.writing_checked === true;
 
+  const formatPdfDate = (dateString) => {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+
+    return `${day}/${month}/${year}`;
+  };
+
   const buildSubmissionPdf = async () => {
     if (!submission) {
       throw new Error('Submission data is not available');
@@ -458,7 +471,7 @@ export default function SubmissionDetail() {
       const totalScore = (submission.band_score != null && isWritingChecked)
         ? parseFloat(submission.band_score).toFixed(1)
         : '-';
-      const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      const completedDate = formatPdfDate(submission.submitted_at);
       const getModuleStats = (moduleKey) => {
         const m = submission.answers_by_module?.[moduleKey] || {};
         const correct = Number(m.correct || 0);
