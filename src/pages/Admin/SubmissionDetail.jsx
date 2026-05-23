@@ -742,39 +742,35 @@ export default function SubmissionDetail() {
                 ? 'Skipped'
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
-              // For template-based questions, extract the sentence containing this specific blank
-              const isTemplateType = TEMPLATE_QUESTION_TYPES.includes(a.question_type);
+              // Determine question display text — check data fields directly so rendering
+              // works even when question_type is null/missing in the API response.
               let displayText = '';
-              
-              if (isTemplateType) {
-                // For form_completion, just use the template (don't combine with label)
-                if (a.question_type === 'form_completion' && a.question_template) {
+
+              // 1. Try question_template first (present for completion/labeling types)
+              if (a.question_template && String(a.question_template).trim()) {
+                if (a.question_type === 'form_completion') {
+                  // For form_completion show the full template row with blanks replaced
                   displayText = String(a.question_template).trim().replace(/\[BLANK\]/g, '___');
-                }
-                
-                // For other template types, extract the sentence containing the blank
-                if (!displayText && a.question_template && String(a.question_template).trim()) {
-                  // Extract sentence for this specific blank
+                } else {
+                  // Extract only the sentence/line that contains this specific blank
                   const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
                   displayText = extractSentenceForBlank(a.question_template, blankIndex);
                 }
-                
-                // If extraction failed or template is empty, try question_text
-                if (!displayText && a.question_text) {
-                  const qText = String(a.question_text).trim();
-                  // Only use question_text if it's not generic "Summary blank X" text
-                  if (!qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN)) {
-                    displayText = qText;
-                  }
+              }
+
+              // 2. Fall back to question_text (used by map_labeling, short_answer, MCQ, etc.)
+              if (!displayText && a.question_text) {
+                const qText = String(a.question_text).trim();
+                const isKnownTemplateType = TEMPLATE_QUESTION_TYPES.includes(a.question_type);
+                // For known template types, skip generic auto-generated placeholder text
+                if (qText && (!isKnownTemplateType || !qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN))) {
+                  displayText = qText;
                 }
-                
-                // Last resort: show a message indicating missing template
-                if (!displayText) {
-                  displayText = `[Question ${a.question_number}: Template text not available]`;
-                }
-              } else {
-                // Non-template question types
-                displayText = a.question_text || '';
+              }
+
+              // 3. Last resort for known template types: indicate missing data
+              if (!displayText && TEMPLATE_QUESTION_TYPES.includes(a.question_type)) {
+                displayText = `[Question ${a.question_number}: Template text not available]`;
               }
               
               return [
@@ -1544,40 +1540,35 @@ export default function SubmissionDetail() {
                                 <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
                                   {(() => {
-                                    // For template-based questions, extract the sentence containing this specific blank
-                                    const isTemplateType = TEMPLATE_QUESTION_TYPES.includes(ans.question_type);
-                                    
+                                    // Determine question display text — check data fields directly so
+                                    // rendering works even when question_type is null/missing in API.
                                     let displayText = '';
-                                    if (isTemplateType) {
-                                      // For form_completion, just use the template (don't combine with label)
-                                      // The template should already contain the full question text
-                                      if (ans.question_type === 'form_completion' && ans.question_template) {
+
+                                    // 1. Try question_template first (present for completion/labeling types)
+                                    if (ans.question_template && String(ans.question_template).trim()) {
+                                      if (ans.question_type === 'form_completion') {
+                                        // For form_completion show the full template row with blanks replaced
                                         displayText = String(ans.question_template).trim().replace(/\[BLANK\]/g, '___');
-                                      }
-                                      
-                                      // For other template types, extract the sentence containing the blank
-                                      if (!displayText && ans.question_template && String(ans.question_template).trim()) {
-                                        // Extract sentence for this specific blank
+                                      } else {
+                                        // Extract only the sentence/line that contains this specific blank
                                         const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
                                         displayText = extractSentenceForBlank(ans.question_template, blankIndex);
                                       }
-                                      
-                                      // If extraction failed or template is empty, try question_text
-                                      if (!displayText && ans.question_text) {
-                                        const qText = String(ans.question_text).trim();
-                                        // Only use question_text if it's not generic "Summary blank X" text
-                                        if (!qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN)) {
-                                          displayText = qText;
-                                        }
+                                    }
+
+                                    // 2. Fall back to question_text (map_labeling, short_answer, MCQ, etc.)
+                                    if (!displayText && ans.question_text) {
+                                      const qText = String(ans.question_text).trim();
+                                      const isKnownTemplateType = TEMPLATE_QUESTION_TYPES.includes(ans.question_type);
+                                      // For known template types, skip generic auto-generated placeholder text
+                                      if (qText && (!isKnownTemplateType || !qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN))) {
+                                        displayText = qText;
                                       }
-                                      
-                                      // Last resort: show a message indicating missing template
-                                      if (!displayText) {
-                                        displayText = `[Question ${ans.question_number}: Template text not available]`;
-                                      }
-                                    } else {
-                                      // Non-template question types
-                                      displayText = ans.question_text || '';
+                                    }
+
+                                    // 3. Last resort for known template types: indicate missing data
+                                    if (!displayText && TEMPLATE_QUESTION_TYPES.includes(ans.question_type)) {
+                                      displayText = `[Question ${ans.question_number}: Template text not available]`;
                                     }
                                     
                                     if (displayText) {
