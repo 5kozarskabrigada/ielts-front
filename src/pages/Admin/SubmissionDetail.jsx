@@ -162,6 +162,69 @@ function extractSentenceForBlank(template, blankIndex) {
   return extractedSentence.replace(/\[BLANK\]/g, '___');
 }
 
+/**
+ * Get display text for a question answer row.
+ * Handles all question types including map_labeling and diagram_labeling
+ * which may store text in question_text rather than question_template.
+ */
+function getQuestionDisplayText(ans, templateToBlankIndex) {
+  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
+  const isTemplateType = templateTypes.includes(ans.question_type);
+
+  if (!isTemplateType) {
+    return ans.question_text || '';
+  }
+
+  // --- form_completion: render template directly ---
+  if (ans.question_type === 'form_completion' && ans.question_template) {
+    return String(ans.question_template).trim().replace(/\[BLANK\]/g, '___');
+  }
+
+  // --- map_labeling / diagram_labeling: these questions typically store
+  //     each blank's label directly in question_text (e.g. "Label the map feature").
+  //     question_template is either absent or shared across all blanks.
+  //     Prefer question_text when it is non-generic and non-empty. ---
+  if (ans.question_type === 'map_labeling' || ans.question_type === 'diagram_labeling') {
+    const qText = ans.question_text ? String(ans.question_text).trim() : '';
+    const isGeneric = qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion|labeling)\s+\d+$/i);
+
+    // If question_text is meaningful, use it
+    if (qText && !isGeneric) {
+      return qText;
+    }
+
+    // Fall back to extracting from template if available
+    if (ans.question_template && String(ans.question_template).trim()) {
+      const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
+      const extracted = extractSentenceForBlank(ans.question_template, blankIndex);
+      if (extracted) return extracted;
+    }
+
+    // If question_text is generic like "Map blank 3", show it as a label anyway
+    // (better than "[Template text not available]")
+    if (qText) return qText;
+
+    return `[Question ${ans.question_number}: Template text not available]`;
+  }
+
+  // --- All other template types: extract sentence from shared template ---
+  if (ans.question_template && String(ans.question_template).trim()) {
+    const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
+    const extracted = extractSentenceForBlank(ans.question_template, blankIndex);
+    if (extracted) return extracted;
+  }
+
+  // Fallback to question_text if not a generic placeholder
+  if (ans.question_text) {
+    const qText = String(ans.question_text).trim();
+    if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion)\s+\d+$/i)) {
+      return qText;
+    }
+  }
+
+  return `[Question ${ans.question_number}: Template text not available]`;
+}
+
 export default function SubmissionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -430,6 +493,30 @@ export default function SubmissionDetail() {
   };
 
   const isWritingChecked = submission?.writing_checked === true;
+
+  // Build templateToBlankIndex map for a set of answer rows
+  const buildTemplateBlankIndex = (rows) => {
+    const templateToBlankIndex = new Map();
+    const templateGroups = new Map();
+    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
+
+    const sorted = [...rows].sort((a, b) => (a.question_number || 0) - (b.question_number || 0));
+    sorted.forEach(row => {
+      if (templateTypes.includes(row.question_type) && row.question_template) {
+        if (!templateGroups.has(row.question_template)) {
+          templateGroups.set(row.question_template, []);
+        }
+        templateGroups.get(row.question_template).push(row.question_number);
+      }
+    });
+    templateGroups.forEach((questionNumbers) => {
+      questionNumbers.sort((a, b) => a - b);
+      questionNumbers.forEach((qNum, idx) => {
+        templateToBlankIndex.set(qNum, idx);
+      });
+    });
+    return templateToBlankIndex;
+  };
 
   const buildSubmissionPdf = async () => {
     if (!submission) {
@@ -700,28 +787,8 @@ export default function SubmissionDetail() {
           pdf.text(String(sectionTitle), margin + 4, y + 2.5);
           y += 9;
 
-          // Build template-to-blank-index mapping for this section
           const sortedRows = data.rows.sort((a, b) => (a.question_number || 0) - (b.question_number || 0));
-          const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
-          const templateGroups = new Map(); // Map of template -> array of question numbers
-          
-          sortedRows.forEach(row => {
-            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
-            if (templateTypes.includes(row.question_type) && row.question_template) {
-              if (!templateGroups.has(row.question_template)) {
-                templateGroups.set(row.question_template, []);
-              }
-              templateGroups.get(row.question_template).push(row.question_number);
-            }
-          });
-          
-          // Assign blank indices
-          templateGroups.forEach((questionNumbers, template) => {
-            questionNumbers.sort((a, b) => a - b);
-            questionNumbers.forEach((qNum, idx) => {
-              templateToBlankIndex.set(qNum, idx);
-            });
-          });
+          const templateToBlankIndex = buildTemplateBlankIndex(sortedRows);
 
           const body = sortedRows
             .map((a) => {
@@ -731,41 +798,7 @@ export default function SubmissionDetail() {
                 ? 'Skipped'
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
-              // For template-based questions, extract the sentence containing this specific blank
-              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
-              const isTemplateType = templateTypes.includes(a.question_type);
-              let displayText = '';
-              
-              if (isTemplateType) {
-                // For form_completion, just use the template (don't combine with label)
-                if (a.question_type === 'form_completion' && a.question_template) {
-                  displayText = String(a.question_template).trim().replace(/\[BLANK\]/g, '___');
-                }
-                
-                // For other template types, extract the sentence containing the blank
-                if (!displayText && a.question_template && String(a.question_template).trim()) {
-                  // Extract sentence for this specific blank
-                  const blankIndex = templateToBlankIndex.get(a.question_number) || 0;
-                  displayText = extractSentenceForBlank(a.question_template, blankIndex);
-                }
-                
-                // If extraction failed or template is empty, try question_text
-                if (!displayText && a.question_text) {
-                  const qText = String(a.question_text).trim();
-                  // Only use question_text if it's not generic "Summary blank X" text
-                  if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion)\s+\d+$/i)) {
-                    displayText = qText;
-                  }
-                }
-                
-                // Last resort: show a message indicating missing template
-                if (!displayText) {
-                  displayText = `[Question ${a.question_number}: Template text not available]`;
-                }
-              } else {
-                // Non-template question types
-                displayText = a.question_text || '';
-              }
+              const displayText = getQuestionDisplayText(a, templateToBlankIndex);
               
               return [
                 String(a.question_number || '-'),
@@ -1460,29 +1493,8 @@ export default function SubmissionDetail() {
                 </div>
                 
                 {sortedSections.map(([sectionTitle, sectionData], sIdx) => {
-                  // Build template-to-blank-index mapping for this section
                   const sortedAnswers = [...sectionData.answers].sort((a, b) => a.question_number - b.question_number);
-                  const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
-                  const templateGroups = new Map(); // Map of template -> array of question numbers
-                  
-                  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
-                  
-                  sortedAnswers.forEach(ans => {
-                    if (templateTypes.includes(ans.question_type) && ans.question_template) {
-                      if (!templateGroups.has(ans.question_template)) {
-                        templateGroups.set(ans.question_template, []);
-                      }
-                      templateGroups.get(ans.question_template).push(ans.question_number);
-                    }
-                  });
-                  
-                  // Assign blank indices
-                  templateGroups.forEach((questionNumbers, template) => {
-                    questionNumbers.sort((a, b) => a - b);
-                    questionNumbers.forEach((qNum, idx) => {
-                      templateToBlankIndex.set(qNum, idx);
-                    });
-                  });
+                  const templateToBlankIndex = buildTemplateBlankIndex(sortedAnswers);
                   
                   return (
                   <div key={sIdx} data-pdf-part-break={sIdx > 0 ? 'true' : undefined}>
@@ -1516,6 +1528,7 @@ export default function SubmissionDetail() {
                           
                           const userAnswer = formatAnswer(ans.user_answer);
                           const correctAnswer = formatAnswer(ans.correct_answer);
+                          const displayText = getQuestionDisplayText(ans, templateToBlankIndex);
                           
                           return (
                             <div 
@@ -1535,53 +1548,11 @@ export default function SubmissionDetail() {
                                 {/* Content */}
                                 <div className="flex-1" style={{minWidth: 0, maxWidth: '100%'}}>
                                   {/* Question Text */}
-                                  {(() => {
-                                    // For template-based questions, extract the sentence containing this specific blank
-                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
-                                    const isTemplateType = templateTypes.includes(ans.question_type);
-                                    
-                                    let displayText = '';
-                                    if (isTemplateType) {
-                                      // For form_completion, just use the template (don't combine with label)
-                                      // The template should already contain the full question text
-                                      if (ans.question_type === 'form_completion' && ans.question_template) {
-                                        displayText = String(ans.question_template).trim().replace(/\[BLANK\]/g, '___');
-                                      }
-                                      
-                                      // For other template types, extract the sentence containing the blank
-                                      if (!displayText && ans.question_template && String(ans.question_template).trim()) {
-                                        // Extract sentence for this specific blank
-                                        const blankIndex = templateToBlankIndex.get(ans.question_number) || 0;
-                                        displayText = extractSentenceForBlank(ans.question_template, blankIndex);
-                                      }
-                                      
-                                      // If extraction failed or template is empty, try question_text
-                                      if (!displayText && ans.question_text) {
-                                        const qText = String(ans.question_text).trim();
-                                        // Only use question_text if it's not generic "Summary blank X" text
-                                        if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion)\s+\d+$/i)) {
-                                          displayText = qText;
-                                        }
-                                      }
-                                      
-                                      // Last resort: show a message indicating missing template
-                                      if (!displayText) {
-                                        displayText = `[Question ${ans.question_number}: Template text not available]`;
-                                      }
-                                    } else {
-                                      // Non-template question types
-                                      displayText = ans.question_text || '';
-                                    }
-                                    
-                                    if (displayText) {
-                                      return (
-                                        <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>
-                                          {stripHtmlTags(displayText)}
-                                        </p>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
+                                  {displayText ? (
+                                    <p className="text-sm text-gray-700 mb-2" style={{wordBreak: 'break-word'}}>
+                                      {stripHtmlTags(displayText)}
+                                    </p>
+                                  ) : null}
                                   
                                   {/* Answers - vertical layout for PDF */}
                                   <div className="text-xs space-y-1">
