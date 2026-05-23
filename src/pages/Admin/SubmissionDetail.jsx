@@ -1542,7 +1542,7 @@ export default function SubmissionDetail() {
                                   {/* Question Text */}
                                   {(() => {
                                     // For template-based questions, extract the sentence containing this specific blank
-                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
                                     const isTemplateType = templateTypes.includes(ans.question_type);
                                     
                                     let displayText = '';
@@ -1551,6 +1551,11 @@ export default function SubmissionDetail() {
                                       // The template should already contain the full question text
                                       if (ans.question_type === 'form_completion' && ans.question_template) {
                                         displayText = String(ans.question_template).trim().replace(/\[BLANK\]/g, '___');
+                                      }
+                                      
+                                      // For map_labeling, use question_text directly (the label prompt/location description)
+                                      if (ans.question_type === 'map_labeling' && ans.question_text) {
+                                        displayText = String(ans.question_text).trim();
                                       }
                                       
                                       // For other template types, extract the sentence containing the blank
