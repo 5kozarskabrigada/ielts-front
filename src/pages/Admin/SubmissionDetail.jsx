@@ -706,7 +706,7 @@ export default function SubmissionDetail() {
           const templateGroups = new Map(); // Map of template -> array of question numbers
           
           sortedRows.forEach(row => {
-            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+          const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
             if (templateTypes.includes(row.question_type) && row.question_template) {
               if (!templateGroups.has(row.question_template)) {
                 templateGroups.set(row.question_template, []);
@@ -732,7 +732,7 @@ export default function SubmissionDetail() {
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
               // For template-based questions, extract the sentence containing this specific blank
-              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
               const isTemplateType = templateTypes.includes(a.question_type);
               let displayText = '';
               
@@ -740,6 +740,11 @@ export default function SubmissionDetail() {
                 // For form_completion, just use the template (don't combine with label)
                 if (a.question_type === 'form_completion' && a.question_template) {
                   displayText = String(a.question_template).trim().replace(/\[BLANK\]/g, '___');
+                }
+                
+                // For map_labeling, use question_text directly (the label prompt/location description)
+                if (a.question_type === 'map_labeling' && a.question_text) {
+                  displayText = String(a.question_text).trim();
                 }
                 
                 // For other template types, extract the sentence containing the blank
