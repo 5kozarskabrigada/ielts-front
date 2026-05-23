@@ -162,6 +162,18 @@ function extractSentenceForBlank(template, blankIndex) {
   return extractedSentence.replace(/\[BLANK\]/g, '___');
 }
 
+const TEMPLATE_QUESTION_TYPES = [
+  'summary_completion',
+  'sentence_completion',
+  'table_completion',
+  'form_completion',
+  'note_completion',
+  'map_labeling',
+  'diagram_labeling',
+];
+
+const GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN = /^(Summary|Sentence|Table|Form|Note|Map|Label|Diagram)\s+(blank|completion|label(?:ing)?)\s+\d+$/i;
+
 export default function SubmissionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -706,8 +718,7 @@ export default function SubmissionDetail() {
           const templateGroups = new Map(); // Map of template -> array of question numbers
           
           sortedRows.forEach(row => {
-            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
-            if (templateTypes.includes(row.question_type) && row.question_template) {
+            if (TEMPLATE_QUESTION_TYPES.includes(row.question_type) && row.question_template) {
               if (!templateGroups.has(row.question_template)) {
                 templateGroups.set(row.question_template, []);
               }
@@ -732,8 +743,7 @@ export default function SubmissionDetail() {
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
               // For template-based questions, extract the sentence containing this specific blank
-              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
-              const isTemplateType = templateTypes.includes(a.question_type);
+              const isTemplateType = TEMPLATE_QUESTION_TYPES.includes(a.question_type);
               let displayText = '';
               
               if (isTemplateType) {
@@ -753,7 +763,7 @@ export default function SubmissionDetail() {
                 if (!displayText && a.question_text) {
                   const qText = String(a.question_text).trim();
                   // Only use question_text if it's not generic "Summary blank X" text
-                  if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                  if (!qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN)) {
                     displayText = qText;
                   }
                 }
@@ -1465,10 +1475,8 @@ export default function SubmissionDetail() {
                   const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
                   const templateGroups = new Map(); // Map of template -> array of question numbers
                   
-                  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
-                  
                   sortedAnswers.forEach(ans => {
-                    if (templateTypes.includes(ans.question_type) && ans.question_template) {
+                    if (TEMPLATE_QUESTION_TYPES.includes(ans.question_type) && ans.question_template) {
                       if (!templateGroups.has(ans.question_template)) {
                         templateGroups.set(ans.question_template, []);
                       }
@@ -1537,8 +1545,7 @@ export default function SubmissionDetail() {
                                   {/* Question Text */}
                                   {(() => {
                                     // For template-based questions, extract the sentence containing this specific blank
-                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
-                                    const isTemplateType = templateTypes.includes(ans.question_type);
+                                    const isTemplateType = TEMPLATE_QUESTION_TYPES.includes(ans.question_type);
                                     
                                     let displayText = '';
                                     if (isTemplateType) {
@@ -1559,7 +1566,7 @@ export default function SubmissionDetail() {
                                       if (!displayText && ans.question_text) {
                                         const qText = String(ans.question_text).trim();
                                         // Only use question_text if it's not generic "Summary blank X" text
-                                        if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                                        if (!qText.match(GENERIC_TEMPLATE_QUESTION_TEXT_PATTERN)) {
                                           displayText = qText;
                                         }
                                       }
