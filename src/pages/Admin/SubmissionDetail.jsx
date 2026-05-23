@@ -706,7 +706,7 @@ export default function SubmissionDetail() {
           const templateGroups = new Map(); // Map of template -> array of question numbers
           
           sortedRows.forEach(row => {
-            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+            const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
             if (templateTypes.includes(row.question_type) && row.question_template) {
               if (!templateGroups.has(row.question_template)) {
                 templateGroups.set(row.question_template, []);
@@ -732,7 +732,7 @@ export default function SubmissionDetail() {
                 : (a.is_correct === true ? 'Correct' : (a.is_correct === false ? 'Wrong' : 'Recorded'));
               
               // For template-based questions, extract the sentence containing this specific blank
-              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+              const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
               const isTemplateType = templateTypes.includes(a.question_type);
               let displayText = '';
               
@@ -753,7 +753,7 @@ export default function SubmissionDetail() {
                 if (!displayText && a.question_text) {
                   const qText = String(a.question_text).trim();
                   // Only use question_text if it's not generic "Summary blank X" text
-                  if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                  if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion)\s+\d+$/i)) {
                     displayText = qText;
                   }
                 }
@@ -1465,7 +1465,7 @@ export default function SubmissionDetail() {
                   const templateToBlankIndex = new Map(); // Map of questionNumber -> blankIndex
                   const templateGroups = new Map(); // Map of template -> array of question numbers
                   
-                  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+                  const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
                   
                   sortedAnswers.forEach(ans => {
                     if (templateTypes.includes(ans.question_type) && ans.question_template) {
@@ -1537,7 +1537,7 @@ export default function SubmissionDetail() {
                                   {/* Question Text */}
                                   {(() => {
                                     // For template-based questions, extract the sentence containing this specific blank
-                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling'];
+                                    const templateTypes = ['summary_completion', 'sentence_completion', 'table_completion', 'form_completion', 'note_completion', 'diagram_labeling', 'map_labeling'];
                                     const isTemplateType = templateTypes.includes(ans.question_type);
                                     
                                     let displayText = '';
@@ -1559,7 +1559,7 @@ export default function SubmissionDetail() {
                                       if (!displayText && ans.question_text) {
                                         const qText = String(ans.question_text).trim();
                                         // Only use question_text if it's not generic "Summary blank X" text
-                                        if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram)\s+(blank|completion)\s+\d+$/i)) {
+                                        if (!qText.match(/^(Summary|Sentence|Table|Form|Note|Diagram|Map)\s+(blank|completion)\s+\d+$/i)) {
                                           displayText = qText;
                                         }
                                       }
