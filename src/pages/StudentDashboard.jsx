@@ -177,13 +177,15 @@ function getQuestionDisplayText(ans, blankIndex = 0) {
   // ── map_labeling / diagram_labeling ──────────────────────────────────────
   // question_text IS the label for that point on the map/diagram.
   if (qt === 'map_labeling' || qt === 'diagram_labeling') {
-    const qText = String(ans.question_text || '').trim();
-    if (qText && !GENERIC_RE.test(qText)) return qText;
-    // If question_text was generic/empty, fall through to check if backend enriched options
-    const imgDesc = ans.options?.image_description;
-    if (imgDesc) return `[${imgDesc}] – Q${ans.question_number}`;
-    return qText || `Question ${ans.question_number}`;
-  }
+  const qText = String(ans.question_text || '').trim();
+  if (qText && !GENERIC_RE.test(qText)) return qText;
+  const imgDesc = ans.options?.image_description;
+  // NEW: try label/point from options directly
+  const optLabel = ans.options?.label || ans.options?.point_label || ans.options?.text;
+  if (optLabel && String(optLabel).trim()) return String(optLabel).trim();
+  if (imgDesc) return `[${imgDesc}] – Q${ans.question_number}`;
+  return `Map/Diagram Label ${ans.question_number}`;  // was: qText || `Question ${ans.question_number}`
+}
 
   // ── table_completion ──────────────────────────────────────────────────────
   // label_text = left column label; question_template = right col with [BLANK]
