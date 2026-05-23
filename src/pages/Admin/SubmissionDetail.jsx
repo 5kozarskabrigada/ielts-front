@@ -458,7 +458,16 @@ export default function SubmissionDetail() {
       const totalScore = (submission.band_score != null && isWritingChecked)
         ? parseFloat(submission.band_score).toFixed(1)
         : '-';
-      const completedDate = submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+      const completedDate = (() => {
+        if (!submission.submitted_at) return 'N/A';
+        const submittedAt = new Date(submission.submitted_at);
+        if (Number.isNaN(submittedAt.getTime())) return 'N/A';
+
+        const day = String(submittedAt.getDate()).padStart(2, '0');
+        const month = String(submittedAt.getMonth() + 1).padStart(2, '0');
+        const year = submittedAt.getFullYear();
+        return `${day}/${month}/${year}`;
+      })();
       const getModuleStats = (moduleKey) => {
         const m = submission.answers_by_module?.[moduleKey] || {};
         const correct = Number(m.correct || 0);
