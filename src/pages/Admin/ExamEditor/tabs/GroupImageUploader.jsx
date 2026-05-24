@@ -1,8 +1,10 @@
 import React, { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { apiUploadPassageImage } from "../../../../api";
+import { useAuth } from "../../../../authContext";
 
 export default function GroupImageUploader({ imageUrl, onChange, description, onDescriptionChange }) {
+  const { token } = useAuth();
   const fileInputRef = useRef();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -15,10 +17,10 @@ export default function GroupImageUploader({ imageUrl, onChange, description, on
     try {
       const formData = new FormData();
       formData.append("image", file);
-      const { url } = await apiUploadPassageImage(formData);
+      const { url } = await apiUploadPassageImage(token, formData);
       onChange(url);
     } catch (err) {
-      setError("Upload failed. Please try again.");
+      setError(err.message || "Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
