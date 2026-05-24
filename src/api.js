@@ -673,15 +673,22 @@ export async function apiGetUsageSummary(token, from, to) {
   return res.json();
 }
 
-// Add this API helper for group image upload
-export async function apiUploadPassageImage(formData) {
+// Upload passage / group image (requires admin token)
+export async function apiUploadPassageImage(token, formData) {
   const res = await fetch(`${API_URL}/upload/passage-image`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: formData,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Image upload failed");
   }
-  return res.json(); // { url }
+  // Guard against non-JSON responses (e.g. Render sleep page)
+  const data = await res.json().catch(() => {
+    throw new Error("Server returned an unexpected response. Please try again.");
+  });
+  return data; // { url }
 }
